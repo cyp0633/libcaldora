@@ -112,20 +112,23 @@ func (w *httpClientWrapper) DoPROPFIND(url string, depth int, props ...string) (
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	// Parse response
-	var result PropfindResponse
-	result.Resources = make(map[string]ResourceProps)
+// Parse response
+var result PropfindResponse
+result.Resources = make(map[string]ResourceProps)
 
-	decoder := xml.NewDecoder(resp.Body)
+// Parse the multistatus response
+var multiStatus struct {
+XMLName   xml.Name      `xml:"DAV: multistatus"`
+Response  []responseXML `xml:"response"`
+}
 
-	var responses []responseXML
-	err = decoder.Decode(&responses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse XML response: %w", err)
-	}
+decoder := xml.NewDecoder(resp.Body)
+if err := decoder.Decode(&multiStatus); err != nil {
+return nil, fmt.Errorf("failed to parse XML response: %w", err)
+}
 
-	// Process each response
-	for _, resp := range responses {
+// Process each response
+for _, resp := range multiStatus.Response {
 		// Skip if not OK status
 		if !strings.Contains(resp.Propstat.Status, "200") {
 			continue
