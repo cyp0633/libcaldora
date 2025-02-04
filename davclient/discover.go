@@ -102,20 +102,18 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	rootURL := baseURL.JoinPath("/")
 	possibleLocations = append(possibleLocations, rootURL.String())
 
-	for _, possibleLocation := range possibleLocations {
-		client := cfg.Client
-		if client == nil {
-			client = &http.Client{}
-		}
-		client.Transport = &httpclient.BasicAuthTransport{
-			Username:  username,
-			Password:  password,
-			Transport: http.DefaultTransport,
-		}
-		wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL)
-		if err != nil {
-			return nil, err
-		}
+// Set up the client once before the loop
+client := cfg.Client
+if client == nil {
+    client = &http.Client{}
+}
+client.Transport = httpclient.NewBasicAuthTransport(username, password, http.DefaultTransport)
+wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL)
+if err != nil {
+    return nil, fmt.Errorf("failed to create HTTP client wrapper: %v", err)
+}
+
+for _, possibleLocation := range possibleLocations {
 		_, err = wrapper.DoPROPFIND(possibleLocation, 1,
 			"resourcetype",
 			"displayname",

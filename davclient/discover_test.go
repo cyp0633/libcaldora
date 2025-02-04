@@ -1,10 +1,12 @@
 package davclient
 
 import (
-	"context"
-	"net"
-	"net/http"
-	"testing"
+    "context"
+    "errors"
+    "net"
+    "net/http"
+    "strings"
+    "testing"
 )
 
 // mockTransport implements http.RoundTripper for testing
@@ -119,29 +121,94 @@ func (r *mockResolver) LookupTXT(ctx context.Context, name string) ([]string, er
 	return records, nil
 }
 
+func TestFindCalendarsTransportError(t *testing.T) {
+    tests := []struct {
+        name        string
+        location    string
+        transport   http.RoundTripper
+        wantErrMsg  string
+    }{
+        {
+            name:       "transport returns error",
+            location:   "http://example.com/calendar",
+            transport:  &errorTransport{err: errors.New("network error")},
+            wantErrMsg: "network error",
+        },
+        {
+            name:       "transport is nil",
+            location:   "http://example.com/calendar",
+            transport:  nil,
+            wantErrMsg: "",  // Should use default transport
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            cfg := &Config{
+                Resolver: &mockResolver{},
+                Client: &http.Client{
+                    Transport: tt.transport,
+                },
+            }
+            ctx := context.Background()
+            _, err := FindCalendarsWithConfig(ctx, tt.location, "test", "test", cfg)
+
+            if tt.wantErrMsg != "" {
+                if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
+                    t.Errorf("FindCalendarsWithConfig() error = %v, want error containing %v", err, tt.wantErrMsg)
+                }
+            } else if err != nil {
+                t.Errorf("FindCalendarsWithConfig() unexpected error = %v", err)
+            }
+        })
+    }
+}
+
+// errorTransport implements http.RoundTripper for testing error cases
+type errorTransport struct {
+    err error
+}
+
+func (t *errorTransport) RoundTrip(*http.Request) (*http.Response, error) {
+    return nil, t.err
+}
+
+// errorResolver implements DNSResolver for testing error cases
+type errorResolver struct {
+    err error
+}
+
+func (r *errorResolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
+    return "", nil, r.err
+}
+
+func (r *errorResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+    return nil, r.err
+}
+
 func TestFindCalendarsWithDNS(t *testing.T) {
-	tests := []struct {
-		name           string
-		location       string
-		srvRecords    map[string][]*net.SRV
-		txtRecords    map[string][]string
-		wantLocations []string
-		wantErr       bool
-	}{
-		{
-			name:     "caldavs SRV record with path",
-			location: "https://example.com",
-			srvRecords: map[string][]*net.SRV{
-				"_caldavs._tcp.example.com": {
-					{
-						Target:   "calendar.example.com",
-						Port:     443,
-						Priority: 1,
-						Weight:   1,
-					},
-				},
-			},
-			txtRecords: map[string][]string{
+    tests := []struct {
+        name           string
+        location       string
+        srvRecords    map[string][]*net.SRV
+        txtRecords    map[string][]string
+        wantLocations []string
+        wantErr       bool
+    }{
+        {
+            name:     "caldavs SRV record with path",
+            location: "https://example.com",
+            srvRecords: map[string][]*net.SRV{
+                "_caldavs._tcp.example.com": {
+                    {
+                        Target:   "calendar.example.com",
+                        Port:     443,
+                        Priority: 1,
+                        Weight:   1,
+                    },
+                },
+            },
+            txtRecords: map[string][]string{
 				"_caldavs._tcp.example.com": {"path=/calendar"},
 			},
 			wantLocations: []string{
@@ -204,8 +271,22 @@ func TestFindCalendarsWithDNS(t *testing.T) {
 				t.Errorf("FindCalendarsWithConfig() unexpected error = %v", err)
 			}
 
-			// Note: We can't directly test possibleLocations since it's not returned,
-			// but we can verify the function completes without error for valid cases
-		})
-	}
+// Note: We can't directly test possibleLocations since it's not returned,
+// but we can verify the function completes without error for valid cases
+})
+}
+}
+
+func TestDNSLookupError(t *testing.T) {
+    cfg := &Config{
+        Resolver: &errorResolver{err: errors.New("DNS lookup failed")},
+        Client:   &http.Client{},
+    }
+    ctx := context.Background()
+    _, err := FindCalendarsWithConfig(ctx, "https://example.com", "test", "test", cfg)
+    
+    // Should not fail completely on DNS errors, should try other methods
+    if err != nil {
+        t.Errorf("FindCalendarsWithConfig() failed on DNS error = %v, want success", err)
+    }
 }
