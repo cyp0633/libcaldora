@@ -127,49 +127,85 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 		return nil, fmt.Errorf("failed to create HTTP client wrapper: %v", err)
 	}
 
-	// Try each possible location
+	// Try each possible location to find the principal URL
+	var principalURL string
 	for _, possibleLocation := range possibleLocations {
-		// Make a single PROPFIND call per location
-		resp, err := wrapper.DoPROPFIND(possibleLocation, 1,
-			"resourcetype",
-			"displayname",
-			"calendar-color",
-			"current-user-privilege-set")
+		// Get current-user-principal
+		resp, err := wrapper.DoPROPFIND(possibleLocation, 0, "current-user-principal")
 		if err != nil {
-			// If it's a transport error (network error), return it immediately
-			// Check for transport errors before other errors
 			if strings.Contains(err.Error(), "network error") {
-				return nil, fmt.Errorf("network error") // Return exact message expected by test
+				return nil, fmt.Errorf("network error")
 			}
-			// Skip this location if PROPFIND fails for other reasons
 			continue
 		}
 
-		// Skip if response or resources map is nil
-		if resp == nil || resp.Resources == nil {
-			continue
-		}
-
-		// Process each resource in the response
-		for uri, resource := range resp.Resources {
-			if resource.IsCalendar {
-				// Convert relative URI to absolute if needed
-				calendarURI := uri
-				if !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://") {
-					// URI is relative, join it with the base location
-					baseURL, _ := url.Parse(possibleLocation)
-					relativeURL, _ := url.Parse(uri)
-					calendarURI = baseURL.ResolveReference(relativeURL).String()
-				}
-
-				// Only add if it's a calendar resource
-				calendars = append(calendars, CalendarInfo{
-					URI:      calendarURI,
-					Name:     resource.DisplayName,
-					Color:    resource.Color,
-					ReadOnly: !resource.CanWrite,
-				})
+		if resp != nil && resp.CurrentUserPrincipal != "" {
+			// Convert relative principal URL to absolute if needed
+			if !strings.HasPrefix(resp.CurrentUserPrincipal, "http://") && !strings.HasPrefix(resp.CurrentUserPrincipal, "https://") {
+				baseURL, _ := url.Parse(possibleLocation)
+				relativeURL, _ := url.Parse(resp.CurrentUserPrincipal)
+				principalURL = baseURL.ResolveReference(relativeURL).String()
+			} else {
+				principalURL = resp.CurrentUserPrincipal
 			}
+			break
+		}
+	}
+
+	if principalURL == "" {
+		return nil, fmt.Errorf("could not find current-user-principal")
+	}
+
+	// Get calendar home from principal URL
+	resp, err := wrapper.DoPROPFIND(principalURL, 0, "calendar-home-set")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get calendar-home-set: %v", err)
+	}
+
+	if resp == nil || resp.CalendarHomeSet == "" {
+		return nil, fmt.Errorf("no calendar-home-set found")
+	}
+
+	// Convert relative calendar home URL to absolute if needed
+	calendarHome := resp.CalendarHomeSet
+	if !strings.HasPrefix(calendarHome, "http://") && !strings.HasPrefix(calendarHome, "https://") {
+		baseURL, _ := url.Parse(principalURL)
+		relativeURL, _ := url.Parse(calendarHome)
+		calendarHome = baseURL.ResolveReference(relativeURL).String()
+	}
+
+	// List calendars from calendar home
+	resp, err = wrapper.DoPROPFIND(calendarHome, 1,
+		"resourcetype",
+		"displayname",
+		"calendar-color",
+		"current-user-privilege-set")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list calendars: %v", err)
+	}
+
+	if resp == nil || resp.Resources == nil {
+		return nil, fmt.Errorf("no calendars found")
+	}
+
+	// Process each resource in the response
+	for uri, resource := range resp.Resources {
+		if resource.IsCalendar {
+			// Convert relative URI to absolute if needed
+			calendarURI := uri
+			if !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://") {
+				baseURL, _ := url.Parse(calendarHome)
+				relativeURL, _ := url.Parse(uri)
+				calendarURI = baseURL.ResolveReference(relativeURL).String()
+			}
+
+			// Only add if it's a calendar resource
+			calendars = append(calendars, CalendarInfo{
+				URI:      calendarURI,
+				Name:     resource.DisplayName,
+				Color:    resource.Color,
+				ReadOnly: !resource.CanWrite,
+			})
 		}
 	}
 
