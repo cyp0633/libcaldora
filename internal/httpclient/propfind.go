@@ -112,29 +112,39 @@ func (w *httpClientWrapper) DoPROPFIND(url string, depth int, props ...string) (
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-// Parse response
-var result PropfindResponse
-result.Resources = make(map[string]ResourceProps)
+	// Parse response
+	var result PropfindResponse
+	result.Resources = make(map[string]ResourceProps)
 
-// Parse the multistatus response
-var multiStatus struct {
-XMLName   xml.Name      `xml:"DAV: multistatus"`
-Response  []responseXML `xml:"response"`
-}
+	// Parse the multistatus response
+	var multiStatus struct {
+		XMLName  xml.Name      `xml:"DAV: multistatus"`
+		Response []responseXML `xml:"response"`
+	}
 
-decoder := xml.NewDecoder(resp.Body)
-if err := decoder.Decode(&multiStatus); err != nil {
-return nil, fmt.Errorf("failed to parse XML response: %w", err)
-}
+	decoder := xml.NewDecoder(resp.Body)
+	if err := decoder.Decode(&multiStatus); err != nil {
+		return nil, fmt.Errorf("failed to parse XML response: %w", err)
+	}
 
-// Process each response
-for _, resp := range multiStatus.Response {
+	// Process each response
+	for _, resp := range multiStatus.Response {
 		// Skip if not OK status
 		if !strings.Contains(resp.Propstat.Status, "200") {
 			continue
 		}
 
 		props := resp.Propstat.Prop
+
+		// Set current-user-principal if found
+		if props.CurrentUserPrincipal != "" {
+			result.CurrentUserPrincipal = props.CurrentUserPrincipal
+		}
+
+		// Set calendar-home-set if found
+		if props.CalendarHomeSet != "" {
+			result.CalendarHomeSet = props.CalendarHomeSet
+		}
 
 		resource := ResourceProps{
 			IsCalendar:  props.ResourceType.Calendar != nil,

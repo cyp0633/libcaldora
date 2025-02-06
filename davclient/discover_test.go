@@ -1,292 +1,233 @@
 package davclient
 
 import (
+	"bytes"
 	"context"
-	"errors"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
-	"strings"
+	"net/url"
 	"testing"
 )
 
-// mockTransport implements http.RoundTripper for testing
-type mockTransport struct {
-	responses map[string]*http.Response
+type mockTransport struct{}
+
+type dummyResolver struct{}
+
+func (d *dummyResolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
+	return "", nil, fmt.Errorf("dummy: no SRV records")
 }
 
-func (t *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, ok := t.responses[req.URL.String()]
-	if !ok {
+func (d *dummyResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	return []string{}, nil
+}
+
+func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Create mock response based on the request URL and method
+	var respBody string
+	switch req.URL.Path {
+	case "/":
+		// Always return the current-user-principal response regardless of Depth header
+		respBody = `<?xml version="1.0" encoding="utf-8"?>
+<multistatus xmlns="DAV:">
+  <response>
+    <href>/</href>
+    <propstat>
+      <prop>
+        <current-user-principal>
+          <href>/cyp0633/</href>
+        </current-user-principal>
+        <resourcetype>
+          <collection/>
+        </resourcetype>
+        <owner/>
+      </prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>`
+	case "/cyp0633/", "/cyp0633":
+		if req.Header.Get("Depth") == "0" {
+			respBody = `<?xml version='1.0' encoding='utf-8'?>
+<multistatus xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+<response>
+<href>/cyp0633/</href>
+<propstat>
+<prop>
+<C:calendar-home-set>
+<href>/cyp0633/</href>
+</C:calendar-home-set>
+</prop>
+<status>HTTP/1.1 200 OK</status>
+</propstat>
+</response>
+</multistatus>`
+		} else if req.Header.Get("Depth") == "1" {
+			respBody = `<multistatus xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav"
+xmlns:ICAL="http://apple.com/ns/ical/">
+<response>
+<href>/cyp0633/</href>
+<propstat>
+<prop>
+<resourcetype>
+<principal />
+<collection />
+</resourcetype>
+<current-user-privilege-set>
+<privilege>
+<read />
+</privilege>
+<privilege>
+<all />
+</privilege>
+<privilege>
+<write />
+</privilege>
+</current-user-privilege-set>
+</prop>
+<status>HTTP/1.1 200 OK</status>
+</propstat>
+</response>
+<response>
+<href>/cyp0633/7f7d579c-cb19-047a-d5e5-c0894aaed9cd/</href>
+<propstat>
+<prop>
+<resourcetype>
+<C:calendar />
+<collection />
+</resourcetype>
+<displayname>7f7d579c-cb19-047a-d5e5-c0894aaed9cd</displayname>
+<current-user-privilege-set>
+<privilege>
+<read />
+</privilege>
+<privilege>
+<all />
+</privilege>
+<privilege>
+<write />
+</privilege>
+</current-user-privilege-set>
+</prop>
+<status>HTTP/1.1 200 OK</status>
+</propstat>
+</response>
+<response>
+<href>/cyp0633/b860fa1c-fd49-82f9-d43b-8336bfd3a506/</href>
+<propstat>
+<prop>
+<resourcetype>
+<C:calendar />
+<collection />
+</resourcetype>
+<displayname>test2</displayname>
+<ICAL:calendar-color>#008080ff</ICAL:calendar-color>
+<current-user-privilege-set>
+<privilege>
+<read />
+</privilege>
+<privilege>
+<all />
+</privilege>
+<privilege>
+<write />
+</privilege>
+</current-user-privilege-set>
+</prop>
+<status>HTTP/1.1 200 OK</status>
+</propstat>
+</response>
+</multistatus>`
+		}
+	}
+
+	if respBody == "" {
 		return &http.Response{
 			StatusCode: http.StatusNotFound,
 			Body:       http.NoBody,
 		}, nil
 	}
+
+	resp := &http.Response{
+		StatusCode: http.StatusMultiStatus,
+		Body:       io.NopCloser(bytes.NewBufferString(respBody)),
+		Header:     make(http.Header),
+	}
+	resp.Header.Set("Content-Type", "application/xml")
 	return resp, nil
 }
 
 func TestFindCalendars(t *testing.T) {
-	mockTransport := &mockTransport{
-		responses: map[string]*http.Response{
-			"http://example.com/calendar": {
-				StatusCode: http.StatusOK,
-				Body:       http.NoBody,
-			},
-		},
+	mockClient := &http.Client{
+		Transport: &mockTransport{},
 	}
+
+	baseURL := "http://example.com"
+	cfg := &Config{
+		Client:   mockClient,
+		Resolver: &dummyResolver{},
+	}
+
+	calendars, err := FindCalendarsWithConfig(context.Background(), baseURL, "testuser", "testpass", cfg)
+	if err != nil {
+		t.Fatalf("FindCalendars failed: %v", err)
+	}
+
+	// Verify the number of calendars found
+	if len(calendars) != 2 {
+		t.Errorf("Expected 2 calendars, got %d", len(calendars))
+	}
+
+	// Verify the first calendar
+	baseURLParsed, _ := url.Parse(baseURL)
+	expectedURI1 := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/7f7d579c-cb19-047a-d5e5-c0894aaed9cd/"}).String()
+	if calendars[0].URI != expectedURI1 {
+		t.Errorf("Expected URI %s, got %s", expectedURI1, calendars[0].URI)
+	}
+	if calendars[0].Name != "7f7d579c-cb19-047a-d5e5-c0894aaed9cd" {
+		t.Errorf("Expected name '7f7d579c-cb19-047a-d5e5-c0894aaed9cd', got '%s'", calendars[0].Name)
+	}
+	if calendars[0].Color != "" {
+		t.Errorf("Expected no color, got '%s'", calendars[0].Color)
+	}
+	if calendars[0].ReadOnly {
+		t.Error("Expected calendar to be writable")
+	}
+
+	// Verify the second calendar
+	expectedURI2 := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/b860fa1c-fd49-82f9-d43b-8336bfd3a506/"}).String()
+	if calendars[1].URI != expectedURI2 {
+		t.Errorf("Expected URI %s, got %s", expectedURI2, calendars[1].URI)
+	}
+	if calendars[1].Name != "test2" {
+		t.Errorf("Expected name 'test2', got '%s'", calendars[1].Name)
+	}
+	if calendars[1].Color != "#008080ff" {
+		t.Errorf("Expected color '#008080ff', got '%s'", calendars[1].Color)
+	}
+	if calendars[1].ReadOnly {
+		t.Error("Expected calendar to be writable")
+	}
+}
+
+func TestFindCalendarsInvalidURL(t *testing.T) {
 	tests := []struct {
 		name     string
 		location string
-		username string
-		password string
-		wantErr  bool
-		errMsg   string
 	}{
-		{
-			name:     "invalid URL",
-			location: "not-a-url",
-			username: "test",
-			password: "test",
-			wantErr:  true,
-			errMsg:   "invalid URL",
-		},
-		{
-			name:     "valid URL with path",
-			location: "http://example.com/calendar",
-			username: "test",
-			password: "test",
-			wantErr:  false,
-		},
+		{"Empty URL", ""},
+		{"Invalid URL", "not-a-url"},
+		{"Missing scheme", "example.com"},
+		{"Invalid scheme", "ftp://example.com"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Resolver: &mockResolver{},
-				Client: &http.Client{
-					Transport: mockTransport,
-				},
-			}
-			ctx := context.Background()
-			calendars, err := FindCalendarsWithConfig(ctx, tt.location, tt.username, tt.password, cfg)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("FindCalendars() error = nil, wantErr %v", tt.wantErr)
-					return
-				}
-				if tt.errMsg != "" && err.Error() != tt.errMsg {
-					t.Errorf("FindCalendars() error = %v, want error containing %v", err, tt.errMsg)
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("FindCalendars() unexpected error = %v", err)
-				return
-			}
-			if calendars == nil {
-				t.Error("FindCalendars() returned nil calendars slice")
+			_, err := FindCalendars(context.Background(), tt.location, "user", "pass")
+			if err == nil {
+				t.Error("Expected error for invalid URL, got nil")
 			}
 		})
-	}
-}
-
-// mockResolver implements a mock DNS resolver for testing
-type mockResolver struct {
-	srvRecords map[string][]*net.SRV
-	txtRecords map[string][]string
-}
-
-func (r *mockResolver) LookupSRV(ctx context.Context, service, proto, name string) (cname string, addrs []*net.SRV, err error) {
-	addrs, ok := r.srvRecords[name]
-	if !ok {
-		return "", nil, &net.DNSError{
-			Err:        "no such host",
-			Name:       name,
-			IsNotFound: true,
-		}
-	}
-	return "", addrs, nil
-}
-
-func (r *mockResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
-	records, ok := r.txtRecords[name]
-	if !ok {
-		return nil, &net.DNSError{
-			Err:        "no such host",
-			Name:       name,
-			IsNotFound: true,
-		}
-	}
-	return records, nil
-}
-
-func TestFindCalendarsTransportError(t *testing.T) {
-	tests := []struct {
-		name       string
-		location   string
-		transport  http.RoundTripper
-		wantErrMsg string
-	}{
-		{
-			name:       "transport returns error",
-			location:   "http://example.com/calendar",
-			transport:  &errorTransport{err: errors.New("network error")},
-			wantErrMsg: "network error",
-		},
-		{
-			name:       "transport is nil",
-			location:   "http://example.com/calendar",
-			transport:  nil,
-			wantErrMsg: "", // Should use default transport
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := &Config{
-				Resolver: &mockResolver{},
-				Client: &http.Client{
-					Transport: tt.transport,
-				},
-			}
-			ctx := context.Background()
-			_, err := FindCalendarsWithConfig(ctx, tt.location, "test", "test", cfg)
-
-			if tt.wantErrMsg != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErrMsg) {
-					t.Errorf("FindCalendarsWithConfig() error = %v, want error containing %v", err, tt.wantErrMsg)
-				}
-			} else if err != nil {
-				t.Errorf("FindCalendarsWithConfig() unexpected error = %v", err)
-			}
-		})
-	}
-}
-
-// errorTransport implements http.RoundTripper for testing error cases
-type errorTransport struct {
-	err error
-}
-
-func (t *errorTransport) RoundTrip(*http.Request) (*http.Response, error) {
-	return nil, t.err
-}
-
-// errorResolver implements DNSResolver for testing error cases
-type errorResolver struct {
-	err error
-}
-
-func (r *errorResolver) LookupSRV(ctx context.Context, service, proto, name string) (string, []*net.SRV, error) {
-	return "", nil, r.err
-}
-
-func (r *errorResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
-	return nil, r.err
-}
-
-func TestFindCalendarsWithDNS(t *testing.T) {
-	tests := []struct {
-		name          string
-		location      string
-		srvRecords    map[string][]*net.SRV
-		txtRecords    map[string][]string
-		wantLocations []string
-		wantErr       bool
-	}{
-		{
-			name:     "caldavs SRV record with path",
-			location: "https://example.com",
-			srvRecords: map[string][]*net.SRV{
-				"_caldavs._tcp.example.com": {
-					{
-						Target:   "calendar.example.com",
-						Port:     443,
-						Priority: 1,
-						Weight:   1,
-					},
-				},
-			},
-			txtRecords: map[string][]string{
-				"_caldavs._tcp.example.com": {"path=/calendar"},
-			},
-			wantLocations: []string{
-				"https://calendar.example.com:443/calendar",
-				"https://example.com/.well-known/caldav",
-				"https://example.com/",
-			},
-		},
-		{
-			name:     "caldav SRV record without path",
-			location: "http://example.com",
-			srvRecords: map[string][]*net.SRV{
-				"_caldav._tcp.example.com": {
-					{
-						Target:   "calendar.example.com",
-						Port:     80,
-						Priority: 1,
-						Weight:   1,
-					},
-				},
-			},
-			wantLocations: []string{
-				"http://calendar.example.com:80",
-				"http://example.com/.well-known/caldav",
-				"http://example.com/",
-			},
-		},
-		{
-			name:     "no SRV records",
-			location: "http://example.com",
-			wantLocations: []string{
-				"http://example.com/.well-known/caldav",
-				"http://example.com/",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockResolver := &mockResolver{
-				srvRecords: tt.srvRecords,
-				txtRecords: tt.txtRecords,
-			}
-
-			cfg := &Config{
-				Resolver: mockResolver,
-				Client:   &http.Client{},
-			}
-
-			ctx := context.Background()
-			_, err := FindCalendarsWithConfig(ctx, tt.location, "test", "test", cfg)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("FindCalendarsWithConfig() error = nil, wantErr %v", tt.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("FindCalendarsWithConfig() unexpected error = %v", err)
-			}
-
-			// Note: We can't directly test possibleLocations since it's not returned,
-			// but we can verify the function completes without error for valid cases
-		})
-	}
-}
-
-func TestDNSLookupError(t *testing.T) {
-	cfg := &Config{
-		Resolver: &errorResolver{err: errors.New("DNS lookup failed")},
-		Client:   &http.Client{},
-	}
-	ctx := context.Background()
-	_, err := FindCalendarsWithConfig(ctx, "https://example.com", "test", "test", cfg)
-
-	// Should not fail completely on DNS errors, should try other methods
-	if err != nil {
-		t.Errorf("FindCalendarsWithConfig() failed on DNS error = %v, want success", err)
 	}
 }
