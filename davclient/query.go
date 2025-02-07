@@ -23,6 +23,27 @@ func (c *davClient) GetAllEvents() ObjectFilter {
 	}
 }
 
+// GetCalendarEtag retrieves only the etag of the calendar to check for updates
+func (c *davClient) GetCalendarEtag() (string, error) {
+	resp, err := c.httpClient.DoPROPFIND(c.calendarURL, 0, "getetag")
+	if err != nil {
+		return "", fmt.Errorf("failed to get calendar etag: %w", err)
+	}
+
+	// Look for the calendar resource
+	for _, props := range resp.Resources {
+		if props.IsCalendar {
+			return props.Etag, nil
+		}
+		// If there's only one resource and it has an etag, return it regardless of IsCalendar
+		if len(resp.Resources) == 1 && props.Etag != "" {
+			return props.Etag, nil
+		}
+	}
+
+	return "", fmt.Errorf("no calendar found at %s", c.calendarURL)
+}
+
 // executeCalendarQuery sends a CalDAV REPORT request and returns calendar objects with metadata
 func (c *davClient) executeCalendarQuery(query *calendarQuery) ([]CalendarObject, error) {
 	resp, err := c.httpClient.DoREPORT(c.calendarURL, 1, query)

@@ -23,6 +23,7 @@ type ResourceProps struct {
 	DisplayName string
 	Color       string
 	CanWrite    bool
+	Etag        string
 }
 
 type propfindXML struct {
@@ -43,6 +44,7 @@ type propXML struct {
 	SyncToken            *xml.Name `xml:"DAV: sync-token"`
 	ScheduleInbox        *xml.Name `xml:"urn:ietf:params:xml:ns:caldav schedule-inbox-URL"`
 	ScheduleOutbox       *xml.Name `xml:"urn:ietf:params:xml:ns:caldav schedule-outbox-URL"`
+	Getetag              *xml.Name `xml:"DAV: getetag"`
 }
 
 type responseXML struct {
@@ -69,6 +71,7 @@ type propertyXML struct {
 	SyncToken            string          `xml:"sync-token"`
 	ScheduleInbox        string          `xml:"schedule-inbox-URL>href"`
 	ScheduleOutbox       string          `xml:"schedule-outbox-URL>href"`
+	Getetag              string          `xml:"getetag"`
 }
 
 type resourceTypeXML struct {
@@ -151,6 +154,7 @@ func (w *httpClientWrapper) DoPROPFIND(url string, depth int, props ...string) (
 			DisplayName: props.DisplayName,
 			Color:       props.CalendarColor,
 			CanWrite:    false,
+			Etag:        props.Getetag,
 		}
 
 		// Check write permission
@@ -200,6 +204,8 @@ func buildPropfindXML(props ...string) []byte {
 			propfind.Prop.ScheduleInbox = &xml.Name{Space: "urn:ietf:params:xml:ns:caldav", Local: "schedule-inbox-URL"}
 		case "schedule-outbox-URL":
 			propfind.Prop.ScheduleOutbox = &xml.Name{Space: "urn:ietf:params:xml:ns:caldav", Local: "schedule-outbox-URL"}
+		case "getetag":
+			propfind.Prop.Getetag = &xml.Name{Space: "DAV:", Local: "getetag"}
 		}
 	}
 

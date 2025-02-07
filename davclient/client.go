@@ -7,6 +7,7 @@ import (
 // DAVClient interface defines the CalDAV client operations
 type DAVClient interface {
 	GetAllEvents() ObjectFilter
+	GetCalendarEtag() (string, error)
 }
 
 type davClient struct {
