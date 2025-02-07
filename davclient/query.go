@@ -23,6 +23,15 @@ func (c *davClient) GetAllEvents() ObjectFilter {
 	}
 }
 
+// GetObjectETags returns only the ETags of calendar objects matching the filter criteria
+func (c *davClient) GetObjectETags() ObjectFilter {
+	return &objectFilter{
+		client:     c,
+		objectType: "VEVENT",
+		etagOnly:   true,
+	}
+}
+
 // GetCalendarEtag retrieves only the etag of the calendar to check for updates
 func (c *davClient) GetCalendarEtag() (string, error) {
 	resp, err := c.httpClient.DoPROPFIND(c.calendarURL, 0, "getetag")
@@ -57,18 +66,26 @@ func (c *davClient) executeCalendarQuery(query *calendarQuery) ([]CalendarObject
 			continue
 		}
 
-		// Parse iCalendar data
-		calendar, err := ical.NewDecoder(bytes.NewReader([]byte(response.PropStat.Prop.CalendarData))).Decode()
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse iCalendar data: %w", err)
-		}
+		if response.PropStat.Prop.CalendarData != "" {
+			// Parse iCalendar data
+			calendar, err := ical.NewDecoder(bytes.NewReader([]byte(response.PropStat.Prop.CalendarData))).Decode()
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse iCalendar data: %w", err)
+			}
 
-		// Extract events and metadata
-		for _, event := range calendar.Events() {
+			// Extract events and metadata
+			for _, event := range calendar.Events() {
+				objects = append(objects, CalendarObject{
+					Event: event,
+					URL:   response.Href,
+					ETag:  response.PropStat.Prop.ETag,
+				})
+			}
+		} else {
+			// ETag-only case
 			objects = append(objects, CalendarObject{
-				Event: event,
-				URL:   response.Href,
-				ETag:  response.PropStat.Prop.ETag,
+				URL:  response.Href,
+				ETag: response.PropStat.Prop.ETag,
 			})
 		}
 	}

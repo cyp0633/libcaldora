@@ -44,6 +44,7 @@ type objectFilter struct {
 	notStatus   string
 	limit       int
 	err         error
+	etagOnly    bool
 }
 
 // TimeRange represents a time range filter
@@ -118,8 +119,7 @@ func (f *objectFilter) buildCalendarQuery() (*calendarQuery, error) {
 	query := &calendarQuery{
 		XMLName: xml.Name{Space: "urn:ietf:params:xml:ns:caldav", Local: "calendar-query"},
 		Prop: prop{
-			GetETag:      &struct{}{},
-			CalendarData: &struct{}{},
+			GetETag: &struct{}{},
 		},
 		Filter: filter{
 			CompFilter: compFilter{
@@ -129,6 +129,10 @@ func (f *objectFilter) buildCalendarQuery() (*calendarQuery, error) {
 				},
 			},
 		},
+	}
+
+	if !f.etagOnly {
+		query.Prop.CalendarData = &struct{}{}
 	}
 
 	// Build inner comp-filter for VEVENT/VTODO
