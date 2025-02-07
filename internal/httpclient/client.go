@@ -8,6 +8,7 @@ import (
 // HttpClientWrapper wraps http.Client with CalDAV-specific functionality
 type HttpClientWrapper interface {
 	DoPROPFIND(url string, depth int, props ...string) (*PropfindResponse, error)
+	DoREPORT(url string, depth int, query interface{}) (*ReportResponse, error)
 }
 
 type httpClientWrapper struct {
