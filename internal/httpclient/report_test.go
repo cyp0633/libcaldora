@@ -45,19 +45,21 @@ func TestDoREPORT(t *testing.T) {
 							<D:href>/calendar/event1.ics</D:href>
 							<D:propstat>
 								<D:prop>
-									<C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">BEGIN:VCALENDAR...</C:calendar-data>
-								</D:prop>
-								<D:status>HTTP/1.1 200 OK</D:status>
-							</D:propstat>
-						</D:response>
-					</D:multistatus>`))
+<C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">BEGIN:VCALENDAR...</C:calendar-data>
+<D:getetag>"123"</D:getetag>
+</D:prop>
+<D:status>HTTP/1.1 200 OK</D:status>
+</D:propstat>
+</D:response>
+</D:multistatus>`))
 			},
 			wantErr: false,
 			validateResp: func(resp *ReportResponse) bool {
 				return len(resp.Responses) == 1 &&
 					resp.Responses[0].Href == "/calendar/event1.ics" &&
 					resp.Responses[0].PropStat.Status == "HTTP/1.1 200 OK" &&
-					resp.Responses[0].PropStat.Prop.CalendarData == "BEGIN:VCALENDAR..."
+					resp.Responses[0].PropStat.Prop.CalendarData == "BEGIN:VCALENDAR..." &&
+					resp.Responses[0].PropStat.Prop.ETag == `"123"`
 			},
 		},
 		{

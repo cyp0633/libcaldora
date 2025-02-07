@@ -4,8 +4,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"time"
-
-	"github.com/emersion/go-ical"
 )
 
 // ObjectFilter is the interface for filtering calendar objects
@@ -22,12 +20,12 @@ type ObjectFilter interface {
 	Location(location string) ObjectFilter
 	Organizer(organizer string) ObjectFilter
 	Limit(limit int) ObjectFilter
-	Do() ([]ical.Event, error)
+	Do() ([]CalendarObject, error)
 }
 
 // calendarQuerier is an interface for the calendar query operations needed by objectFilter
 type calendarQuerier interface {
-	executeCalendarQuery(*calendarQuery) ([]ical.Event, error)
+	executeCalendarQuery(*calendarQuery) ([]CalendarObject, error)
 }
 
 // Filter represents the main filter builder
@@ -252,8 +250,8 @@ type timeRange struct {
 	End   string `xml:"end,attr"`
 }
 
-// Do executes the filter and returns the matching events
-func (f *objectFilter) Do() ([]ical.Event, error) {
+// Do executes the filter and returns the matching calendar objects
+func (f *objectFilter) Do() ([]CalendarObject, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -264,15 +262,15 @@ func (f *objectFilter) Do() ([]ical.Event, error) {
 	}
 
 	// Execute the calendar query through the client
-	events, err := f.client.executeCalendarQuery(query)
+	objects, err := f.client.executeCalendarQuery(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute calendar query: %w", err)
 	}
 
 	// Apply limit if specified
-	if f.limit > 0 && len(events) > f.limit {
-		events = events[:f.limit]
+	if f.limit > 0 && len(objects) > f.limit {
+		objects = objects[:f.limit]
 	}
 
-	return events, nil
+	return objects, nil
 }

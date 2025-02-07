@@ -1,29 +1,33 @@
 package davclient
 
 import (
-"encoding/xml"
-"errors"
-"testing"
-"time"
+	"encoding/xml"
+	"errors"
+	"testing"
+	"time"
 
-"github.com/emersion/go-ical"
+	"github.com/emersion/go-ical"
 )
 
 // mockClient implements the minimum functionality needed for testing
 type mockClient struct {
-mockExecuteCalendarQuery func(*calendarQuery) ([]ical.Event, error)
+	mockExecuteCalendarQuery func(*calendarQuery) ([]CalendarObject, error)
 }
 
-func (m *mockClient) executeCalendarQuery(query *calendarQuery) ([]ical.Event, error) {
-return m.mockExecuteCalendarQuery(query)
+func (m *mockClient) executeCalendarQuery(query *calendarQuery) ([]CalendarObject, error) {
+	return m.mockExecuteCalendarQuery(query)
 }
 
-// Helper function to create a test event
-func createTestEvent(uid, summary string) ical.Event {
-event := ical.NewEvent()
-event.Props.SetText("UID", uid)
-event.Props.SetText("SUMMARY", summary)
-return *event
+// Helper function to create a test calendar object
+func createTestCalendarObject(uid, summary string) CalendarObject {
+	event := ical.NewEvent()
+	event.Props.SetText("UID", uid)
+	event.Props.SetText("SUMMARY", summary)
+	return CalendarObject{
+		Event: *event,
+		URL:   "/calendar/" + uid + ".ics",
+		ETag:  `"` + uid + `"`,
+	}
 }
 
 func TestObjectFilter_BuildCalendarQuery(t *testing.T) {
@@ -249,7 +253,7 @@ func TestObjectFilter_Do(t *testing.T) {
 	tests := []struct {
 		name          string
 		filter        *objectFilter
-		executeResult []ical.Event
+		executeResult []CalendarObject
 		executeErr    error
 		wantErr       bool
 		wantEvents    int
@@ -260,11 +264,11 @@ func TestObjectFilter_Do(t *testing.T) {
 				objectType: "VEVENT",
 				limit:      2,
 			},
-executeResult: []ical.Event{
-createTestEvent("1", "Event 1"),
-createTestEvent("2", "Event 2"),
-createTestEvent("3", "Event 3"),
-},
+			executeResult: []CalendarObject{
+				createTestCalendarObject("1", "Event 1"),
+				createTestCalendarObject("2", "Event 2"),
+				createTestCalendarObject("3", "Event 3"),
+			},
 			wantEvents: 2,
 		},
 		{
@@ -288,7 +292,7 @@ createTestEvent("3", "Event 3"),
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock client
 			mockClient := &mockClient{
-				mockExecuteCalendarQuery: func(query *calendarQuery) ([]ical.Event, error) {
+				mockExecuteCalendarQuery: func(query *calendarQuery) ([]CalendarObject, error) {
 					if tt.executeErr != nil {
 						return nil, tt.executeErr
 					}
@@ -299,7 +303,7 @@ createTestEvent("3", "Event 3"),
 			// Set mock client
 			tt.filter.client = mockClient
 
-			events, err := tt.filter.Do()
+			objects, err := tt.filter.Do()
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Do() error = %v, wantErr %v", err, tt.wantErr)
@@ -310,8 +314,8 @@ createTestEvent("3", "Event 3"),
 				return
 			}
 
-			if len(events) != tt.wantEvents {
-				t.Errorf("Do() got %d events, want %d", len(events), tt.wantEvents)
+			if len(objects) != tt.wantEvents {
+				t.Errorf("Do() got %d objects, want %d", len(objects), tt.wantEvents)
 			}
 		})
 	}

@@ -42,14 +42,15 @@ func (c *httpClientWrapper) DoREPORT(url string, depth int, query interface{}) (
 
 // ReportResponse represents a CalDAV REPORT response
 type ReportResponse struct {
-	XMLName   xml.Name `xml:"DAV: multistatus"`
-	Responses []struct {
-		Href     string `xml:"DAV: href"`
-		PropStat struct {
-			Prop struct {
-				CalendarData string `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
-			} `xml:"DAV: prop"`
-			Status string `xml:"DAV: status"`
-		} `xml:"DAV: propstat"`
-	} `xml:"DAV: response"`
+XMLName   xml.Name `xml:"DAV: multistatus"`
+Responses []struct {
+Href     string `xml:"DAV: href"`
+PropStat struct {
+Prop struct {
+CalendarData string `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
+ETag        string `xml:"DAV: getetag"`
+} `xml:"DAV: prop"`
+Status string `xml:"DAV: status"`
+} `xml:"DAV: propstat"`
+} `xml:"DAV: response"`
 }

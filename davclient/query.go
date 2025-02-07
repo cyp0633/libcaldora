@@ -8,6 +8,13 @@ import (
 	"github.com/emersion/go-ical"
 )
 
+// CalendarObject represents a calendar object with its metadata
+type CalendarObject struct {
+	Event ical.Event
+	URL   string
+	ETag  string
+}
+
 // GetAllEvents returns a filter for querying all events
 func (c *davClient) GetAllEvents() ObjectFilter {
 	return &objectFilter{
@@ -16,14 +23,14 @@ func (c *davClient) GetAllEvents() ObjectFilter {
 	}
 }
 
-// executeCalendarQuery sends a CalDAV REPORT request and returns the raw response
-func (c *davClient) executeCalendarQuery(query *calendarQuery) ([]ical.Event, error) {
+// executeCalendarQuery sends a CalDAV REPORT request and returns calendar objects with metadata
+func (c *davClient) executeCalendarQuery(query *calendarQuery) ([]CalendarObject, error) {
 	resp, err := c.httpClient.DoREPORT(c.calendarURL, 1, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute calendar query: %w", err)
 	}
 
-	var events []ical.Event
+	var objects []CalendarObject
 	for _, response := range resp.Responses {
 		if response.PropStat.Status != "HTTP/1.1 200 OK" {
 			continue
@@ -35,11 +42,17 @@ func (c *davClient) executeCalendarQuery(query *calendarQuery) ([]ical.Event, er
 			return nil, fmt.Errorf("failed to parse iCalendar data: %w", err)
 		}
 
-		// Extract events from calendar
-		events = append(events, calendar.Events()...)
+		// Extract events and metadata
+		for _, event := range calendar.Events() {
+			objects = append(objects, CalendarObject{
+				Event: event,
+				URL:   response.Href,
+				ETag:  response.PropStat.Prop.ETag,
+			})
+		}
 	}
 
-	return events, nil
+	return objects, nil
 }
 
 // parseDateTime parses an iCalendar date-time string
