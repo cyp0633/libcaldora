@@ -2,11 +2,22 @@ package davclient
 
 import (
 	"bytes"
+	"encoding/xml"
 	"fmt"
 	"time"
 
 	"github.com/emersion/go-ical"
 )
+
+// CalendarMultiGet represents a CalDAV calendar-multiget REPORT request
+type calendarMultiGet struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-multiget"`
+	Prop    struct {
+		GetETag      struct{} `xml:"DAV: getetag"`
+		CalendarData struct{} `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
+	} `xml:"DAV: prop"`
+	Hrefs []string `xml:"DAV: href"`
+}
 
 // CalendarObject represents a calendar object with its metadata
 type CalendarObject struct {
@@ -32,6 +43,14 @@ func (c *davClient) GetObjectETags() ObjectFilter {
 	}
 }
 
+// GetObjectsByURLs retrieves calendar objects and their ETags for the specified URLs
+func (c *davClient) GetObjectsByURLs(urls []string) ([]CalendarObject, error) {
+	query := &calendarMultiGet{
+		Hrefs: urls,
+	}
+	return c.executeCalendarMultiGet(query)
+}
+
 // GetCalendarEtag retrieves only the etag of the calendar to check for updates
 func (c *davClient) GetCalendarEtag() (string, error) {
 	resp, err := c.httpClient.DoPROPFIND(c.calendarURL, 0, "getetag")
@@ -53,8 +72,18 @@ func (c *davClient) GetCalendarEtag() (string, error) {
 	return "", fmt.Errorf("no calendar found at %s", c.calendarURL)
 }
 
-// executeCalendarQuery sends a CalDAV REPORT request and returns calendar objects with metadata
+// executeCalendarQuery sends a CalDAV REPORT query request and returns calendar objects with metadata
 func (c *davClient) executeCalendarQuery(query *calendarQuery) ([]CalendarObject, error) {
+	return c.doReport(query)
+}
+
+// executeCalendarMultiGet sends a CalDAV calendar-multiget REPORT request and returns calendar objects with metadata
+func (c *davClient) executeCalendarMultiGet(query *calendarMultiGet) ([]CalendarObject, error) {
+	return c.doReport(query)
+}
+
+// doReport sends a CalDAV REPORT request and processes the response
+func (c *davClient) doReport(query interface{}) ([]CalendarObject, error) {
 	resp, err := c.httpClient.DoREPORT(c.calendarURL, 1, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute calendar query: %w", err)
