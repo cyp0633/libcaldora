@@ -181,33 +181,48 @@ func TestFindCalendars(t *testing.T) {
 
 	// Verify the first calendar
 	baseURLParsed, _ := url.Parse(baseURL)
-	expectedURI1 := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/7f7d579c-cb19-047a-d5e5-c0894aaed9cd/"}).String()
-	if calendars[0].URI != expectedURI1 {
-		t.Errorf("Expected URI %s, got %s", expectedURI1, calendars[0].URI)
-	}
-	if calendars[0].Name != "7f7d579c-cb19-047a-d5e5-c0894aaed9cd" {
-		t.Errorf("Expected name '7f7d579c-cb19-047a-d5e5-c0894aaed9cd', got '%s'", calendars[0].Name)
-	}
-	if calendars[0].Color != "" {
-		t.Errorf("Expected no color, got '%s'", calendars[0].Color)
-	}
-	if calendars[0].ReadOnly {
-		t.Error("Expected calendar to be writable")
+	// Expected URIs for both calendars
+	calendar1URI := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/7f7d579c-cb19-047a-d5e5-c0894aaed9cd/"}).String()
+	calendar2URI := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/b860fa1c-fd49-82f9-d43b-8336bfd3a506/"}).String()
+
+	// Find both calendars
+	var calendar1, calendar2 *CalendarInfo
+	for _, cal := range calendars {
+		if cal.URI == calendar1URI {
+			calendar1 = &cal
+		} else if cal.URI == calendar2URI {
+			calendar2 = &cal
+		}
 	}
 
-	// Verify the second calendar
-	expectedURI2 := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/b860fa1c-fd49-82f9-d43b-8336bfd3a506/"}).String()
-	if calendars[1].URI != expectedURI2 {
-		t.Errorf("Expected URI %s, got %s", expectedURI2, calendars[1].URI)
+	// Verify first calendar
+	if calendar1 == nil {
+		t.Errorf("Calendar with URI %s not found", calendar1URI)
+	} else {
+		if calendar1.Name != "7f7d579c-cb19-047a-d5e5-c0894aaed9cd" {
+			t.Errorf("Expected name '7f7d579c-cb19-047a-d5e5-c0894aaed9cd', got '%s'", calendar1.Name)
+		}
+		if calendar1.Color != "" {
+			t.Errorf("Expected no color, got '%s'", calendar1.Color)
+		}
+		if calendar1.ReadOnly {
+			t.Error("Expected calendar to be writable")
+		}
 	}
-	if calendars[1].Name != "test2" {
-		t.Errorf("Expected name 'test2', got '%s'", calendars[1].Name)
-	}
-	if calendars[1].Color != "#008080ff" {
-		t.Errorf("Expected color '#008080ff', got '%s'", calendars[1].Color)
-	}
-	if calendars[1].ReadOnly {
-		t.Error("Expected calendar to be writable")
+
+	// Verify second calendar
+	if calendar2 == nil {
+		t.Errorf("Calendar with URI %s not found", calendar2URI)
+	} else {
+		if calendar2.Name != "test2" {
+			t.Errorf("Expected name 'test2', got '%s'", calendar2.Name)
+		}
+		if calendar2.Color != "#008080ff" {
+			t.Errorf("Expected color '#008080ff', got '%s'", calendar2.Color)
+		}
+		if calendar2.ReadOnly {
+			t.Error("Expected calendar to be writable")
+		}
 	}
 }
 

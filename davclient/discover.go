@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/cyp0633/libcaldora/internal/httpclient"
@@ -188,7 +189,7 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 		return nil, fmt.Errorf("no calendars found")
 	}
 
-	// Process each resource in the response
+	// Process each resource in the response and collect calendars
 	for uri, resource := range resp.Resources {
 		if resource.IsCalendar {
 			// Convert relative URI to absolute if needed
@@ -208,6 +209,11 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 			})
 		}
 	}
+
+	// Sort calendars by URI for consistent ordering
+	sort.Slice(calendars, func(i, j int) bool {
+		return calendars[i].URI < calendars[j].URI
+	})
 
 	return calendars, nil
 }
