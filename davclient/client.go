@@ -11,6 +11,7 @@ type DAVClient interface {
 	GetCalendarEtag() (string, error)
 	CreateCalendarObject(collectionURL string, event *ical.Event) (objectURL string, etag string, err error)
 	UpdateCalendarObject(objectURL string, event *ical.Event) (etag string, err error)
+	DeleteCalendarObject(objectURL string, etag string) error
 }
 
 type davClient struct {

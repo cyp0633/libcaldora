@@ -10,6 +10,7 @@ type HttpClientWrapper interface {
 	DoPROPFIND(url string, depth int, props ...string) (*PropfindResponse, error)
 	DoREPORT(url string, depth int, query interface{}) (*ReportResponse, error)
 	DoPUT(url string, etag string, data []byte) (newEtag string, err error)
+	DoDELETE(url string, etag string) error
 }
 
 type httpClientWrapper struct {

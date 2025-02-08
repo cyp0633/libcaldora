@@ -97,3 +97,11 @@ func (c *davClient) UpdateCalendarObject(objectURL string, event *ical.Event) (e
 
 	return etag, nil
 }
+
+// DeleteCalendarObject deletes a calendar object at the specified URL with optimistic locking using etag
+func (c *davClient) DeleteCalendarObject(objectURL string, etag string) error {
+	if err := c.httpClient.DoDELETE(objectURL, etag); err != nil {
+		return fmt.Errorf("failed to delete calendar object: %w", err)
+	}
+	return nil
+}

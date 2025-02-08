@@ -1,6 +1,7 @@
 package davclient
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,6 +16,56 @@ func createTestEvent() *ical.Event {
 	event.Props.SetText("UID", uuid.New().String())
 	event.Props.SetDateTime("DTSTAMP", time.Now().UTC())
 	return event
+}
+
+func TestDeleteCalendarObject(t *testing.T) {
+	tests := []struct {
+		name        string
+		objectURL   string
+		etag        string
+		deleteError error
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name:      "successful delete",
+			objectURL: "/calendar/event.ics",
+			etag:      "test-etag",
+			wantErr:   false,
+		},
+		{
+			name:        "delete error",
+			objectURL:   "/calendar/event.ics",
+			etag:        "test-etag",
+			deleteError: fmt.Errorf("server error"),
+			wantErr:     true,
+			expectedErr: "failed to delete calendar object: server error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockClient := &mockHTTPClient{
+				deleteResponse: tt.deleteError,
+			}
+
+			client := &davClient{
+				httpClient: mockClient,
+			}
+
+			err := client.DeleteCalendarObject(tt.objectURL, tt.etag)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteCalendarObject() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && err != nil && tt.expectedErr != "" {
+				if err.Error() != tt.expectedErr {
+					t.Errorf("DeleteCalendarObject() error = %v, want %v", err, tt.expectedErr)
+				}
+			}
+		})
+	}
 }
 
 func TestCreateCalendarObject(t *testing.T) {

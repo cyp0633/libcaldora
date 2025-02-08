@@ -15,6 +15,7 @@ type mockHTTPClient struct {
 	propfindResponse *httpclient.PropfindResponse
 	reportResponse   *httpclient.ReportResponse
 	putResponse      *mockPutResponse
+	deleteResponse   error
 	doPropfind       PropfindFunc
 }
 
@@ -34,4 +35,8 @@ func (m *mockHTTPClient) DoPUT(url string, etag string, data []byte) (string, er
 		return m.putResponse.etag, m.putResponse.err
 	}
 	return "new-etag", nil
+}
+
+func (m *mockHTTPClient) DoDELETE(url string, etag string) error {
+	return m.deleteResponse
 }
