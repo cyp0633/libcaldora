@@ -1,0 +1,31 @@
+package httpclient
+
+import (
+	"bytes"
+	"fmt"
+	"net/http"
+)
+
+func (c *httpClientWrapper) DoPUT(url string, etag string, data []byte) (newEtag string, err error) {
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+
+	if etag != "" {
+		req.Header.Set("If-Match", etag)
+	}
+	req.Header.Set("Content-Type", "text/calendar; charset=utf-8")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return resp.Header.Get("ETag"), nil
+}

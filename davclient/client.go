@@ -8,6 +8,7 @@ import (
 type DAVClient interface {
 	GetAllEvents() ObjectFilter
 	GetCalendarEtag() (string, error)
+	UpdateCalendarObject(objectURL string, data []byte) (etag string, err error)
 }
 
 type davClient struct {
