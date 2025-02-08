@@ -7,14 +7,21 @@ type mockPutResponse struct {
 	err  error
 }
 
+// PropfindFunc is a function type for mocking PROPFIND
+type PropfindFunc func(url string, depth int, props ...string) (*httpclient.PropfindResponse, error)
+
 // Mock types for testing
 type mockHTTPClient struct {
 	propfindResponse *httpclient.PropfindResponse
 	reportResponse   *httpclient.ReportResponse
 	putResponse      *mockPutResponse
+	doPropfind       PropfindFunc
 }
 
 func (m *mockHTTPClient) DoPROPFIND(url string, depth int, props ...string) (*httpclient.PropfindResponse, error) {
+	if m.doPropfind != nil {
+		return m.doPropfind(url, depth, props...)
+	}
 	return m.propfindResponse, nil
 }
 

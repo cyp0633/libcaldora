@@ -2,13 +2,15 @@ package davclient
 
 import (
 	"github.com/cyp0633/libcaldora/internal/httpclient"
+	"github.com/emersion/go-ical"
 )
 
 // DAVClient interface defines the CalDAV client operations
 type DAVClient interface {
 	GetAllEvents() ObjectFilter
 	GetCalendarEtag() (string, error)
-	UpdateCalendarObject(objectURL string, data []byte) (etag string, err error)
+	CreateCalendarObject(collectionURL string, event *ical.Event) (objectURL string, etag string, err error)
+	UpdateCalendarObject(objectURL string, event *ical.Event) (etag string, err error)
 }
 
 type davClient struct {
