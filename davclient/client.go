@@ -39,3 +39,11 @@ func NewDAVClient(client *http.Client, calendarURL string) (DAVClient, error) {
 		calendarURL: calendarURL,
 	}, nil
 }
+
+// NewDAVClientWithBasicAuth creates a new CalDAV client with basic auth credentials
+func NewDAVClientWithBasicAuth(username, password, calendarURL string) (DAVClient, error) {
+	client := &http.Client{
+		Transport: httpclient.NewBasicAuthTransport(username, password, nil),
+	}
+	return NewDAVClient(client, calendarURL)
+}
