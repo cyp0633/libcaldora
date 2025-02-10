@@ -11,6 +11,8 @@ import (
 // DAVClient interface defines the CalDAV client operations
 type DAVClient interface {
 	GetAllEvents() ObjectFilter
+	GetObjectETags() ObjectFilter
+	GetObjectsByURLs(urls []string) ([]CalendarObject, error)
 	GetCalendarEtag() (string, error)
 	CreateCalendarObject(collectionURL string, event *ical.Event) (objectURL string, etag string, err error)
 	UpdateCalendarObject(objectURL string, event *ical.Event) (etag string, err error)

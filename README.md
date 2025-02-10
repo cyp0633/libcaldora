@@ -76,6 +76,19 @@ if err != nil {
 // Get all events
 filter := client.GetAllEvents()
 
+// Get calendar ETag for synchronization
+etag, err := client.GetCalendarEtag()
+if err != nil {
+    log.Fatal(err)
+}
+
+// If calendar etag has changed, check object etags
+etagFilter := client.GetObjectETags()
+
+// Get specific objects by their URLs
+urls := []string{"https://calendar.example.com/events/123", "https://calendar.example.com/events/456"}
+objects, err := client.GetObjectsByURLs(urls)
+
 // Create a new event
 event := ical.NewEvent()
 event.Props.SetText(ical.PropSummary, "Meeting")
@@ -87,6 +100,32 @@ newEtag, err := client.UpdateCalendarObject(objectURL, event)
 
 // Delete an event
 err = client.DeleteCalendarObject(objectURL, etag)
+```
+
+### Event Filtering
+
+The library supports rich filtering capabilities for retrieving calendar objects:
+
+```go
+// Time range filtering
+filter := client.GetAllEvents().TimeRange(start, end)
+
+// Combined filters
+filter := client.GetAllEvents().
+    TimeRange(start, end).
+    Status("CONFIRMED").
+    NotStatus("CANCELLED").
+    Summary("Meeting").
+    Location("Conference Room").
+    Priority(1).
+    Categories("Work", "Important").
+    Limit(10)
+
+// Execute filter
+events, err := filter.Do()
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## Advanced Configuration
