@@ -1,6 +1,9 @@
 package davclient
 
 import (
+	"net/http"
+	"net/url"
+
 	"github.com/cyp0633/libcaldora/internal/httpclient"
 	"github.com/emersion/go-ical"
 )
@@ -19,10 +22,20 @@ type davClient struct {
 	calendarURL string
 }
 
-// NewDAVClient creates a new CalDAV client
-func NewDAVClient(httpClient httpclient.HttpClientWrapper, calendarURL string) DAVClient {
-	return &davClient{
-		httpClient:  httpClient,
-		calendarURL: calendarURL,
+// NewDAVClient creates a new CalDAV client with the given http.Client and calendar URL
+func NewDAVClient(client *http.Client, calendarURL string) (DAVClient, error) {
+	baseURL, err := url.Parse(calendarURL)
+	if err != nil {
+		return nil, err
 	}
+
+	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return &davClient{
+		httpClient:  wrapper,
+		calendarURL: calendarURL,
+	}, nil
 }
