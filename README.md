@@ -58,8 +58,20 @@ import (
     "github.com/emersion/go-ical"
 )
 
-// Create a new client
-client := davclient.NewDAVClient(httpClient, calendarURL)
+// Create a client with basic auth
+client, err := davclient.NewDAVClientWithBasicAuth("username", "password", "https://calendar.example.com")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Or create with custom HTTP client
+httpClient := &http.Client{
+    Timeout: time.Second * 30,
+}
+client, err = davclient.NewDAVClient(httpClient, "https://calendar.example.com")
+if err != nil {
+    log.Fatal(err)
+}
 
 // Get all events
 filter := client.GetAllEvents()
