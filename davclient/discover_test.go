@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"testing"
 )
 
@@ -179,11 +178,9 @@ func TestFindCalendars(t *testing.T) {
 		t.Errorf("Expected 2 calendars, got %d", len(calendars))
 	}
 
-	// Verify the first calendar
-	baseURLParsed, _ := url.Parse(baseURL)
-	// Expected URIs for both calendars
-	calendar1URI := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/7f7d579c-cb19-047a-d5e5-c0894aaed9cd/"}).String()
-	calendar2URI := baseURLParsed.ResolveReference(&url.URL{Path: "/cyp0633/b860fa1c-fd49-82f9-d43b-8336bfd3a506/"}).String()
+	// Expected relative URIs for both calendars
+	calendar1URI := "/cyp0633/7f7d579c-cb19-047a-d5e5-c0894aaed9cd/"
+	calendar2URI := "/cyp0633/b860fa1c-fd49-82f9-d43b-8336bfd3a506/"
 
 	// Find both calendars
 	var calendar1, calendar2 *CalendarInfo

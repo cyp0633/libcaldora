@@ -192,12 +192,21 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	// Process each resource in the response and collect calendars
 	for uri, resource := range resp.Resources {
 		if resource.IsCalendar {
-			// Convert relative URI to absolute if needed
+			// Convert absolute URI to relative if needed
 			calendarURI := uri
-			if !strings.HasPrefix(uri, "http://") && !strings.HasPrefix(uri, "https://") {
-				baseURL, _ := url.Parse(calendarHome)
-				relativeURL, _ := url.Parse(uri)
-				calendarURI = baseURL.ResolveReference(relativeURL).String()
+			if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
+				// Parse the calendar home and current URI
+				calendarHomeURL, _ := url.Parse(calendarHome)
+				currentURL, _ := url.Parse(uri)
+
+				// If they have the same host and scheme, make it relative
+				if currentURL.Host == calendarHomeURL.Host && currentURL.Scheme == calendarHomeURL.Scheme {
+					// Remove the common base path to get the relative path
+					calendarURI = strings.TrimPrefix(currentURL.Path, calendarHomeURL.Path)
+					if !strings.HasPrefix(calendarURI, "/") {
+						calendarURI = "/" + calendarURI
+					}
+				}
 			}
 
 			// Only add if it's a calendar resource
