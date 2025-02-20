@@ -8,15 +8,21 @@ import (
 )
 
 // DoREPORT executes a CalDAV REPORT request
-func (c *httpClientWrapper) DoREPORT(url string, depth int, query interface{}) (*ReportResponse, error) {
+func (c *httpClientWrapper) DoREPORT(urlStr string, depth int, query interface{}) (*ReportResponse, error) {
 	// Marshal query to XML
 	queryXML, err := xml.Marshal(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal REPORT query: %w", err)
 	}
 
+	// Resolve URL
+	resolvedURL, err := c.resolveURL(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve URL %q: %w", urlStr, err)
+	}
+
 	// Create request
-	req, err := http.NewRequest("REPORT", url, bytes.NewReader(queryXML))
+	req, err := http.NewRequest("REPORT", resolvedURL.String(), bytes.NewReader(queryXML))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

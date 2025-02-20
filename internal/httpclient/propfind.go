@@ -93,11 +93,16 @@ type componentSetXML struct {
 }
 
 // doPROPFIND performs a PROPFIND request
-func (w *httpClientWrapper) DoPROPFIND(url string, depth int, props ...string) (*PropfindResponse, error) {
+func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string) (*PropfindResponse, error) {
 	// Build PROPFIND request body
 	body := buildPropfindXML(props...)
 
-	req, err := http.NewRequest("PROPFIND", url, bytes.NewReader(body))
+	resolvedURL, err := w.resolveURL(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve URL %q: %w", urlStr, err)
+	}
+
+	req, err := http.NewRequest("PROPFIND", resolvedURL.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}

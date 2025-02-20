@@ -3,13 +3,16 @@ package httpclient
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 // DoDELETE sends a DELETE request with If-Match header for optimistic locking
-func (c *httpClientWrapper) DoDELETE(urlPath string, etag string) error {
-	finalURL := c.baseURL.ResolveReference(&url.URL{Path: urlPath})
-	req, err := http.NewRequest(http.MethodDelete, finalURL.String(), nil)
+func (c *httpClientWrapper) DoDELETE(urlStr string, etag string) error {
+	resolvedURL, err := c.resolveURL(urlStr)
+	if err != nil {
+		return fmt.Errorf("failed to resolve URL %q: %w", urlStr, err)
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, resolvedURL.String(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create DELETE request: %w", err)
 	}

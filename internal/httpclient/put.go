@@ -6,8 +6,13 @@ import (
 	"net/http"
 )
 
-func (c *httpClientWrapper) DoPUT(url string, etag string, data []byte) (newEtag string, err error) {
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(data))
+func (c *httpClientWrapper) DoPUT(urlStr string, etag string, data []byte) (newEtag string, err error) {
+	resolvedURL, err := c.resolveURL(urlStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve URL %q: %w", urlStr, err)
+	}
+
+	req, err := http.NewRequest(http.MethodPut, resolvedURL.String(), bytes.NewReader(data))
 	if err != nil {
 		return "", err
 	}
