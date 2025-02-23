@@ -3,7 +3,7 @@ package davclient
 import (
 	"bytes"
 	"fmt"
-	"path"
+	"net/url"
 
 	"github.com/emersion/go-ical"
 	"github.com/google/uuid"
@@ -27,9 +27,17 @@ func eventToBytes(event *ical.Event) ([]byte, error) {
 // CreateCalendarObject creates a new calendar object in the specified collection URL
 // Returns the URL of the created object and its etag
 func (c *davClient) CreateCalendarObject(collectionURL string, event *ical.Event) (objectURL string, etag string, err error) {
-	// Generate a UUID for the new object
+	// Generate a UUID for the new object and construct URL correctly
 	id := uuid.New().String()
-	objectURL = path.Join(collectionURL, id+".ics")
+	base, err := url.Parse(collectionURL)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse collection URL: %w", err)
+	}
+	ref, err := url.Parse(id + ".ics")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse object URL: %w", err)
+	}
+	objectURL = base.ResolveReference(ref).String()
 
 	// Create the object without an etag (new object)
 	data, err := eventToBytes(event)
