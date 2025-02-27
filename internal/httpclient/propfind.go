@@ -92,15 +92,22 @@ type componentSetXML struct {
 	} `xml:"comp"`
 }
 
-// doPROPFIND performs a PROPFIND request
+// DoPROPFIND performs a PROPFIND request
 func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string) (*PropfindResponse, error) {
+	w.logger.Debug("starting PROPFIND request",
+		"url", urlStr,
+		"depth", depth,
+		"properties", props)
+
 	// Build PROPFIND request body
 	body := buildPropfindXML(props...)
 
 	resolvedURL, err := w.resolveURL(urlStr)
 	if err != nil {
+		w.logger.Debug("failed to resolve URL", "url", urlStr, "error", err)
 		return nil, fmt.Errorf("failed to resolve URL %q: %w", urlStr, err)
 	}
+	w.logger.Debug("resolved URL", "url", resolvedURL.String())
 
 	req, err := http.NewRequest("PROPFIND", resolvedURL.String(), bytes.NewReader(body))
 	if err != nil {
@@ -117,8 +124,13 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusMultiStatus {
+		w.logger.Debug("unexpected response status",
+			"status_code", resp.StatusCode,
+			"status", resp.Status)
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
+
+	w.logger.Debug("received multistatus response")
 
 	// Parse response
 	var result PropfindResponse
@@ -132,8 +144,12 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 
 	decoder := xml.NewDecoder(resp.Body)
 	if err := decoder.Decode(&multiStatus); err != nil {
+		w.logger.Debug("failed to parse XML response", "error", err)
 		return nil, fmt.Errorf("failed to parse XML response: %w", err)
 	}
+
+	w.logger.Debug("parsed XML response",
+		"response_count", len(multiStatus.Response))
 
 	// Process each response
 	for _, resp := range multiStatus.Response {
@@ -174,6 +190,10 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 		result.Resources[resp.Href] = resource
 	}
 
+	w.logger.Debug("PROPFIND request complete",
+		"found_calendars", len(result.Resources),
+		"principal_url", result.CurrentUserPrincipal != "",
+		"home_set", result.CalendarHomeSet != "")
 	return &result, nil
 }
 

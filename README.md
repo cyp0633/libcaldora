@@ -22,6 +22,10 @@ Server operations are planned.
   - Calendar name
   - Color
   - Access permissions
+- 📝 Structured logging
+  - Built-in slog integration
+  - Detailed operation logging
+  - Optional and configurable
 
 ## Installation
 
@@ -58,17 +62,13 @@ import (
     "github.com/emersion/go-ical"
 )
 
-// Create a client with basic auth
-client, err := davclient.NewDAVClientWithBasicAuth("username", "password", "https://calendar.example.com")
-if err != nil {
-    log.Fatal(err)
+// Create client with options
+opts := davclient.Options{
+    Username: "username",
+    Password: "password",
+    CalendarURL: "https://calendar.example.com",
 }
-
-// Or create with custom HTTP client
-httpClient := &http.Client{
-    Timeout: time.Second * 30,
-}
-client, err = davclient.NewDAVClient(httpClient, "https://calendar.example.com")
+client, err := davclient.NewDAVClient(opts)
 if err != nil {
     log.Fatal(err)
 }
@@ -147,6 +147,38 @@ config.Client = &http.Client{
 }
 calendars, err := davclient.FindCalendarsWithConfig(ctx, location, username, password, config)
 ```
+
+### Logging Configuration
+
+The library uses Go's standard `slog` package for structured logging:
+
+```go
+import (
+    "log/slog"
+    "os"
+)
+
+// Create a JSON logger with debug level
+logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+// Create client with logging enabled
+client, err := davclient.NewDAVClient(davclient.Options{
+    Username: "username",
+    Password: "password",
+    CalendarURL: "https://calendar.example.com",
+    Logger: logger,
+})
+
+// Logs will include:
+// - Calendar discovery process
+// - HTTP request/response details
+// - Operation status and results
+// - Error details with context
+```
+
+If no logger is provided, a no-op logger is used by default, resulting in zero overhead.
 
 ## Thanks
 

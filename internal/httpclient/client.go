@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 )
@@ -17,6 +18,7 @@ type HttpClientWrapper interface {
 type httpClientWrapper struct {
 	client  *http.Client
 	baseURL url.URL
+	logger  *slog.Logger
 }
 
 // resolveURL resolves a URL string against the base URL
@@ -28,7 +30,10 @@ func (c *httpClientWrapper) resolveURL(urlStr string) (*url.URL, error) {
 	return c.baseURL.ResolveReference(ref), nil
 }
 
-// NewHttpClientWrapper creates a new client wrapper with basic auth
-func NewHttpClientWrapper(client *http.Client, baseURL url.URL) (HttpClientWrapper, error) {
-	return &httpClientWrapper{client: client, baseURL: baseURL}, nil
+// NewHttpClientWrapper creates a new client wrapper with basic auth and logging
+func NewHttpClientWrapper(client *http.Client, baseURL url.URL, logger *slog.Logger) (HttpClientWrapper, error) {
+	if logger == nil {
+		return nil, fmt.Errorf("logger is required")
+	}
+	return &httpClientWrapper{client: client, baseURL: baseURL, logger: logger}, nil
 }

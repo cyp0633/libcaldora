@@ -3,6 +3,8 @@ package davclient
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -29,6 +31,7 @@ type DNSResolver interface {
 type Config struct {
 	Resolver DNSResolver
 	Client   *http.Client
+	Logger   *slog.Logger
 }
 
 // DefaultConfig returns a Config with default values
@@ -36,6 +39,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Resolver: &net.Resolver{},
 		Client:   http.DefaultClient,
+		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 }
 
@@ -46,6 +50,12 @@ func FindCalendars(ctx context.Context, location string, username string, passwo
 
 // FindCalendarsWithConfig allows injecting custom configuration for testing
 func FindCalendarsWithConfig(ctx context.Context, location string, username string, password string, cfg *Config) ([]CalendarInfo, error) {
+	logger := cfg.Logger
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+
+	logger.Debug("starting calendar discovery", "location", location, "username", username)
 	calendars := make([]CalendarInfo, 0)
 
 	// Validate URL
@@ -70,8 +80,10 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	// Try both secure and non-secure
 	for _, prefix := range []string{"_caldavs._tcp.", "_caldav._tcp."} {
 		host := prefix + baseURL.Hostname()
+		logger.Debug("looking up SRV records", "host", host)
 		_, addrs, err := cfg.Resolver.LookupSRV(ctx, "", "", host)
 		if err != nil {
+			logger.Debug("SRV lookup failed", "host", host, "error", err)
 			continue
 		}
 
@@ -99,16 +111,19 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 				path,
 			)
 			possibleLocations = append(possibleLocations, serverURL)
+			logger.Debug("added SRV location", "url", serverURL)
 		}
 	}
 
 	// 3. well-known URL
 	wellKnownURL := baseURL.JoinPath(".well-known", "caldav")
 	possibleLocations = append(possibleLocations, wellKnownURL.String())
+	logger.Debug("added well-known location", "url", wellKnownURL.String())
 
 	// 4. root path
 	rootURL := baseURL.JoinPath("/")
 	possibleLocations = append(possibleLocations, rootURL.String())
+	logger.Debug("added root location", "url", rootURL.String())
 
 	// Set up the client once before the loop
 	client := cfg.Client
@@ -123,7 +138,7 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	}
 	client.Transport = httpclient.NewBasicAuthTransport(username, password, transport)
 
-	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL)
+	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP client wrapper: %v", err)
 	}
@@ -131,9 +146,11 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	// Try each possible location to find the principal URL
 	var principalURL string
 	for _, possibleLocation := range possibleLocations {
+		logger.Debug("trying location for principal URL", "url", possibleLocation)
 		// Get current-user-principal
 		resp, err := wrapper.DoPROPFIND(possibleLocation, 0, "current-user-principal")
 		if err != nil {
+			logger.Debug("PROPFIND failed", "url", possibleLocation, "error", err)
 			if strings.Contains(err.Error(), "network error") {
 				return nil, fmt.Errorf("network error")
 			}
@@ -149,21 +166,25 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 			} else {
 				principalURL = resp.CurrentUserPrincipal
 			}
+			logger.Debug("found principal URL", "url", principalURL)
 			break
 		}
 	}
 
 	if principalURL == "" {
+		logger.Debug("no principal URL found")
 		return nil, fmt.Errorf("could not find current-user-principal")
 	}
 
 	// Get calendar home from principal URL
+	logger.Debug("fetching calendar home", "principal_url", principalURL)
 	resp, err := wrapper.DoPROPFIND(principalURL, 0, "calendar-home-set")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get calendar-home-set: %v", err)
 	}
 
 	if resp == nil || resp.CalendarHomeSet == "" {
+		logger.Debug("no calendar home found")
 		return nil, fmt.Errorf("no calendar-home-set found")
 	}
 
@@ -174,8 +195,10 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 		relativeURL, _ := url.Parse(calendarHome)
 		calendarHome = baseURL.ResolveReference(relativeURL).String()
 	}
+	logger.Debug("found calendar home", "url", calendarHome)
 
 	// List calendars from calendar home
+	logger.Debug("fetching calendars", "calendar_home", calendarHome)
 	resp, err = wrapper.DoPROPFIND(calendarHome, 1,
 		"resourcetype",
 		"displayname",
@@ -186,6 +209,7 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	}
 
 	if resp == nil || resp.Resources == nil {
+		logger.Debug("no calendars found")
 		return nil, fmt.Errorf("no calendars found")
 	}
 
@@ -216,6 +240,7 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 				Color:    resource.Color,
 				ReadOnly: !resource.CanWrite,
 			})
+			logger.Debug("found calendar", "uri", calendarURI, "name", resource.DisplayName)
 		}
 	}
 
@@ -224,5 +249,6 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 		return calendars[i].URI < calendars[j].URI
 	})
 
+	logger.Debug("calendar discovery complete", "count", len(calendars))
 	return calendars, nil
 }

@@ -1,12 +1,27 @@
 package davclient
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/cyp0633/libcaldora/internal/httpclient"
 	"github.com/emersion/go-ical"
 )
+
+// Options configures the DAV client
+type Options struct {
+	// Client is the http.Client to use for requests. If nil, http.DefaultClient is used.
+	Client *http.Client
+	// CalendarURL is the URL of the CalDAV calendar
+	CalendarURL string
+	// Username and Password are used for basic auth if provided
+	Username string
+	Password string
+	// Logger is the slog.Logger to use for logging. If nil, logging is disabled
+	Logger *slog.Logger
+}
 
 // DAVClient interface defines the CalDAV client operations
 type DAVClient interface {
@@ -22,30 +37,41 @@ type DAVClient interface {
 type davClient struct {
 	httpClient  httpclient.HttpClientWrapper
 	calendarURL string
+	logger      *slog.Logger
 }
 
-// NewDAVClient creates a new CalDAV client with the given http.Client and calendar URL
-func NewDAVClient(client *http.Client, calendarURL string) (DAVClient, error) {
-	baseURL, err := url.Parse(calendarURL)
+// NewDAVClient creates a new CalDAV client with options
+func NewDAVClient(opts Options) (DAVClient, error) {
+	baseURL, err := url.Parse(opts.CalendarURL)
 	if err != nil {
 		return nil, err
 	}
 
-	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL)
+	client := opts.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	if opts.Username != "" && opts.Password != "" {
+		client = &http.Client{
+			Transport: httpclient.NewBasicAuthTransport(opts.Username, opts.Password, client.Transport),
+		}
+	}
+
+	logger := opts.Logger
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+
+	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL, logger)
 	if err != nil {
 		return nil, err
 	}
 
+	logger.Debug("creating new DAV client", "calendar_url", opts.CalendarURL)
 	return &davClient{
 		httpClient:  wrapper,
-		calendarURL: calendarURL,
+		calendarURL: opts.CalendarURL,
+		logger:      logger,
 	}, nil
-}
-
-// NewDAVClientWithBasicAuth creates a new CalDAV client with basic auth credentials
-func NewDAVClientWithBasicAuth(username, password, calendarURL string) (DAVClient, error) {
-	client := &http.Client{
-		Transport: httpclient.NewBasicAuthTransport(username, password, nil),
-	}
-	return NewDAVClient(client, calendarURL)
 }

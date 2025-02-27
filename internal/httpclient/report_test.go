@@ -2,8 +2,11 @@ package httpclient
 
 import (
 	"encoding/xml"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -40,11 +43,11 @@ func TestDoREPORT(t *testing.T) {
 				// Return valid response
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte(`<?xml version="1.0" encoding="utf-8"?>
-					<D:multistatus xmlns:D="DAV:">
-						<D:response>
-							<D:href>/calendar/event1.ics</D:href>
-							<D:propstat>
-								<D:prop>
+<D:multistatus xmlns:D="DAV:">
+<D:response>
+<D:href>/calendar/event1.ics</D:href>
+<D:propstat>
+<D:prop>
 <C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">BEGIN:VCALENDAR...</C:calendar-data>
 <D:getetag>"123"</D:getetag>
 </D:prop>
@@ -100,8 +103,11 @@ func TestDoREPORT(t *testing.T) {
 			defer server.Close()
 
 			// Create client
+			baseURL, _ := url.Parse(server.URL)
 			client := &httpClientWrapper{
-				client: server.Client(),
+				client:  server.Client(),
+				baseURL: *baseURL,
+				logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 			}
 
 			// Execute request
