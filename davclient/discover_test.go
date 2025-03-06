@@ -226,12 +226,10 @@ func TestFindCalendars(t *testing.T) {
 }
 
 func TestFindCalendarsManual(t *testing.T) {
-	t.Skip("Manual test - run with credentials set in environment variables")
-
 	username := os.Getenv("CALDAV_USERNAME")
 	password := os.Getenv("CALDAV_PASSWORD")
 	if username == "" || password == "" {
-		t.Fatal("CALDAV_USERNAME and CALDAV_PASSWORD environment variables must be set")
+		t.Skip("CALDAV_USERNAME and CALDAV_PASSWORD environment variables must be set")
 	}
 
 	ctx := context.Background()
@@ -243,10 +241,8 @@ func TestFindCalendarsManual(t *testing.T) {
 	})
 	logger := slog.New(logHandler)
 
-	cfg := &Config{
-		Client: http.DefaultClient,
-		Logger: logger,
-	}
+	cfg := DefaultConfig()
+	cfg.Logger = logger
 
 	calendars, err := FindCalendarsWithConfig(ctx, location, username, password, cfg)
 	if err != nil {
