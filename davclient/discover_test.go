@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 )
 
@@ -220,6 +222,44 @@ func TestFindCalendars(t *testing.T) {
 		if calendar2.ReadOnly {
 			t.Error("Expected calendar to be writable")
 		}
+	}
+}
+
+func TestFindCalendarsManual(t *testing.T) {
+	t.Skip("Manual test - run with credentials set in environment variables")
+
+	username := os.Getenv("CALDAV_USERNAME")
+	password := os.Getenv("CALDAV_PASSWORD")
+	if username == "" || password == "" {
+		t.Fatal("CALDAV_USERNAME and CALDAV_PASSWORD environment variables must be set")
+	}
+
+	ctx := context.Background()
+	location := "https://caldav.icloud.com.cn"
+
+	// Enable debug logging
+	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	logger := slog.New(logHandler)
+
+	cfg := &Config{
+		Client: http.DefaultClient,
+		Logger: logger,
+	}
+
+	calendars, err := FindCalendarsWithConfig(ctx, location, username, password, cfg)
+	if err != nil {
+		t.Fatalf("FindCalendars failed: %v", err)
+	}
+
+	t.Logf("Found %d calendars:", len(calendars))
+	for i, cal := range calendars {
+		t.Logf("Calendar %d:", i+1)
+		t.Logf("  URI: %s", cal.URI)
+		t.Logf("  Name: %s", cal.Name)
+		t.Logf("  Color: %s", cal.Color)
+		t.Logf("  ReadOnly: %v", cal.ReadOnly)
 	}
 }
 

@@ -47,6 +47,11 @@ func NewDAVClient(opts Options) (DAVClient, error) {
 		return nil, err
 	}
 
+	logger := opts.Logger
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+
 	client := opts.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -54,13 +59,8 @@ func NewDAVClient(opts Options) (DAVClient, error) {
 
 	if opts.Username != "" && opts.Password != "" {
 		client = &http.Client{
-			Transport: httpclient.NewBasicAuthTransport(opts.Username, opts.Password, client.Transport),
+			Transport: httpclient.NewBasicAuthTransport(opts.Username, opts.Password, client.Transport, logger),
 		}
-	}
-
-	logger := opts.Logger
-	if logger == nil {
-		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 
 	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL, logger)

@@ -136,7 +136,7 @@ func FindCalendarsWithConfig(ctx context.Context, location string, username stri
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
-	client.Transport = httpclient.NewBasicAuthTransport(username, password, transport)
+	client.Transport = httpclient.NewBasicAuthTransport(username, password, transport, logger)
 
 	wrapper, err := httpclient.NewHttpClientWrapper(client, *baseURL, logger)
 	if err != nil {
