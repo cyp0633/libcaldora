@@ -1,4 +1,4 @@
-package xml
+package protocol
 
 import (
 	"encoding/xml"

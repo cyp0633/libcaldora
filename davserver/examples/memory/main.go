@@ -8,69 +8,68 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cyp0633/libcaldora/davserver/handler"
 	"github.com/cyp0633/libcaldora/davserver/interfaces"
+	"github.com/cyp0633/libcaldora/davserver/server"
 	"github.com/emersion/go-ical"
 )
 
-// MemoryProvider implements the CalendarProvider interface using in-memory storage
+// MemoryProvider implements CalendarProvider interface using in-memory storage
 type MemoryProvider struct {
-	mu        sync.RWMutex
-	calendars map[string]*interfaces.Calendar
-	objects   map[string]*interfaces.CalendarObject
-	logger    *slog.Logger
+	mu      sync.RWMutex
+	objects map[string]*interfaces.CalendarObject
+	logger  *slog.Logger
 }
 
 func NewMemoryProvider(logger *slog.Logger) *MemoryProvider {
-	if logger == nil {
-		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	}
-
 	return &MemoryProvider{
-		calendars: make(map[string]*interfaces.Calendar),
-		objects:   make(map[string]*interfaces.CalendarObject),
-		logger:    logger,
+		objects: make(map[string]*interfaces.CalendarObject),
+		logger:  logger,
 	}
 }
 
 func (p *MemoryProvider) GetResourceProperties(ctx context.Context, path string) (*interfaces.ResourceProperties, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	if path == "" {
+		return &interfaces.ResourceProperties{
+			Type:                interfaces.ResourceTypeCalendar,
+			DisplayName:         "Test Calendar",
+			Color:               "#4f6bed",
+			SupportedComponents: []string{"VEVENT"},
+		}, nil
+	}
 
-	if cal, ok := p.calendars[path]; ok {
-		p.logger.Debug("retrieved calendar properties", "path", path)
-		return cal.Properties, nil
+	p.mu.RLock()
+	obj, ok := p.objects[path]
+	p.mu.RUnlock()
+
+	if !ok {
+		return nil, interfaces.ErrNotFound
 	}
-	if obj, ok := p.objects[path]; ok {
-		p.logger.Debug("retrieved object properties", "path", path)
-		return obj.Properties, nil
-	}
-	p.logger.Debug("resource not found", "path", path)
-	return nil, os.ErrNotExist
+	return obj.Properties, nil
 }
 
 func (p *MemoryProvider) GetCalendar(ctx context.Context, path string) (*interfaces.Calendar, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	if cal, ok := p.calendars[path]; ok {
-		p.logger.Debug("retrieved calendar", "path", path)
-		return cal, nil
+	if path != "" {
+		return nil, interfaces.ErrNotFound
 	}
-	p.logger.Debug("calendar not found", "path", path)
-	return nil, os.ErrNotExist
+	return &interfaces.Calendar{
+		Properties: &interfaces.ResourceProperties{
+			Type:                interfaces.ResourceTypeCalendar,
+			DisplayName:         "Test Calendar",
+			Color:               "#4f6bed",
+			SupportedComponents: []string{"VEVENT"},
+		},
+	}, nil
 }
 
 func (p *MemoryProvider) GetCalendarObject(ctx context.Context, path string) (*interfaces.CalendarObject, error) {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
+	obj, ok := p.objects[path]
+	p.mu.RUnlock()
 
-	if obj, ok := p.objects[path]; ok {
-		p.logger.Debug("retrieved calendar object", "path", path)
-		return obj, nil
+	if !ok {
+		return nil, interfaces.ErrNotFound
 	}
-	p.logger.Debug("calendar object not found", "path", path)
-	return nil, os.ErrNotExist
+	return obj, nil
 }
 
 func (p *MemoryProvider) ListCalendarObjects(ctx context.Context, path string) ([]interfaces.CalendarObject, error) {
@@ -79,20 +78,17 @@ func (p *MemoryProvider) ListCalendarObjects(ctx context.Context, path string) (
 
 	var objects []interfaces.CalendarObject
 	for _, obj := range p.objects {
-		if obj.Properties.Path == path {
-			objects = append(objects, *obj)
-		}
+		objects = append(objects, *obj)
 	}
-	p.logger.Debug("listed calendar objects", "path", path, "count", len(objects))
 	return objects, nil
 }
 
-func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, obj *interfaces.CalendarObject) error {
+func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, object *interfaces.CalendarObject) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.objects[path] = obj
-	p.logger.Info("stored calendar object", "path", path)
+	object.Properties.LastModified = time.Now()
+	p.objects[path] = object
 	return nil
 }
 
@@ -101,26 +97,28 @@ func (p *MemoryProvider) DeleteCalendarObject(ctx context.Context, path string) 
 	defer p.mu.Unlock()
 
 	delete(p.objects, path)
-	p.logger.Info("deleted calendar object", "path", path)
 	return nil
 }
 
 func (p *MemoryProvider) Query(ctx context.Context, calendarPath string, filter *interfaces.QueryFilter) ([]interfaces.CalendarObject, error) {
+	p.logger.Debug("executing query",
+		"calendar_path", calendarPath,
+		"filter", filter)
+
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	var objects []interfaces.CalendarObject
+	var result []interfaces.CalendarObject
 	for _, obj := range p.objects {
-		if filter.CompFilter != "" {
-			// TODO: Implement component filtering
+		// Simple filtering based on component type
+		for _, comp := range obj.Data.Children {
+			if comp.Name == filter.CompFilter {
+				result = append(result, *obj)
+				break
+			}
 		}
-		objects = append(objects, *obj)
 	}
-	p.logger.Debug("queried calendar objects",
-		"path", calendarPath,
-		"filter", filter.CompFilter,
-		"results", len(objects))
-	return objects, nil
+	return result, nil
 }
 
 func (p *MemoryProvider) MultiGet(ctx context.Context, paths []string) ([]interfaces.CalendarObject, error) {
@@ -133,70 +131,47 @@ func (p *MemoryProvider) MultiGet(ctx context.Context, paths []string) ([]interf
 			objects = append(objects, *obj)
 		}
 	}
-	p.logger.Debug("multi-get calendar objects", "paths", len(paths), "found", len(objects))
 	return objects, nil
 }
 
 func main() {
-	// Setup logging
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
-		AddSource: true,
-	}))
+	// Set up logger
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	// Create a memory provider and add a test calendar
+	// Create provider
 	provider := NewMemoryProvider(logger)
-	provider.calendars["/calendars/user1/calendar1"] = &interfaces.Calendar{
+
+	// Add a test event
+	cal := ical.NewCalendar()
+	event := ical.NewEvent()
+	cal.Children = append(cal.Children, event.Component)
+
+	event.Props.SetText("SUMMARY", "Test Event")
+	event.Props.SetDateTime("DTSTART", time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
+	event.Props.SetDateTime("DTEND", time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
+
+	testObject := &interfaces.CalendarObject{
 		Properties: &interfaces.ResourceProperties{
-			Path:        "/calendars/user1/calendar1",
-			Type:        interfaces.ResourceTypeCalendar,
-			DisplayName: "Test Calendar",
-			Color:       "#4A90E2",
-		},
-		TimeZone: "UTC",
-	}
-
-	// Create calendar handler with the memory provider
-	h := handler.NewDefaultHandler(interfaces.HandlerConfig{
-		Provider:  provider,
-		URLPrefix: "/calendars/",
-		CustomHeaders: map[string]string{
-			"Server": "libcaldora/0.1.0",
-		},
-		Logger: logger,
-	})
-
-	// Create and add a test event
-	cal := &ical.Calendar{
-		Component: ical.NewComponent(ical.CompCalendar),
-	}
-	cal.Props.SetText(ical.PropVersion, "2.0")
-	cal.Props.SetText(ical.PropProductID, "-//libcaldora//NONSGML v1.0//EN")
-
-	// Create event component
-	event := ical.NewComponent(ical.CompEvent)
-	event.Props.SetText(ical.PropSummary, "Test Event")
-	event.Props.SetDateTime(ical.PropDateTimeStamp, time.Now())
-	event.Props.SetText(ical.PropUID, "test-event-1")
-
-	// Add event to calendar
-	cal.Component.Children = append(cal.Component.Children, event)
-
-	provider.objects["/calendars/user1/calendar1/test-event-1.ics"] = &interfaces.CalendarObject{
-		Properties: &interfaces.ResourceProperties{
-			Path:        "/calendars/user1/calendar1/test-event-1.ics",
+			Path:        "test.ics",
 			Type:        interfaces.ResourceTypeCalendarObject,
-			DisplayName: "Test Event",
-			ContentType: "text/calendar; charset=utf-8",
-			ETag:        "\"1\"",
+			ContentType: ical.MIMEType,
+			ETag:        "test-etag",
 		},
 		Data: cal,
 	}
+	provider.PutCalendarObject(context.Background(), "test.ics", testObject)
 
-	// Start HTTP server
-	addr := ":8080"
-	logger.Info("starting CalDAV server", "address", addr)
-	if err := http.ListenAndServe(addr, h); err != nil {
+	// Create server
+	handler := server.New(interfaces.HandlerConfig{
+		Provider:  provider,
+		URLPrefix: "/calendar/",
+		Logger:    logger,
+	})
+
+	// Start server
+	logger.Info("starting server on :8080")
+	http.Handle("/calendar/", handler)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		logger.Error("server error", "error", err)
 		os.Exit(1)
 	}
