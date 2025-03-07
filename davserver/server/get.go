@@ -23,22 +23,24 @@ func (s *Server) HandleGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
-	if obj.Properties.ETag != "" {
-		w.Header().Set("ETag", obj.Properties.ETag)
-	}
-	w.WriteHeader(http.StatusOK)
+var buf bytes.Buffer
+enc := ical.NewEncoder(&buf)
+if err := enc.Encode(obj.Data); err != nil {
+s.logger.Error("failed to encode calendar data",
+"error", err,
+"path", r.URL.Path)
+s.sendError(w, &interfaces.HTTPError{Status: http.StatusInternalServerError, Message: "Failed to encode calendar data", Err: err})
+return
+}
 
-	var buf bytes.Buffer
-	enc := ical.NewEncoder(&buf)
-	if err := enc.Encode(obj.Data); err != nil {
-		s.logger.Error("failed to encode calendar data",
-			"error", err,
-			"path", r.URL.Path)
-		s.sendError(w, &interfaces.HTTPError{Status: http.StatusInternalServerError, Message: "Failed to encode calendar data", Err: err})
-		return
-	}
-	fmt.Fprintf(w, "%s", buf.String())
+body := buf.Bytes()
+w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
+w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+if obj.Properties.ETag != "" {
+w.Header().Set("ETag", obj.Properties.ETag)
+}
+w.WriteHeader(http.StatusOK)
+_, _ = w.Write(body)
 
 	s.logger.Debug("completed GET request",
 		"path", r.URL.Path,

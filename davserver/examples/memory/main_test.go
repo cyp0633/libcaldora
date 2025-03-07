@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 var testTime = time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC)
 
 func newTestServer(t *testing.T) (*MemoryProvider, *httptest.Server) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	provider := NewMemoryProvider(logger)
 
@@ -41,12 +42,16 @@ func TestServer(t *testing.T) {
 
 	// Add test event
 	cal := ical.NewCalendar()
-	event := ical.NewEvent()
-	cal.Children = append(cal.Children, event.Component)
+	cal.Props.SetText("PRODID", "-//libcaldora//NONSGML v1.0//EN")
+	cal.Props.SetText("VERSION", "2.0")
 
+	event := ical.NewEvent()
 	event.Props.SetText("SUMMARY", "Test Event")
 	event.Props.SetDateTime("DTSTART", testTime)
 	event.Props.SetDateTime("DTEND", testTime.Add(time.Hour))
+	event.Props.SetDateTime("DTSTAMP", time.Now()) // Required by iCalendar spec
+	event.Props.SetText("UID", "test-event")       // Required by iCalendar spec
+	cal.Children = append(cal.Children, event.Component)
 
 	testObject := &interfaces.CalendarObject{
 		Properties: &interfaces.ResourceProperties{

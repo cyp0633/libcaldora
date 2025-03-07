@@ -13,24 +13,28 @@ import (
 func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 	s.logger.Debug("handling PROPFIND request", "path", r.URL.Path)
 
-	// Parse request
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		s.logger.Error("failed to read request body",
-			"error", err,
-			"path", r.URL.Path)
-		s.sendError(w, &interfaces.HTTPError{Status: http.StatusBadRequest, Message: "Failed to read request body", Err: err})
-		return
-	}
-
 	var propfind protocol.PropfindRequest
-	if err := xml.Unmarshal(body, &propfind); err != nil {
-		s.logger.Error("failed to parse XML request",
-			"error", err,
-			"path", r.URL.Path)
-		s.sendError(w, &interfaces.HTTPError{Status: http.StatusBadRequest, Message: "Failed to parse XML request", Err: err})
-		return
+
+	// Try to parse request body if present
+	if r.ContentLength > 0 {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			s.logger.Error("failed to read request body",
+				"error", err,
+				"path", r.URL.Path)
+			s.sendError(w, &interfaces.HTTPError{Status: http.StatusBadRequest, Message: "Failed to read request body", Err: err})
+			return
+		}
+
+		if err := xml.Unmarshal(body, &propfind); err != nil {
+			s.logger.Error("failed to parse XML request",
+				"error", err,
+				"path", r.URL.Path)
+			s.sendError(w, &interfaces.HTTPError{Status: http.StatusBadRequest, Message: "Failed to parse XML request", Err: err})
+			return
+		}
 	}
+	// Empty body means allprop
 
 	// Get resource properties
 	resourcePath := s.stripPrefix(r.URL.Path)

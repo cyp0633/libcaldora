@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/cyp0633/libcaldora/davserver/interfaces"
@@ -19,17 +20,19 @@ func (s *Server) sendError(w http.ResponseWriter, err error) {
 		"message", httpErr.Message,
 		"error", httpErr.Err)
 
-	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-	w.WriteHeader(httpErr.Status)
-
 	errResp := &interfaces.ErrorResponse{
 		Namespace: "DAV:",
 		Message:   httpErr.Message,
 	}
 
-	enc := xml.NewEncoder(w)
-	if err := enc.Encode(errResp); err != nil {
-		s.logger.Error("failed to encode error response",
-			"error", err)
+	body, err := xml.Marshal(errResp)
+	if err != nil {
+		s.logger.Error("failed to marshal error response", "error", err)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+	w.WriteHeader(httpErr.Status)
+	_, _ = w.Write(body)
 }
