@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -78,9 +82,29 @@ func (p *MemoryProvider) ListCalendarObjects(ctx context.Context, path string) (
 
 	var objects []interfaces.CalendarObject
 	for _, obj := range p.objects {
-		objects = append(objects, *obj)
+		objects = append(objects, *obj) // Objects in storage already have ETags
 	}
 	return objects, nil
+}
+
+// generateETag generates a new ETag based on calendar data and timestamp
+func (p *MemoryProvider) generateETag(object *interfaces.CalendarObject) string {
+	if object.Data == nil {
+		return ""
+	}
+
+	var buf bytes.Buffer
+	enc := ical.NewEncoder(&buf)
+	if err := enc.Encode(object.Data); err != nil {
+		p.logger.Error("failed to generate ETag", "error", err)
+		return ""
+	}
+	// Include LastModified in hash to ensure uniqueness even for identical content
+	timestamp := object.Properties.LastModified.UnixNano()
+	buf.Write(fmt.Appendf(nil, "-%d", timestamp))
+
+	hash := sha256.Sum256(buf.Bytes())
+	return `"` + base64.URLEncoding.EncodeToString(hash[:]) + `"`
 }
 
 func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, object *interfaces.CalendarObject) error {
@@ -88,6 +112,7 @@ func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, obj
 	defer p.mu.Unlock()
 
 	object.Properties.LastModified = time.Now()
+	object.Properties.ETag = p.generateETag(object)
 	p.objects[path] = object
 	return nil
 }
@@ -113,7 +138,7 @@ func (p *MemoryProvider) Query(ctx context.Context, calendarPath string, filter 
 		// Simple filtering based on component type
 		for _, comp := range obj.Data.Children {
 			if comp.Name == filter.CompFilter {
-				result = append(result, *obj)
+				result = append(result, *obj) // Objects in storage already have ETags
 				break
 			}
 		}
@@ -128,7 +153,7 @@ func (p *MemoryProvider) MultiGet(ctx context.Context, paths []string) ([]interf
 	var objects []interfaces.CalendarObject
 	for _, path := range paths {
 		if obj, ok := p.objects[path]; ok {
-			objects = append(objects, *obj)
+			objects = append(objects, *obj) // Objects in storage already have ETags
 		}
 	}
 	return objects, nil
