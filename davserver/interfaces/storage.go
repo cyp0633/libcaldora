@@ -32,14 +32,14 @@ type ResourceProperties struct {
 
 // Calendar represents a CalDAV calendar collection
 type Calendar struct {
-	Properties *ResourceProperties
-	TimeZone   string
+Properties *ResourceProperties
+Data       *ical.Calendar
 }
 
-// CalendarObject represents a calendar object (event, todo, etc.)
+// CalendarObject wraps an iCalendar object with its metadata
 type CalendarObject struct {
-	Properties *ResourceProperties
-	Data       *ical.Calendar
+Properties *ResourceProperties
+Data       *ical.Calendar
 }
 
 // QueryFilter represents a calendar query filter
@@ -63,29 +63,29 @@ type CalendarProvider interface {
 	// GetResourceProperties returns properties for a resource at the given path
 	GetResourceProperties(ctx context.Context, path string) (*ResourceProperties, error)
 
-	// GetCalendar returns calendar information for a calendar collection
-	GetCalendar(ctx context.Context, path string) (*Calendar, error)
+// GetCalendar returns calendar information for a calendar collection
+GetCalendar(ctx context.Context, path string) (*Calendar, error)
 
-	// GetCalendarObject returns a calendar object at the given path
-	GetCalendarObject(ctx context.Context, path string) (*CalendarObject, error)
+// GetCalendarObject returns a calendar object at the given path
+GetCalendarObject(ctx context.Context, path string) (*CalendarObject, error)
 
-	// ListCalendarObjects returns calendar objects in a calendar collection
-	ListCalendarObjects(ctx context.Context, path string) ([]CalendarObject, error)
+// ListCalendarObjects returns calendar objects in a calendar collection
+ListCalendarObjects(ctx context.Context, path string) ([]CalendarObject, error)
 
-	// PutCalendarObject creates or updates a calendar object
-	PutCalendarObject(ctx context.Context, path string, object *CalendarObject) error
+// PutCalendarObject creates or updates a calendar object
+PutCalendarObject(ctx context.Context, path string, object *CalendarObject) error
 
-	// DeleteCalendarObject deletes a calendar object
-	DeleteCalendarObject(ctx context.Context, path string) error
+// DeleteCalendarObject deletes a calendar object
+DeleteCalendarObject(ctx context.Context, path string) error
 
-	// Optional interface methods that providers can implement for better performance
-	// If not implemented, the server will use default implementations
+// Optional interface methods that providers can implement for better performance
+// If not implemented, the server will use default implementations
 
-	// Query returns calendar objects matching the given filter
-	// Default implementation uses ListCalendarObjects and filters in memory
-	Query(ctx context.Context, calendarPath string, filter *QueryFilter) ([]CalendarObject, error)
+// Query returns calendar objects matching the given filter
+// Default implementation uses ListCalendarObjects and filters in memory
+Query(ctx context.Context, calendarPath string, filter *QueryFilter) ([]CalendarObject, error)
 
-	// MultiGet returns calendar objects at the given paths
-	// Default implementation calls GetCalendarObject for each path
-	MultiGet(ctx context.Context, paths []string) ([]CalendarObject, error)
+// MultiGet returns calendar objects at the given paths
+// Default implementation calls GetCalendarObject for each path
+MultiGet(ctx context.Context, paths []string) ([]CalendarObject, error)
 }
