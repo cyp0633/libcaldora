@@ -19,16 +19,31 @@ import (
 
 // MemoryProvider implements CalendarProvider interface using in-memory storage
 type MemoryProvider struct {
-	mu      sync.RWMutex
-	objects map[string]*interfaces.CalendarObject
-	logger  *slog.Logger
+	mu              sync.RWMutex
+	objects         map[string]*interfaces.CalendarObject
+	calendarVersion int64 // For CTag generation
+	logger          *slog.Logger
 }
 
 func NewMemoryProvider(logger *slog.Logger) *MemoryProvider {
 	return &MemoryProvider{
-		objects: make(map[string]*interfaces.CalendarObject),
-		logger:  logger,
+		objects:         make(map[string]*interfaces.CalendarObject),
+		calendarVersion: time.Now().UnixNano(), // Initialize with current timestamp
+		logger:          logger,
 	}
+}
+
+// generateCTag generates a new CTag based on calendar version and contents
+func (p *MemoryProvider) generateCTag() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	var pathHash bytes.Buffer
+	for path := range p.objects {
+		pathHash.WriteString(path)
+	}
+	hash := sha256.Sum256(pathHash.Bytes())
+	return fmt.Sprintf("%d-%s", p.calendarVersion, base64.URLEncoding.EncodeToString(hash[:8]))
 }
 
 func (p *MemoryProvider) GetResourceProperties(ctx context.Context, path string) (*interfaces.ResourceProperties, error) {
@@ -38,6 +53,7 @@ func (p *MemoryProvider) GetResourceProperties(ctx context.Context, path string)
 			DisplayName:         "Test Calendar",
 			Color:               "#4f6bed",
 			SupportedComponents: []string{"VEVENT"},
+			CTag:                p.generateCTag(),
 		}, nil
 	}
 
@@ -61,6 +77,7 @@ func (p *MemoryProvider) GetCalendar(ctx context.Context, path string) (*interfa
 			DisplayName:         "Test Calendar",
 			Color:               "#4f6bed",
 			SupportedComponents: []string{"VEVENT"},
+			CTag:                p.generateCTag(),
 		},
 	}, nil
 }
@@ -114,6 +131,9 @@ func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, obj
 	object.Properties.LastModified = time.Now()
 	object.Properties.ETag = p.generateETag(object)
 	p.objects[path] = object
+
+	// Update calendar version on any modification
+	p.calendarVersion = time.Now().UnixNano()
 	return nil
 }
 
@@ -122,6 +142,9 @@ func (p *MemoryProvider) DeleteCalendarObject(ctx context.Context, path string) 
 	defer p.mu.Unlock()
 
 	delete(p.objects, path)
+
+	// Update calendar version on any modification
+	p.calendarVersion = time.Now().UnixNano()
 	return nil
 }
 
