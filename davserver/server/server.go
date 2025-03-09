@@ -100,5 +100,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // Helper functions
 
 func (s *Server) stripPrefix(urlPath string) string {
-	return strings.TrimPrefix(urlPath, s.config.URLPrefix)
+	// Remove URL prefix and make sure the path doesn't start with a slash
+	return strings.TrimPrefix(strings.TrimPrefix(urlPath, s.config.URLPrefix), "/")
 }

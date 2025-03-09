@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,8 @@ type MemoryProvider struct {
 	objects         map[string]*interfaces.CalendarObject
 	calendarVersion int64 // For CTag generation
 	logger          *slog.Logger
+	principalPath   string // Path to user's principal collection
+	calendarHome    string // Path to user's calendar home
 }
 
 func NewMemoryProvider(logger *slog.Logger) *MemoryProvider {
@@ -30,6 +33,8 @@ func NewMemoryProvider(logger *slog.Logger) *MemoryProvider {
 		objects:         make(map[string]*interfaces.CalendarObject),
 		calendarVersion: time.Now().UnixNano(), // Initialize with current timestamp
 		logger:          logger,
+		principalPath:   "/principals/user/", // Default principal path
+		calendarHome:    "/calendar/",        // Default calendar home
 	}
 }
 
@@ -46,43 +51,78 @@ func (p *MemoryProvider) generateCTag() string {
 	return fmt.Sprintf("%d-%s", p.calendarVersion, base64.URLEncoding.EncodeToString(hash[:8]))
 }
 
+func (p *MemoryProvider) GetCurrentUserPrincipal(ctx context.Context) (string, error) {
+	return p.principalPath, nil
+}
+
+func (p *MemoryProvider) GetCalendarHomeSet(ctx context.Context, principalPath string) (string, error) {
+	if principalPath != p.principalPath {
+		return "", interfaces.ErrNotFound
+	}
+	return p.calendarHome, nil
+}
+
 func (p *MemoryProvider) GetResourceProperties(ctx context.Context, path string) (*interfaces.ResourceProperties, error) {
-	if path == "" {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
+	// Return principal properties
+	if path == p.principalPath || strings.TrimSuffix(path, "/") == strings.TrimSuffix(p.principalPath, "/") {
 		return &interfaces.ResourceProperties{
-			Type:                interfaces.ResourceTypeCalendar,
-			DisplayName:         "Test Calendar",
-			Color:               "#4f6bed",
-			SupportedComponents: []string{"VEVENT"},
-			CTag:                p.generateCTag(),
+			Path:            p.principalPath,
+			Type:            interfaces.ResourceTypeCollection,
+			DisplayName:     "User Principal",
+			PrincipalURL:    p.principalPath,
+			CalendarHomeURL: p.calendarHome,
 		}, nil
 	}
 
-	p.mu.RLock()
-	obj, ok := p.objects[path]
-	p.mu.RUnlock()
-
-	if !ok {
-		return nil, interfaces.ErrNotFound
-	}
-	return obj.Properties, nil
-}
-
-func (p *MemoryProvider) GetCalendar(ctx context.Context, path string) (*interfaces.Calendar, error) {
-	if path != "" {
-		return nil, interfaces.ErrNotFound
-	}
-	return &interfaces.Calendar{
-		Properties: &interfaces.ResourceProperties{
+	// Return calendar home properties
+	if path == p.calendarHome || strings.TrimSuffix(path, "/") == strings.TrimSuffix(p.calendarHome, "/") {
+		return &interfaces.ResourceProperties{
+			Path:                p.calendarHome,
 			Type:                interfaces.ResourceTypeCalendar,
 			DisplayName:         "Test Calendar",
 			Color:               "#4f6bed",
 			SupportedComponents: []string{"VEVENT"},
 			CTag:                p.generateCTag(),
-		},
-	}, nil
+			CurrentUserPrivSet:  []string{"read", "write"},
+		}, nil
+	}
+
+	// Return calendar object properties if path is not empty
+	if path != "" {
+		p.mu.RLock()
+		obj, ok := p.objects[path]
+		p.mu.RUnlock()
+
+		if !ok {
+			return nil, interfaces.ErrNotFound
+		}
+		return obj.Properties, nil
+	}
+
+	return nil, interfaces.ErrNotFound
+}
+
+func (p *MemoryProvider) GetCalendar(ctx context.Context, path string) (*interfaces.Calendar, error) {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
+	if path == p.calendarHome || strings.TrimSuffix(path, "/") == strings.TrimSuffix(p.calendarHome, "/") || path == "" {
+		return &interfaces.Calendar{
+			Properties: &interfaces.ResourceProperties{
+				Path:                p.calendarHome,
+				Type:                interfaces.ResourceTypeCalendar,
+				DisplayName:         "Test Calendar",
+				Color:               "#4f6bed",
+				SupportedComponents: []string{"VEVENT"},
+				CTag:                p.generateCTag(),
+				CurrentUserPrivSet:  []string{"read", "write"},
+			},
+		}, nil
+	}
+	return nil, interfaces.ErrNotFound
 }
 
 func (p *MemoryProvider) GetCalendarObject(ctx context.Context, path string) (*interfaces.CalendarObject, error) {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
 	p.mu.RLock()
 	obj, ok := p.objects[path]
 	p.mu.RUnlock()
@@ -93,13 +133,52 @@ func (p *MemoryProvider) GetCalendarObject(ctx context.Context, path string) (*i
 	return obj, nil
 }
 
+// ListResources implements the ListableProvider interface
+func (p *MemoryProvider) ListResources(ctx context.Context, path string) ([]*interfaces.ResourceProperties, error) {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
+
+	// Handle principal path - list calendar home
+	if path == p.principalPath || strings.TrimSuffix(path, "/") == strings.TrimSuffix(p.principalPath, "/") {
+		return []*interfaces.ResourceProperties{
+			{
+				Path:                strings.TrimPrefix(p.calendarHome, "/"),
+				Type:                interfaces.ResourceTypeCalendar,
+				DisplayName:         "Test Calendar",
+				Color:               "#4f6bed",
+				SupportedComponents: []string{"VEVENT"},
+				CTag:                p.generateCTag(),
+				CurrentUserPrivSet:  []string{"read", "write"},
+			},
+		}, nil
+	}
+
+	// Handle calendar home path - list calendar objects
+	if path == p.calendarHome || strings.TrimSuffix(path, "/") == strings.TrimSuffix(p.calendarHome, "/") {
+		p.mu.RLock()
+		defer p.mu.RUnlock()
+
+		var resources []*interfaces.ResourceProperties
+		for _, obj := range p.objects {
+			resources = append(resources, obj.Properties)
+		}
+		return resources, nil
+	}
+
+	return nil, interfaces.ErrNotFound
+}
+
 func (p *MemoryProvider) ListCalendarObjects(ctx context.Context, path string) ([]interfaces.CalendarObject, error) {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
+	// Only list objects in the given calendar path
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	var objects []interfaces.CalendarObject
-	for _, obj := range p.objects {
-		objects = append(objects, *obj) // Objects in storage already have ETags
+	calendarPath := strings.TrimSuffix(p.calendarHome, "/") + "/"
+	for objPath, obj := range p.objects {
+		if strings.HasPrefix(objPath, calendarPath) {
+			objects = append(objects, *obj) // Objects in storage already have ETags
+		}
 	}
 	return objects, nil
 }
@@ -125,6 +204,7 @@ func (p *MemoryProvider) generateETag(object *interfaces.CalendarObject) string 
 }
 
 func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, object *interfaces.CalendarObject) error {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -138,6 +218,7 @@ func (p *MemoryProvider) PutCalendarObject(ctx context.Context, path string, obj
 }
 
 func (p *MemoryProvider) DeleteCalendarObject(ctx context.Context, path string) error {
+	path = "/" + strings.TrimPrefix(path, "/") // Normalize path to start with /
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -200,25 +281,25 @@ func main() {
 
 	testObject := &interfaces.CalendarObject{
 		Properties: &interfaces.ResourceProperties{
-			Path:        "test.ics",
+			Path:        "/calendar/test.ics", // Full path including calendar home
 			Type:        interfaces.ResourceTypeCalendarObject,
 			ContentType: ical.MIMEType,
 			ETag:        "test-etag",
 		},
 		Data: cal,
 	}
-	provider.PutCalendarObject(context.Background(), "test.ics", testObject)
+	provider.PutCalendarObject(context.Background(), "/calendar/test.ics", testObject)
 
 	// Create server
 	handler := server.New(interfaces.HandlerConfig{
 		Provider:  provider,
-		URLPrefix: "/calendar/",
+		URLPrefix: "/", // Handle all paths since we need both /principals and /calendar
 		Logger:    logger,
 	})
 
 	// Start server
 	logger.Info("starting server on :8080")
-	http.Handle("/calendar/", handler)
+	http.Handle("/", handler)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		logger.Error("server error", "error", err)
 		os.Exit(1)

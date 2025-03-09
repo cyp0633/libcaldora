@@ -14,14 +14,16 @@ type PropfindRequest struct {
 }
 
 type Props struct {
-	ResourceType        *xml.Name `xml:"DAV: resourcetype,omitempty"`
-	DisplayName         *xml.Name `xml:"DAV: displayname,omitempty"`
-	CalendarColor       *xml.Name `xml:"http://apple.com/ns/ical/ calendar-color,omitempty"`
-	CurrentUserPrivSet  *xml.Name `xml:"DAV: current-user-privilege-set,omitempty"`
-	SupportedComponents *xml.Name `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set,omitempty"`
-	GetCTag             *xml.Name `xml:"http://calendarserver.org/ns/ getctag,omitempty"`
-	GetETag             *xml.Name `xml:"DAV: getetag,omitempty"`
-	CalendarData        *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data,omitempty"`
+	ResourceType         *xml.Name `xml:"DAV: resourcetype,omitempty"`
+	DisplayName          *xml.Name `xml:"DAV: displayname,omitempty"`
+	CalendarColor        *xml.Name `xml:"http://apple.com/ns/ical/ calendar-color,omitempty"`
+	CurrentUserPrivSet   *xml.Name `xml:"DAV: current-user-privilege-set,omitempty"`
+	SupportedComponents  *xml.Name `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set,omitempty"`
+	GetCTag              *xml.Name `xml:"http://calendarserver.org/ns/ getctag,omitempty"`
+	GetETag              *xml.Name `xml:"DAV: getetag,omitempty"`
+	CalendarData         *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data,omitempty"`
+	CurrentUserPrincipal *xml.Name `xml:"DAV: current-user-principal,omitempty"`
+	CalendarHomeSet      *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set,omitempty"`
 }
 
 // PROPFIND Response Types
@@ -44,14 +46,16 @@ type Propstat struct {
 }
 
 type PropertySet struct {
-	ResourceType        *ResourceType        `xml:"resourcetype,omitempty"`
-	DisplayName         string               `xml:"displayname,omitempty"`
-	CalendarColor       string               `xml:"calendar-color,omitempty"`
-	CurrentUserPrivSet  *CurrentUserPrivSet  `xml:"current-user-privilege-set,omitempty"`
-	SupportedComponents *SupportedComponents `xml:"supported-calendar-component-set,omitempty"`
-	GetCTag             string               `xml:"getctag,omitempty"`
-	GetETag             string               `xml:"getetag,omitempty"`
-	CalendarData        string               `xml:"calendar-data,omitempty"`
+	ResourceType         *ResourceType         `xml:"resourcetype,omitempty"`
+	DisplayName          string                `xml:"displayname,omitempty"`
+	CalendarColor        string                `xml:"calendar-color,omitempty"`
+	CurrentUserPrivSet   *CurrentUserPrivSet   `xml:"current-user-privilege-set,omitempty"`
+	SupportedComponents  *SupportedComponents  `xml:"supported-calendar-component-set,omitempty"`
+	GetCTag              string                `xml:"getctag,omitempty"`
+	GetETag              string                `xml:"getetag,omitempty"`
+	CalendarData         string                `xml:"calendar-data,omitempty"`
+	CurrentUserPrincipal *CurrentUserPrincipal `xml:"current-user-principal,omitempty"`
+	CalendarHomeSet      *CalendarHomeSet      `xml:"calendar-home-set,omitempty"`
 }
 
 type ResourceType struct {
@@ -77,6 +81,14 @@ type SupportedComponents struct {
 
 type Component struct {
 	Name string `xml:"name,attr"`
+}
+
+type CurrentUserPrincipal struct {
+	Href string `xml:"href"`
+}
+
+type CalendarHomeSet struct {
+	Href string `xml:"href"`
 }
 
 // REPORT Request Types

@@ -36,6 +36,12 @@ func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 	}
 	// Empty body means allprop
 
+	// Parse Depth header (0 or 1)
+	depth := r.Header.Get("Depth")
+	if depth == "" {
+		depth = "0" // Default to 0 if not specified
+	}
+
 	// Get resource properties
 	resourcePath := s.stripPrefix(r.URL.Path)
 	props, err := s.config.Provider.GetResourceProperties(r.Context(), resourcePath)
@@ -47,9 +53,26 @@ func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build response
-	response := s.buildPropfindResponse(r.URL.Path, props)
-	ms := protocol.NewMultistatusResponse([]protocol.Response{*response}...)
+	// Build response for the requested resource
+	responses := []protocol.Response{*s.buildPropfindResponse(r.URL.Path, props)}
+
+	// If Depth=1 and it's a collection, get child resources
+	if depth == "1" && (props.Type == interfaces.ResourceTypeCollection || props.Type == interfaces.ResourceTypeCalendar) {
+		if listable, ok := s.config.Provider.(interfaces.ListableProvider); ok {
+			children, err := listable.ListResources(r.Context(), resourcePath)
+			if err == nil { // Ignore errors, just don't include children
+				for _, child := range children {
+					responses = append(responses, *s.buildPropfindResponse(
+						r.URL.Path+child.Path,
+						child,
+					))
+				}
+			}
+		}
+	}
+
+	// Create multistatus response
+	ms := protocol.NewMultistatusResponse(responses...)
 
 	// Send response
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -76,9 +99,44 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 		GetETag:       props.ETag,
 	}
 
+	// Add CurrentUserPrivSet if present
+	if len(props.CurrentUserPrivSet) > 0 {
+		privSet := &protocol.CurrentUserPrivSet{
+			Privilege: make([]protocol.Privilege, 0),
+		}
+		for _, priv := range props.CurrentUserPrivSet {
+			switch priv {
+			case "read":
+				privSet.Privilege = append(privSet.Privilege, protocol.Privilege{Read: &xml.Name{Space: "DAV:", Local: "read"}})
+			case "write":
+				privSet.Privilege = append(privSet.Privilege, protocol.Privilege{Write: &xml.Name{Space: "DAV:", Local: "write"}})
+			case "write-content":
+				privSet.Privilege = append(privSet.Privilege, protocol.Privilege{WriteContent: &xml.Name{Space: "DAV:", Local: "write-content"}})
+			}
+		}
+		propSet.CurrentUserPrivSet = privSet
+	}
+
+	// Set resource type
 	if props.Type == interfaces.ResourceTypeCalendar {
 		propSet.ResourceType.Collection = &xml.Name{Space: "DAV:", Local: "collection"}
 		propSet.ResourceType.Calendar = &xml.Name{Space: "urn:ietf:params:xml:ns:caldav", Local: "calendar"}
+	} else if props.Type == interfaces.ResourceTypeCollection {
+		propSet.ResourceType.Collection = &xml.Name{Space: "DAV:", Local: "collection"}
+	}
+
+	// Add CurrentUserPrincipal if present
+	if props.PrincipalURL != "" {
+		propSet.CurrentUserPrincipal = &protocol.CurrentUserPrincipal{
+			Href: props.PrincipalURL,
+		}
+	}
+
+	// Add CalendarHomeSet if present
+	if props.CalendarHomeURL != "" {
+		propSet.CalendarHomeSet = &protocol.CalendarHomeSet{
+			Href: props.CalendarHomeURL,
+		}
 	}
 
 	return &protocol.Response{

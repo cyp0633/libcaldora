@@ -28,18 +28,20 @@ type ResourceProperties struct {
 	ContentType         string
 	ETag                string
 	CTag                string
+	PrincipalURL        string // URL for the authenticated user's principal
+	CalendarHomeURL     string // URL for the user's calendar home collection
 }
 
 // Calendar represents a CalDAV calendar collection
 type Calendar struct {
-Properties *ResourceProperties
-Data       *ical.Calendar
+	Properties *ResourceProperties
+	Data       *ical.Calendar
 }
 
 // CalendarObject wraps an iCalendar object with its metadata
 type CalendarObject struct {
-Properties *ResourceProperties
-Data       *ical.Calendar
+	Properties *ResourceProperties
+	Data       *ical.Calendar
 }
 
 // QueryFilter represents a calendar query filter
@@ -58,34 +60,47 @@ type TimeRange struct {
 	End   time.Time
 }
 
+// ListableProvider is an optional interface that providers can implement to support
+// listing child resources in collections (for PROPFIND with Depth=1)
+type ListableProvider interface {
+	// ListResources returns a list of resources within the given path
+	ListResources(ctx context.Context, path string) ([]*ResourceProperties, error)
+}
+
 // CalendarProvider defines the interface that storage providers must implement
 type CalendarProvider interface {
 	// GetResourceProperties returns properties for a resource at the given path
 	GetResourceProperties(ctx context.Context, path string) (*ResourceProperties, error)
 
-// GetCalendar returns calendar information for a calendar collection
-GetCalendar(ctx context.Context, path string) (*Calendar, error)
+	// GetCurrentUserPrincipal returns the principal URL for the authenticated user
+	GetCurrentUserPrincipal(ctx context.Context) (string, error)
 
-// GetCalendarObject returns a calendar object at the given path
-GetCalendarObject(ctx context.Context, path string) (*CalendarObject, error)
+	// GetCalendarHomeSet returns the calendar home collection URL for the authenticated user
+	GetCalendarHomeSet(ctx context.Context, principalPath string) (string, error)
 
-// ListCalendarObjects returns calendar objects in a calendar collection
-ListCalendarObjects(ctx context.Context, path string) ([]CalendarObject, error)
+	// GetCalendar returns calendar information for a calendar collection
+	GetCalendar(ctx context.Context, path string) (*Calendar, error)
 
-// PutCalendarObject creates or updates a calendar object
-PutCalendarObject(ctx context.Context, path string, object *CalendarObject) error
+	// GetCalendarObject returns a calendar object at the given path
+	GetCalendarObject(ctx context.Context, path string) (*CalendarObject, error)
 
-// DeleteCalendarObject deletes a calendar object
-DeleteCalendarObject(ctx context.Context, path string) error
+	// ListCalendarObjects returns calendar objects in a calendar collection
+	ListCalendarObjects(ctx context.Context, path string) ([]CalendarObject, error)
 
-// Optional interface methods that providers can implement for better performance
-// If not implemented, the server will use default implementations
+	// PutCalendarObject creates or updates a calendar object
+	PutCalendarObject(ctx context.Context, path string, object *CalendarObject) error
 
-// Query returns calendar objects matching the given filter
-// Default implementation uses ListCalendarObjects and filters in memory
-Query(ctx context.Context, calendarPath string, filter *QueryFilter) ([]CalendarObject, error)
+	// DeleteCalendarObject deletes a calendar object
+	DeleteCalendarObject(ctx context.Context, path string) error
 
-// MultiGet returns calendar objects at the given paths
-// Default implementation calls GetCalendarObject for each path
-MultiGet(ctx context.Context, paths []string) ([]CalendarObject, error)
+	// Optional interface methods that providers can implement for better performance
+	// If not implemented, the server will use default implementations
+
+	// Query returns calendar objects matching the given filter
+	// Default implementation uses ListCalendarObjects and filters in memory
+	Query(ctx context.Context, calendarPath string, filter *QueryFilter) ([]CalendarObject, error)
+
+	// MultiGet returns calendar objects at the given paths
+	// Default implementation calls GetCalendarObject for each path
+	MultiGet(ctx context.Context, paths []string) ([]CalendarObject, error)
 }
