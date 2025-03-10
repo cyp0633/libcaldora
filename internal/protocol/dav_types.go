@@ -46,16 +46,16 @@ type Propstat struct {
 }
 
 type PropertySet struct {
-	ResourceType         *ResourceType         `xml:"resourcetype,omitempty"`
-	DisplayName          string                `xml:"displayname,omitempty"`
-	CalendarColor        string                `xml:"calendar-color,omitempty"`
-	CurrentUserPrivSet   *CurrentUserPrivSet   `xml:"current-user-privilege-set,omitempty"`
-	SupportedComponents  *SupportedComponents  `xml:"supported-calendar-component-set,omitempty"`
-	GetCTag              string                `xml:"getctag,omitempty"`
-	GetETag              string                `xml:"getetag,omitempty"`
-	CalendarData         string                `xml:"calendar-data,omitempty"`
-	CurrentUserPrincipal *CurrentUserPrincipal `xml:"current-user-principal,omitempty"`
-	CalendarHomeSet      *CalendarHomeSet      `xml:"calendar-home-set,omitempty"`
+	ResourceType         *ResourceType         `xml:"DAV: resourcetype,omitempty"`
+	DisplayName          string                `xml:"DAV: displayname,omitempty"`
+	CalendarColor        string                `xml:"http://apple.com/ns/ical/ calendar-color,omitempty"`
+	CurrentUserPrivSet   *CurrentUserPrivSet   `xml:"DAV: current-user-privilege-set,omitempty"`
+	SupportedComponents  *SupportedComponents  `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set,omitempty"`
+	GetCTag              string                `xml:"http://calendarserver.org/ns/ getctag,omitempty"`
+	GetETag              string                `xml:"DAV: getetag,omitempty"`
+	CalendarData         string                `xml:"urn:ietf:params:xml:ns:caldav calendar-data,omitempty"`
+	CurrentUserPrincipal *CurrentUserPrincipal `xml:"DAV: current-user-principal,omitempty"`
+	CalendarHomeSet      *CalendarHomeSet      `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set,omitempty"`
 }
 
 type ResourceType struct {

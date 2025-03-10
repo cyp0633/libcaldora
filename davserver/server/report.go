@@ -82,8 +82,12 @@ func (s *Server) handleCalendarQuery(w http.ResponseWriter, r *http.Request, bod
 
 	// Build response
 	responses := make([]protocol.Response, len(objects))
+	// Create a PropfindRequest with the Props from the calendar query
+	propfind := &protocol.PropfindRequest{
+		Props: &query.Props,
+	}
 	for i, obj := range objects {
-		responses[i] = *s.buildPropfindResponse(obj.Properties.Path, obj.Properties)
+		responses[i] = *s.buildPropfindResponse(obj.Properties.Path, obj.Properties, propfind)
 	}
 
 	ms := protocol.NewMultistatusResponse(responses...)
@@ -129,8 +133,12 @@ func (s *Server) handleCalendarMultiget(w http.ResponseWriter, r *http.Request, 
 
 	// Build response
 	responses := make([]protocol.Response, len(objects))
+	// Create a PropfindRequest with the Props from the multiget request
+	propfind := &protocol.PropfindRequest{
+		Props: &multiget.Props,
+	}
 	for i, obj := range objects {
-		responses[i] = *s.buildPropfindResponse(obj.Properties.Path, obj.Properties)
+		responses[i] = *s.buildPropfindResponse(obj.Properties.Path, obj.Properties, propfind)
 	}
 
 	ms := protocol.NewMultistatusResponse(responses...)

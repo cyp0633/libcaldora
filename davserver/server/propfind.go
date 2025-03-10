@@ -54,7 +54,7 @@ func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response for the requested resource
-	responses := []protocol.Response{*s.buildPropfindResponse(r.URL.Path, props)}
+	responses := []protocol.Response{*s.buildPropfindResponse(r.URL.Path, props, &propfind)}
 
 	// If Depth=1 and it's a collection, get child resources
 	if depth == "1" && (props.Type == interfaces.ResourceTypeCollection || props.Type == interfaces.ResourceTypeCalendar) {
@@ -65,6 +65,7 @@ func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 					responses = append(responses, *s.buildPropfindResponse(
 						r.URL.Path+child.Path,
 						child,
+						&propfind,
 					))
 				}
 			}
@@ -95,14 +96,36 @@ func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 		"status", http.StatusMultiStatus)
 }
 
-func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourceProperties) *protocol.Response {
-	// Convert ResourceProperties to PropertySet
-	propSet := protocol.PropertySet{
-		ResourceType:  &protocol.ResourceType{},
-		DisplayName:   props.DisplayName,
-		CalendarColor: props.Color,
-		GetCTag:       props.CTag,
-		GetETag:       props.ETag,
+func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourceProperties, propfind *protocol.PropfindRequest) *protocol.Response {
+	// Initialize empty PropertySet
+	propSet := protocol.PropertySet{}
+
+	// If allprop is requested or no specific props are requested, include all properties
+	if propfind == nil || propfind.AllProp != nil || (propfind.Props == nil && propfind.PropName == nil) {
+		propSet = protocol.PropertySet{
+			ResourceType:  &protocol.ResourceType{},
+			DisplayName:   props.DisplayName,
+			CalendarColor: props.Color,
+			GetCTag:       props.CTag,
+			GetETag:       props.ETag,
+		}
+	} else if propfind.Props != nil {
+		// Only include requested properties
+		if propfind.Props.ResourceType != nil {
+			propSet.ResourceType = &protocol.ResourceType{}
+		}
+		if propfind.Props.DisplayName != nil {
+			propSet.DisplayName = props.DisplayName
+		}
+		if propfind.Props.CalendarColor != nil {
+			propSet.CalendarColor = props.Color
+		}
+		if propfind.Props.GetCTag != nil {
+			propSet.GetCTag = props.CTag
+		}
+		if propfind.Props.GetETag != nil {
+			propSet.GetETag = props.ETag
+		}
 	}
 
 	// Add CurrentUserPrivSet if present
