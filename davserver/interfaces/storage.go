@@ -28,8 +28,14 @@ type ResourceProperties struct {
 	ContentType         string
 	ETag                string
 	CTag                string
-	PrincipalURL        string // URL for the authenticated user's principal
-	CalendarHomeURL     string // URL for the user's calendar home collection
+	PrincipalURL        string        `xml:"DAV: principal-URL,omitempty"`                              // URL for the authenticated user's principal
+	CalendarHomeURL     string        `xml:"-"`                                                         // Internal field, not directly marshaled
+	CalendarHomeSet     *CalendarHome `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set,omitempty"` // CalDAV calendar-home-set property
+}
+
+// CalendarHome represents a CalDAV calendar-home-set property
+type CalendarHome struct {
+	Href string `xml:"DAV: href"`
 }
 
 // Calendar represents a CalDAV calendar collection

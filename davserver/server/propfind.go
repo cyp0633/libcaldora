@@ -71,8 +71,14 @@ func (s *Server) HandlePropFind(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Create multistatus response
-	ms := protocol.NewMultistatusResponse(responses...)
+	// Create multistatus response with namespaces
+	ms := &protocol.MultistatusResponse{
+		XMLName: xml.Name{
+			Space: "DAV:",
+			Local: "multistatus",
+		},
+		Response: responses,
+	}
 
 	// Send response
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -134,6 +140,9 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 
 	// Add CalendarHomeSet if present
 	if props.CalendarHomeURL != "" {
+		props.CalendarHomeSet = &interfaces.CalendarHome{
+			Href: props.CalendarHomeURL,
+		}
 		propSet.CalendarHomeSet = &protocol.CalendarHomeSet{
 			Href: props.CalendarHomeURL,
 		}
