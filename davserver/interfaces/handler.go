@@ -74,9 +74,8 @@ func WithLogger(logger *slog.Logger) Option {
 
 // ErrorResponse represents an error response in XML format
 type ErrorResponse struct {
-	XMLName   string `xml:"DAV: error"`
-	Namespace string `xml:"xmlns,attr"`
-	Message   string `xml:",innerxml"`
+	XMLName string `xml:"DAV: error"`
+	Message string `xml:",innerxml"`
 }
 
 // HTTPError represents an HTTP error with status code and message

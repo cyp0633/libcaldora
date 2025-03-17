@@ -21,8 +21,7 @@ func (s *Server) sendError(w http.ResponseWriter, err error) {
 		"error", httpErr.Err)
 
 	errResp := &interfaces.ErrorResponse{
-		Namespace: "DAV:",
-		Message:   httpErr.Message,
+		Message: httpErr.Message,
 	}
 
 	body, err := xml.Marshal(errResp)
