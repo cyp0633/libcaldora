@@ -109,6 +109,11 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 			GetCTag:       props.CTag,
 			GetETag:       props.ETag,
 		}
+		if props.Owner != "" {
+			propSet.Owner = &protocol.Owner{
+				Href: props.Owner,
+			}
+		}
 	} else if propfind.Props != nil {
 		// Only include requested properties
 		if propfind.Props.ResourceType != nil {
@@ -125,6 +130,11 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 		}
 		if propfind.Props.GetETag != nil {
 			propSet.GetETag = props.ETag
+		}
+		if propfind.Props.Owner != nil && props.Owner != "" {
+			propSet.Owner = &protocol.Owner{
+				Href: props.Owner,
+			}
 		}
 	}
 

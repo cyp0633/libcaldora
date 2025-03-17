@@ -24,6 +24,7 @@ type Props struct {
 	CalendarData         *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data,omitempty"`
 	CurrentUserPrincipal *xml.Name `xml:"DAV: current-user-principal,omitempty"`
 	CalendarHomeSet      *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set,omitempty"`
+	Owner                *xml.Name `xml:"DAV: owner,omitempty"`
 }
 
 // PROPFIND Response Types
@@ -56,6 +57,7 @@ type PropertySet struct {
 	CalendarData         string                `xml:"urn:ietf:params:xml:ns:caldav calendar-data,omitempty"`
 	CurrentUserPrincipal *CurrentUserPrincipal `xml:"DAV: current-user-principal,omitempty"`
 	CalendarHomeSet      *CalendarHomeSet      `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set,omitempty"`
+	Owner                *Owner                `xml:"DAV: owner,omitempty"`
 }
 
 type ResourceType struct {

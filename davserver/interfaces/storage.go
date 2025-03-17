@@ -31,6 +31,7 @@ type ResourceProperties struct {
 	PrincipalURL        string        `xml:"DAV: principal-URL,omitempty"`                              // URL for the authenticated user's principal
 	CalendarHomeURL     string        `xml:"-"`                                                         // Internal field, not directly marshaled
 	CalendarHomeSet     *CalendarHome `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set,omitempty"` // CalDAV calendar-home-set property
+	Owner               string        `xml:"-"`                                                         // Internal field for owner URL
 }
 
 // CalendarHome represents a CalDAV calendar-home-set property
