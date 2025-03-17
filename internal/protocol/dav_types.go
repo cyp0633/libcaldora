@@ -117,6 +117,11 @@ type TimeRange struct {
 	End     string   `xml:"end,attr,omitempty"`
 }
 
+type Owner struct {
+	XMLName xml.Name `xml:"DAV: owner"`
+	Href    string   `xml:"href"`
+}
+
 // MultiGet Request Types
 
 type CalendarMultiGet struct {
