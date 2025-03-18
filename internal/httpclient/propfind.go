@@ -27,69 +27,72 @@ type ResourceProps struct {
 }
 
 type propfindXML struct {
-	XMLName xml.Name `xml:"DAV: propfind"`
-	Prop    propXML  `xml:"prop"`
+	XMLName  xml.Name `xml:"DAV: propfind"`
+	XMLDAV   string   `xml:"xmlns:D,attr"`
+	XMLApple string   `xml:"xmlns:A,attr"`
+	XMLCal   string   `xml:"xmlns:C,attr"`
+	Prop     propXML  `xml:"D:prop"`
 }
 
 type propXML struct {
-	ResourceType         *xml.Name `xml:"DAV: resourcetype"`
-	DisplayName          *xml.Name `xml:"DAV: displayname"`
-	CalendarColor        *xml.Name `xml:"http://apple.com/ns/ical/ calendar-color"`
-	CurrentUserPrivSet   *xml.Name `xml:"DAV: current-user-privilege-set"`
-	CurrentUserPrincipal *xml.Name `xml:"DAV: current-user-principal"`
-	CalendarHomeSet      *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-home-set"`
-	CalendarTimezone     *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-timezone"`
-	SupportedComponents  *xml.Name `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set"`
-	GetCTag              *xml.Name `xml:"http://calendarserver.org/ns/ getctag"`
-	SyncToken            *xml.Name `xml:"DAV: sync-token"`
-	ScheduleInbox        *xml.Name `xml:"urn:ietf:params:xml:ns:caldav schedule-inbox-URL"`
-	ScheduleOutbox       *xml.Name `xml:"urn:ietf:params:xml:ns:caldav schedule-outbox-URL"`
-	Getetag              *xml.Name `xml:"DAV: getetag"`
+	ResourceType         *xml.Name `xml:"D:resourcetype"`
+	DisplayName          *xml.Name `xml:"D:displayname"`
+	CalendarColor        *xml.Name `xml:"A:calendar-color"`
+	CurrentUserPrivSet   *xml.Name `xml:"D:current-user-privilege-set"`
+	CurrentUserPrincipal *xml.Name `xml:"D:current-user-principal"`
+	CalendarHomeSet      *xml.Name `xml:"C:calendar-home-set"`
+	CalendarTimezone     *xml.Name `xml:"C:calendar-timezone"`
+	SupportedComponents  *xml.Name `xml:"C:supported-calendar-component-set"`
+	GetCTag              *xml.Name `xml:"http://calendarserver.org/ns/:getctag"`
+	SyncToken            *xml.Name `xml:"D:sync-token"`
+	ScheduleInbox        *xml.Name `xml:"C:schedule-inbox-URL"`
+	ScheduleOutbox       *xml.Name `xml:"C:schedule-outbox-URL"`
+	Getetag              *xml.Name `xml:"D:getetag"`
 }
 
 type responseXML struct {
-	XMLName  xml.Name    `xml:"DAV: response"`
-	Href     string      `xml:"href"`
-	Propstat propstatXML `xml:"propstat"`
+	XMLName  xml.Name    `xml:"D:response"`
+	Href     string      `xml:"D:href"`
+	Propstat propstatXML `xml:"D:propstat"`
 }
 
 type propstatXML struct {
-	Prop   propertyXML `xml:"prop"`
-	Status string      `xml:"status"`
+	Prop   propertyXML `xml:"D:prop"`
+	Status string      `xml:"D:status"`
 }
 
 type propertyXML struct {
-	ResourceType         resourceTypeXML `xml:"resourcetype"`
-	DisplayName          string          `xml:"displayname"`
-	CalendarColor        string          `xml:"calendar-color"`
-	CurrentUserPrivSet   privSetXML      `xml:"current-user-privilege-set"`
-	CurrentUserPrincipal string          `xml:"current-user-principal>href"`
-	CalendarHomeSet      string          `xml:"calendar-home-set>href"`
-	CalendarTimezone     string          `xml:"calendar-timezone"`
-	SupportedComponents  componentSetXML `xml:"supported-calendar-component-set"`
+	ResourceType         resourceTypeXML `xml:"D:resourcetype"`
+	DisplayName          string          `xml:"D:displayname"`
+	CalendarColor        string          `xml:"A:calendar-color"`
+	CurrentUserPrivSet   privSetXML      `xml:"D:current-user-privilege-set"`
+	CurrentUserPrincipal string          `xml:"D:current-user-principal>href"`
+	CalendarHomeSet      string          `xml:"C:calendar-home-set>href"`
+	CalendarTimezone     string          `xml:"C:calendar-timezone"`
+	SupportedComponents  componentSetXML `xml:"C:supported-calendar-component-set"`
 	GetCTag              string          `xml:"getctag"`
-	SyncToken            string          `xml:"sync-token"`
-	ScheduleInbox        string          `xml:"schedule-inbox-URL>href"`
-	ScheduleOutbox       string          `xml:"schedule-outbox-URL>href"`
-	Getetag              string          `xml:"getetag"`
+	SyncToken            string          `xml:"D:sync-token"`
+	ScheduleInbox        string          `xml:"C:schedule-inbox-URL>href"`
+	ScheduleOutbox       string          `xml:"C:schedule-outbox-URL>href"`
+	Getetag              string          `xml:"D:getetag"`
 }
 
 type resourceTypeXML struct {
-	Calendar *xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar"`
+	Calendar *xml.Name `xml:"C:calendar"`
 }
 
 type privSetXML struct {
-	Privilege []privilegeXML `xml:"privilege"`
+	Privilege []privilegeXML `xml:"D:privilege"`
 }
 
 type privilegeXML struct {
-	Write *xml.Name `xml:"write"`
+	Write *xml.Name `xml:"D:write"`
 }
 
 type componentSetXML struct {
 	Comp []struct {
 		Name string `xml:"name,attr"`
-	} `xml:"comp"`
+	} `xml:"C:comp"`
 }
 
 // DoPROPFIND performs a PROPFIND request
@@ -138,8 +141,8 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 
 	// Parse the multistatus response
 	var multiStatus struct {
-		XMLName  xml.Name      `xml:"DAV: multistatus"`
-		Response []responseXML `xml:"response"`
+		XMLName  xml.Name      `xml:"D:multistatus"`
+		Response []responseXML `xml:"D:response"`
 	}
 
 	decoder := xml.NewDecoder(resp.Body)
@@ -199,7 +202,10 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 
 func buildPropfindXML(props ...string) []byte {
 	propfind := propfindXML{
-		Prop: propXML{},
+		XMLDAV:   "DAV:",
+		XMLApple: "http://apple.com/ns/ical/",
+		XMLCal:   "urn:ietf:params:xml:ns:caldav",
+		Prop:     propXML{},
 	}
 
 	// Add requested properties
