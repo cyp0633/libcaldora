@@ -100,22 +100,10 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 	// Initialize empty PropertySet
 	propSet := protocol.PropertySet{}
 
-	// If allprop is requested or no specific props are requested, include all properties
-	if propfind == nil || propfind.AllProp != nil || (propfind.Props == nil && propfind.PropName == nil) {
-		propSet = protocol.PropertySet{
-			ResourceType:  &protocol.ResourceType{},
-			DisplayName:   props.DisplayName,
-			CalendarColor: props.Color,
-			GetCTag:       props.CTag,
-			GetETag:       props.ETag,
-		}
-		if props.Owner != "" {
-			propSet.Owner = &protocol.Owner{
-				Href: props.Owner,
-			}
-		}
-	} else if propfind.Props != nil {
-		// Only include requested properties
+	// Handle explicit property requests first
+	if propfind != nil && propfind.Props != nil {
+		// Only include explicitly requested properties
+		propSet = protocol.PropertySet{}
 		if propfind.Props.ResourceType != nil {
 			propSet.ResourceType = &protocol.ResourceType{}
 		}
@@ -134,6 +122,40 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 		if propfind.Props.Owner != nil && props.Owner != "" {
 			propSet.Owner = &protocol.Owner{
 				Href: props.Owner,
+			}
+		}
+		if propfind.Props.CurrentUserPrincipal != nil && props.PrincipalURL != "" {
+			propSet.CurrentUserPrincipal = &protocol.CurrentUserPrincipal{
+				Href: props.PrincipalURL,
+			}
+		}
+		if propfind.Props.CalendarHomeSet != nil && props.CalendarHomeURL != "" {
+			propSet.CalendarHomeSet = &protocol.CalendarHomeSet{
+				Href: props.CalendarHomeURL,
+			}
+		}
+	} else if propfind == nil || propfind.AllProp != nil || (propfind.Props == nil && propfind.PropName == nil) {
+		// If allprop is requested or no specific props are requested, include all properties
+		propSet = protocol.PropertySet{
+			ResourceType:  &protocol.ResourceType{},
+			DisplayName:   props.DisplayName,
+			CalendarColor: props.Color,
+			GetCTag:       props.CTag,
+			GetETag:       props.ETag,
+		}
+		if props.Owner != "" {
+			propSet.Owner = &protocol.Owner{
+				Href: props.Owner,
+			}
+		}
+		if props.PrincipalURL != "" {
+			propSet.CurrentUserPrincipal = &protocol.CurrentUserPrincipal{
+				Href: props.PrincipalURL,
+			}
+		}
+		if props.CalendarHomeURL != "" {
+			propSet.CalendarHomeSet = &protocol.CalendarHomeSet{
+				Href: props.CalendarHomeURL,
 			}
 		}
 	}
@@ -162,23 +184,6 @@ func (s *Server) buildPropfindResponse(href string, props *interfaces.ResourcePr
 		propSet.ResourceType.Calendar = &xml.Name{Space: "urn:ietf:params:xml:ns:caldav", Local: "calendar"}
 	} else if props.Type == interfaces.ResourceTypeCollection {
 		propSet.ResourceType.Collection = &xml.Name{Space: "DAV:", Local: "collection"}
-	}
-
-	// Add CurrentUserPrincipal if present
-	if props.PrincipalURL != "" {
-		propSet.CurrentUserPrincipal = &protocol.CurrentUserPrincipal{
-			Href: props.PrincipalURL,
-		}
-	}
-
-	// Add CalendarHomeSet if present
-	if props.CalendarHomeURL != "" {
-		props.CalendarHomeSet = &interfaces.CalendarHome{
-			Href: props.CalendarHomeURL,
-		}
-		propSet.CalendarHomeSet = &protocol.CalendarHomeSet{
-			Href: props.CalendarHomeURL,
-		}
 	}
 
 	return &protocol.Response{
