@@ -31,6 +31,9 @@ type Props struct {
 
 type MultistatusResponse struct {
 	XMLName  xml.Name   `xml:"DAV: multistatus"`
+	DAVns    string     `xml:"xmlns,attr"`      // Default namespace
+	CalDAVns string     `xml:"xmlns:C,attr"`    // CalDAV namespace
+	ICalns   string     `xml:"xmlns:ICAL,attr"` // iCal namespace
 	Response []Response `xml:"response"`
 }
 
@@ -155,6 +158,9 @@ func NewErrorResponse(href string, status string) Response {
 
 func NewMultistatusResponse(responses ...Response) *MultistatusResponse {
 	return &MultistatusResponse{
+		DAVns:    "DAV:",
+		CalDAVns: "urn:ietf:params:xml:ns:caldav",
+		ICalns:   "http://apple.com/ns/ical/",
 		Response: responses,
 	}
 }
