@@ -25,6 +25,72 @@ type PropStat struct {
 	Status string
 }
 
+// Parse parses a multistatus response from an XML document
+func (m *MultistatusResponse) Parse(doc *etree.Document) error {
+	if doc == nil || doc.Root() == nil {
+		return fmt.Errorf("empty document")
+	}
+
+	root := doc.Root()
+	if root.Tag != TagMultistatus {
+		return fmt.Errorf("invalid root tag: %s", root.Tag)
+	}
+
+	m.Responses = nil // Reset responses
+
+	for _, respElem := range root.SelectElements("response") {
+		resp := Response{}
+
+		// Parse href
+		if hrefElem := respElem.SelectElement("href"); hrefElem != nil {
+			resp.Href = hrefElem.Text()
+		}
+
+		// Parse error if present
+		if errorElem := respElem.SelectElement("error"); errorElem != nil {
+			if child := errorElem.ChildElements(); len(child) > 0 {
+				resp.Error = &Error{
+					Tag:       child[0].Tag,
+					Namespace: child[0].Space,
+					Message:   child[0].Text(),
+				}
+				if resp.Error.Namespace == "D" {
+					resp.Error.Namespace = DAV
+				}
+			}
+		} else {
+			// Parse propstat elements
+			for _, propstatElem := range respElem.SelectElements("propstat") {
+				propstat := PropStat{}
+
+				// Parse properties
+				if propElem := propstatElem.SelectElement("prop"); propElem != nil {
+					for _, prop := range propElem.ChildElements() {
+						property := Property{}
+						property.FromElement(prop)
+						// Convert "D" namespace to "DAV:"
+						if property.Namespace == "D" {
+							property.Namespace = DAV
+						}
+						propstat.Props = append(propstat.Props, property)
+					}
+				}
+
+				// Parse status
+				if statusElem := propstatElem.SelectElement("status"); statusElem != nil {
+					propstat.Status = statusElem.Text()
+				}
+
+				resp.PropStats = append(resp.PropStats, propstat)
+			}
+		}
+
+		m.Responses = append(m.Responses, resp)
+	}
+
+	return nil
+}
+
 // ToXML converts a MultistatusResponse to an XML document
 func (m *MultistatusResponse) ToXML() *etree.Document {
 	doc := etree.NewDocument()
@@ -47,7 +113,24 @@ func (m *MultistatusResponse) ToXML() *etree.Document {
 				prop := ps.CreateElement(TagProp)
 
 				for _, p := range propstat.Props {
-					prop.AddChild(p.ToElement())
+					elem := p.ToElement()
+					// Only add namespace prefix for special elements like resourcetype
+					if p.Name == "resourcetype" || p.Name == "collection" || p.Name == "calendar" {
+						if p.Namespace == DAV {
+							elem.Space = "D"
+						} else if p.Namespace == CalDAV {
+							elem.Space = "C"
+						}
+						// For resourcetype's children, also set the namespace
+						for _, child := range elem.ChildElements() {
+							if child.Space == DAV {
+								child.Space = "D"
+							} else if child.Space == CalDAV {
+								child.Space = "C"
+							}
+						}
+					}
+					prop.AddChild(elem)
 				}
 
 				status := ps.CreateElement(TagStatus)
@@ -57,20 +140,4 @@ func (m *MultistatusResponse) ToXML() *etree.Document {
 	}
 
 	return doc
-}
-
-// HTTPStatus converts a status code to a WebDAV status string
-func HTTPStatus(code int) string {
-	switch code {
-	case 200:
-		return "HTTP/1.1 200 OK"
-	case 404:
-		return "HTTP/1.1 404 Not Found"
-	case 207:
-		return "HTTP/1.1 207 Multi-Status"
-	case 403:
-		return "HTTP/1.1 403 Forbidden"
-	default:
-		return fmt.Sprintf("HTTP/1.1 %d Status", code)
-	}
 }

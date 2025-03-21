@@ -25,6 +25,12 @@ func (r *PropfindRequest) Parse(doc *etree.Document) error {
 		return fmt.Errorf("invalid root tag: %s", root.Tag)
 	}
 
+	// Reset the request fields
+	r.Prop = nil
+	r.Include = nil
+	r.PropNames = false
+	r.AllProp = false
+
 	for _, child := range root.ChildElements() {
 		switch child.Tag {
 		case TagProp:
@@ -35,8 +41,9 @@ func (r *PropfindRequest) Parse(doc *etree.Document) error {
 			r.PropNames = true
 		case TagAllprop:
 			r.AllProp = true
-			for _, include := range root.FindElements(".//" + TagInclude) {
-				r.Include = append(r.Include, include.Text())
+		case TagInclude:
+			for _, item := range child.ChildElements() {
+				r.Include = append(r.Include, item.Tag)
 			}
 		}
 	}
@@ -51,24 +58,30 @@ func (r *PropfindRequest) ToXML() *etree.Document {
 	AddNamespaces(doc)
 
 	if r.PropNames {
-		root.CreateElement(TagPropname)
+		root.CreateElement(TagPropname).Space = "D"
 	} else if r.AllProp {
-		root.CreateElement(TagAllprop)
+		root.CreateElement(TagAllprop).Space = "D"
 		if len(r.Include) > 0 {
 			include := root.CreateElement(TagInclude)
-			for _, prop := range r.Include {
-				elem := include.CreateElement(prop)
-				if prop == "calendar-data" {
+			include.Space = "D"
+			for _, name := range r.Include {
+				elem := include.CreateElement(name)
+				if name == "calendar-data" {
 					elem.Space = "C"
+				} else if name == "sync-token" {
+					elem.Space = "D"
 				}
 			}
 		}
 	} else if len(r.Prop) > 0 {
 		prop := root.CreateElement(TagProp)
+		prop.Space = "D"
 		for _, name := range r.Prop {
 			elem := prop.CreateElement(name)
 			if name == "calendar-data" {
 				elem.Space = "C"
+			} else {
+				elem.Space = "D"
 			}
 		}
 	}

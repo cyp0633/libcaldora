@@ -14,6 +14,7 @@ const (
 	TagHref         = "href"
 	TagPropstat     = "propstat"
 	TagStatus       = "status"
+	TagError        = "error"
 	TagResourcetype = "resourcetype"
 	TagCollection   = "collection"
 	TagCalendar     = "calendar"
@@ -64,7 +65,7 @@ type Error struct {
 
 // ToElement converts an Error to an etree.Element
 func (e *Error) ToElement() *etree.Element {
-	err := etree.NewElement("error")
+	err := etree.NewElement(TagError)
 	tag := etree.NewElement(e.Tag)
 	if e.Namespace != "" {
 		tag.Space = e.Namespace
