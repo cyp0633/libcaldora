@@ -7,4 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 )
 
-require github.com/teambition/rrule-go v1.8.2 // indirect
+require (
+	github.com/beevik/etree v1.5.0 // indirect
+	github.com/teambition/rrule-go v1.8.2 // indirect
+)
