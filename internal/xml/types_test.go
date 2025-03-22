@@ -99,6 +99,7 @@ func TestProperty_FromElement(t *testing.T) {
 			want: Property{
 				Name:        "displayname",
 				TextContent: "Calendar",
+				Attributes:  make(map[string]string),
 			},
 		},
 		{
@@ -113,6 +114,7 @@ func TestProperty_FromElement(t *testing.T) {
 				Name:        "calendar",
 				Namespace:   CalDAV,
 				TextContent: "Calendar Resource",
+				Attributes:  make(map[string]string),
 			},
 		},
 		{
@@ -133,14 +135,17 @@ func TestProperty_FromElement(t *testing.T) {
 				Namespace: DAV,
 				Children: []Property{
 					{
-						Name:      "collection",
-						Namespace: DAV,
+						Name:       "collection",
+						Namespace:  DAV,
+						Attributes: make(map[string]string),
 					},
 					{
-						Name:      "calendar",
-						Namespace: CalDAV,
+						Name:       "calendar",
+						Namespace:  CalDAV,
+						Attributes: make(map[string]string),
 					},
 				},
+				Attributes: make(map[string]string),
 			},
 		},
 	}

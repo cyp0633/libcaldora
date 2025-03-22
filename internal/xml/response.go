@@ -114,22 +114,30 @@ func (m *MultistatusResponse) ToXML() *etree.Document {
 
 				for _, p := range propstat.Props {
 					elem := p.ToElement()
-					// Only add namespace prefix for special elements like resourcetype
-					if p.Name == "resourcetype" || p.Name == "collection" || p.Name == "calendar" {
-						if p.Namespace == DAV {
+					// Add namespace prefix only for resourcetype and collection-related elements
+					needsNamespace := p.Name == "resourcetype" || p.Name == "collection" || p.Name == "calendar"
+					if needsNamespace && p.Namespace != "" {
+						switch p.Namespace {
+						case DAV:
 							elem.Space = "D"
-						} else if p.Namespace == CalDAV {
+						case CalDAV:
 							elem.Space = "C"
-						}
-						// For resourcetype's children, also set the namespace
-						for _, child := range elem.ChildElements() {
-							if child.Space == DAV {
-								child.Space = "D"
-							} else if child.Space == CalDAV {
-								child.Space = "C"
-							}
+						case CalendarServer:
+							elem.Space = "CS"
 						}
 					}
+
+					// For resourcetype's children, also set the namespace
+					for _, child := range elem.ChildElements() {
+						if child.Space == DAV {
+							child.Space = "D"
+						} else if child.Space == CalDAV {
+							child.Space = "C"
+						} else if child.Space == CalendarServer {
+							child.Space = "CS"
+						}
+					}
+
 					prop.AddChild(elem)
 				}
 

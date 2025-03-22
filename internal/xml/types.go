@@ -26,6 +26,7 @@ type Property struct {
 	Namespace   string
 	TextContent string
 	Children    []Property
+	Attributes  map[string]string
 }
 
 // ToElement converts a Property to an etree.Element
@@ -36,6 +37,10 @@ func (p *Property) ToElement() *etree.Element {
 	}
 	if p.TextContent != "" {
 		elem.SetText(p.TextContent)
+	}
+	// Add attributes
+	for key, value := range p.Attributes {
+		elem.CreateAttr(key, value)
 	}
 	for _, child := range p.Children {
 		elem.AddChild(child.ToElement())
@@ -49,11 +54,34 @@ func (p *Property) FromElement(elem *etree.Element) {
 	p.Namespace = elem.Space
 	p.TextContent = elem.Text()
 	p.Children = nil
+	p.Attributes = make(map[string]string)
+
+	// Copy attributes
+	for _, attr := range elem.Attr {
+		p.Attributes[attr.Key] = attr.Value
+	}
+
 	for _, child := range elem.ChildElements() {
 		childProp := Property{}
 		childProp.FromElement(child)
 		p.Children = append(p.Children, childProp)
 	}
+}
+
+// GetAttr returns the value of an attribute, or empty string if not found
+func (p *Property) GetAttr(name string) string {
+	if p.Attributes == nil {
+		return ""
+	}
+	return p.Attributes[name]
+}
+
+// SetAttr sets an attribute value
+func (p *Property) SetAttr(name, value string) {
+	if p.Attributes == nil {
+		p.Attributes = make(map[string]string)
+	}
+	p.Attributes[name] = value
 }
 
 // Error represents a WebDAV error response

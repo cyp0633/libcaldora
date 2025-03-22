@@ -25,6 +25,7 @@ func TestMultistatusResponse_ToXML(t *testing.T) {
 									{
 										Name:        "displayname",
 										TextContent: "Calendar 1",
+										Attributes:  make(map[string]string),
 									},
 								},
 								Status: "HTTP/1.1 200 OK",
@@ -58,14 +59,17 @@ func TestMultistatusResponse_ToXML(t *testing.T) {
 										Namespace: DAV,
 										Children: []Property{
 											{
-												Name:      "collection",
-												Namespace: DAV,
+												Name:       "collection",
+												Namespace:  DAV,
+												Attributes: make(map[string]string),
 											},
 											{
-												Name:      "calendar",
-												Namespace: CalDAV,
+												Name:       "calendar",
+												Namespace:  CalDAV,
+												Attributes: make(map[string]string),
 											},
 										},
+										Attributes: make(map[string]string),
 									},
 								},
 								Status: "HTTP/1.1 200 OK",
@@ -147,6 +151,7 @@ func TestMultistatusResponse_Parse(t *testing.T) {
 										Name:        "displayname",
 										Namespace:   DAV,
 										TextContent: "Calendar 1",
+										Attributes:  make(map[string]string),
 									},
 								},
 								Status: "HTTP/1.1 200 OK",
