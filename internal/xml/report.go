@@ -74,6 +74,9 @@ func (r *ReportRequest) Parse(doc *etree.Document) error {
 	}
 
 	root := doc.Root()
+	if root == nil {
+		return fmt.Errorf("missing root element")
+	}
 
 	switch root.Tag {
 	case "calendar-query":
@@ -153,7 +156,7 @@ func (r *ReportRequest) parseCalendarMultiget(root *etree.Element) error {
 }
 
 func (r *ReportRequest) parseFreeBusyQuery(root *etree.Element) error {
-	r.FreeBusy = &FreeBusyQuery{}
+	r.FreeBusy = &FreeBusyQuery{TimeRange: TimeRange{}}
 
 	// Parse time-range element
 	if tr := FindElementWithNS(root, "time-range"); tr != nil {
