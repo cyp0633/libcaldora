@@ -30,13 +30,11 @@ type Filter struct {
 }
 
 func (f *Filter) toElement(elem *etree.Element) {
-	compFilter := elem.CreateElement("comp-filter")
-	compFilter.Space = "C"
+	compFilter := CreateElementWithNS(elem, "comp-filter")
 	compFilter.CreateAttr("name", f.ComponentName)
 
 	if f.TimeRange != nil {
-		tr := compFilter.CreateElement("time-range")
-		tr.Space = "C"
+		tr := CreateElementWithNS(compFilter, "time-range")
 		f.TimeRange.toElement(tr)
 	}
 
@@ -93,14 +91,14 @@ func (r *ReportRequest) parseCalendarQuery(root *etree.Element) error {
 	r.Query = &CalendarQuery{}
 
 	// Parse prop element
-	if prop := root.FindElement("D:prop"); prop != nil {
+	if prop := FindElementWithNS(root, "prop"); prop != nil {
 		for _, p := range prop.ChildElements() {
 			r.Query.Props = append(r.Query.Props, p.Tag)
 		}
 	}
 
 	// Parse filter element
-	if filter := root.FindElement("C:filter"); filter != nil {
+	if filter := FindElementWithNS(root, "filter"); filter != nil {
 		if err := r.parseFilter(filter, &r.Query.Filter); err != nil {
 			return err
 		}
@@ -110,11 +108,11 @@ func (r *ReportRequest) parseCalendarQuery(root *etree.Element) error {
 }
 
 func (r *ReportRequest) parseFilter(elem *etree.Element, filter *Filter) error {
-	if compFilter := elem.SelectElement("comp-filter"); compFilter != nil {
+	if compFilter := FindElementWithNS(elem, "comp-filter"); compFilter != nil {
 		filter.ComponentName = compFilter.SelectAttrValue("name", "")
 
 		// Parse time-range if present
-		if tr := compFilter.SelectElement("time-range"); tr != nil {
+		if tr := FindElementWithNS(compFilter, "time-range"); tr != nil {
 			filter.TimeRange = &TimeRange{}
 			if start := tr.SelectAttrValue("start", ""); start != "" {
 				t, _ := time.Parse("20060102T150405Z", start)
@@ -127,7 +125,7 @@ func (r *ReportRequest) parseFilter(elem *etree.Element, filter *Filter) error {
 		}
 
 		// Parse nested comp-filter if present
-		if nested := compFilter.SelectElement("comp-filter"); nested != nil {
+		if nested := FindElementWithNS(compFilter, "comp-filter"); nested != nil {
 			filter.SubFilter = &Filter{}
 			return r.parseFilter(compFilter, filter.SubFilter)
 		}
@@ -140,7 +138,7 @@ func (r *ReportRequest) parseCalendarMultiget(root *etree.Element) error {
 	r.MultiGet = &CalendarMultiget{}
 
 	// Parse prop element
-	if prop := root.FindElement("D:prop"); prop != nil {
+	if prop := FindElementWithNS(root, "prop"); prop != nil {
 		for _, p := range prop.ChildElements() {
 			r.MultiGet.Props = append(r.MultiGet.Props, p.Tag)
 		}
@@ -158,7 +156,7 @@ func (r *ReportRequest) parseFreeBusyQuery(root *etree.Element) error {
 	r.FreeBusy = &FreeBusyQuery{}
 
 	// Parse time-range element
-	if tr := root.SelectElement("time-range"); tr != nil {
+	if tr := FindElementWithNS(root, "time-range"); tr != nil {
 		if start := tr.SelectAttrValue("start", ""); start != "" {
 			t, _ := time.Parse("20060102T150405Z", start)
 			r.FreeBusy.TimeRange.Start = &t
@@ -175,68 +173,46 @@ func (r *ReportRequest) parseFreeBusyQuery(root *etree.Element) error {
 // ToXML converts a ReportRequest to an XML document
 func (r *ReportRequest) ToXML() *etree.Document {
 	doc := etree.NewDocument()
-	root := doc.CreateElement("")
+	var root *etree.Element
 
-	// Set appropriate root element and add namespaces
+	// Create appropriate root element and add namespaces
 	switch {
 	case r.Query != nil:
-		root.Tag = "calendar-query"
-		root.Space = "C"
-		root.CreateAttr("xmlns:D", DAV)
-		root.CreateAttr("xmlns:C", CalDAV)
+		root = CreateRootElement(doc, "calendar-query", true)
+		AddSelectedNamespaces(doc, DAV, CalDAV)
 
 		// Add prop element
-		prop := root.CreateElement("prop")
-		prop.Space = "D"
+		prop := CreateElementWithNS(root, "prop")
 		for _, p := range r.Query.Props {
-			if p == "calendar-data" {
-				elem := prop.CreateElement(p)
-				elem.Space = "C"
-			} else {
-				elem := prop.CreateElement(p)
-				elem.Space = "D"
-			}
+			CreateElementWithNS(prop, p)
 		}
 
 		// Add filter element
-		filter := root.CreateElement("filter")
-		filter.Space = "C"
+		filter := CreateElementWithNS(root, "filter")
 		r.Query.Filter.toElement(filter)
 
 	case r.MultiGet != nil:
-		root.Tag = "calendar-multiget"
-		root.Space = "C"
-		root.CreateAttr("xmlns:D", DAV)
-		root.CreateAttr("xmlns:C", CalDAV)
+		root = CreateRootElement(doc, "calendar-multiget", true)
+		AddSelectedNamespaces(doc, DAV, CalDAV)
 
 		// Add prop element
-		prop := root.CreateElement("prop")
-		prop.Space = "D"
+		prop := CreateElementWithNS(root, "prop")
 		for _, p := range r.MultiGet.Props {
-			if p == "calendar-data" {
-				elem := prop.CreateElement(p)
-				elem.Space = "C"
-			} else {
-				elem := prop.CreateElement(p)
-				elem.Space = "D"
-			}
+			CreateElementWithNS(prop, p)
 		}
 
 		// Add href elements
 		for _, href := range r.MultiGet.Hrefs {
-			hrefElem := root.CreateElement("href")
-			hrefElem.Space = "D"
+			hrefElem := CreateElementWithNS(root, "href")
 			hrefElem.SetText(href)
 		}
 
 	case r.FreeBusy != nil:
-		root.Tag = "free-busy-query"
-		root.Space = "C"
-		root.CreateAttr("xmlns:C", CalDAV)
+		root = CreateRootElement(doc, "free-busy-query", true)
+		AddSelectedNamespaces(doc, CalDAV)
 
 		// Add time-range element
-		tr := root.CreateElement("time-range")
-		tr.Space = "C"
+		tr := CreateElementWithNS(root, "time-range")
 		r.FreeBusy.TimeRange.toElement(tr)
 	}
 

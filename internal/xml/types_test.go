@@ -21,6 +21,7 @@ func TestProperty_ToElement(t *testing.T) {
 			},
 			want: func() *etree.Element {
 				elem := etree.NewElement("displayname")
+				elem.Space = "D" // Add DAV namespace prefix
 				elem.SetText("Calendar")
 				return elem
 			},
@@ -34,7 +35,7 @@ func TestProperty_ToElement(t *testing.T) {
 			},
 			want: func() *etree.Element {
 				elem := etree.NewElement("calendar")
-				elem.Space = CalDAV
+				elem.Space = "C" // CalDAV prefix
 				elem.SetText("Calendar Resource")
 				return elem
 			},
@@ -57,11 +58,11 @@ func TestProperty_ToElement(t *testing.T) {
 			},
 			want: func() *etree.Element {
 				elem := etree.NewElement("resourcetype")
-				elem.Space = DAV
+				elem.Space = "D"
 				child1 := etree.NewElement("collection")
-				child1.Space = DAV
+				child1.Space = "D"
 				child2 := etree.NewElement("calendar")
-				child2.Space = CalDAV
+				child2.Space = "C"
 				elem.AddChild(child1)
 				elem.AddChild(child2)
 				return elem
@@ -176,6 +177,7 @@ func TestError_ToElement(t *testing.T) {
 			},
 			want: func() *etree.Element {
 				elem := etree.NewElement("error")
+				elem.Space = "D" // Add DAV namespace prefix
 				child := etree.NewElement("cannot-modify-property")
 				child.SetText("Property cannot be modified")
 				elem.AddChild(child)
@@ -191,8 +193,9 @@ func TestError_ToElement(t *testing.T) {
 			},
 			want: func() *etree.Element {
 				elem := etree.NewElement("error")
+				elem.Space = "D" // Add DAV namespace prefix
 				child := etree.NewElement("locked")
-				child.Space = DAV
+				child.Space = "D"
 				child.SetText("Resource is locked")
 				elem.AddChild(child)
 				return elem

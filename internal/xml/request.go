@@ -31,20 +31,27 @@ func (r *PropfindRequest) Parse(doc *etree.Document) error {
 	r.PropNames = false
 	r.AllProp = false
 
-	for _, child := range root.ChildElements() {
-		switch child.Tag {
-		case TagProp:
-			for _, prop := range child.ChildElements() {
-				r.Prop = append(r.Prop, prop.Tag)
-			}
-		case TagPropname:
-			r.PropNames = true
-		case TagAllprop:
-			r.AllProp = true
-		case TagInclude:
-			for _, item := range child.ChildElements() {
-				r.Include = append(r.Include, item.Tag)
-			}
+	// Check for prop
+	if prop := FindElementWithNS(root, TagProp); prop != nil {
+		for _, p := range prop.ChildElements() {
+			r.Prop = append(r.Prop, p.Tag)
+		}
+	}
+
+	// Check for propname
+	if FindElementWithNS(root, TagPropname) != nil {
+		r.PropNames = true
+	}
+
+	// Check for allprop
+	if FindElementWithNS(root, TagAllprop) != nil {
+		r.AllProp = true
+	}
+
+	// Check for include
+	if include := FindElementWithNS(root, TagInclude); include != nil {
+		for _, item := range include.ChildElements() {
+			r.Include = append(r.Include, item.Tag)
 		}
 	}
 
@@ -54,35 +61,24 @@ func (r *PropfindRequest) Parse(doc *etree.Document) error {
 // ToXML converts a PropfindRequest to an XML document
 func (r *PropfindRequest) ToXML() *etree.Document {
 	doc := etree.NewDocument()
-	root := doc.CreateElement(TagPropfind)
-	AddNamespaces(doc)
+	// Create root element without namespace prefix by default
+	root := CreateRootElement(doc, TagPropfind, false)
+	AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer)
 
 	if r.PropNames {
-		root.CreateElement(TagPropname).Space = "D"
+		CreateElementWithNS(root, TagPropname)
 	} else if r.AllProp {
-		root.CreateElement(TagAllprop).Space = "D"
+		CreateElementWithNS(root, TagAllprop)
 		if len(r.Include) > 0 {
-			include := root.CreateElement(TagInclude)
-			include.Space = "D"
+			include := CreateElementWithNS(root, TagInclude)
 			for _, name := range r.Include {
-				elem := include.CreateElement(name)
-				if name == "calendar-data" {
-					elem.Space = "C"
-				} else if name == "sync-token" {
-					elem.Space = "D"
-				}
+				CreateElementWithNS(include, name)
 			}
 		}
 	} else if len(r.Prop) > 0 {
-		prop := root.CreateElement(TagProp)
-		prop.Space = "D"
+		prop := CreateElementWithNS(root, TagProp)
 		for _, name := range r.Prop {
-			elem := prop.CreateElement(name)
-			if name == "calendar-data" {
-				elem.Space = "C"
-			} else {
-				elem.Space = "D"
-			}
+			CreateElementWithNS(prop, name)
 		}
 	}
 

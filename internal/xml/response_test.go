@@ -35,15 +35,15 @@ func TestMultistatusResponse_ToXML(t *testing.T) {
 				},
 			},
 			want: `<?xml version="1.0" encoding="UTF-8"?>
-<multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
-<response>
-<href>/calendars/user/calendar1</href>
-<propstat>
-<prop><displayname>Calendar 1</displayname></prop>
-<status>HTTP/1.1 200 OK</status>
-</propstat>
-</response>
-</multistatus>`,
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+<D:response>
+<D:href>/calendars/user/calendar1</D:href>
+<D:propstat>
+<D:prop><D:displayname>Calendar 1</D:displayname></D:prop>
+<D:status>HTTP/1.1 200 OK</D:status>
+</D:propstat>
+</D:response>
+</D:multistatus>`,
 		},
 		{
 			name: "multiple responses with different properties",
@@ -86,19 +86,19 @@ func TestMultistatusResponse_ToXML(t *testing.T) {
 				},
 			},
 			want: `<?xml version="1.0" encoding="UTF-8"?>
-<multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
-<response>
-<href>/calendars/user/calendar1</href>
-<propstat>
-<prop><D:resourcetype><D:collection/><C:calendar/></D:resourcetype></prop>
-<status>HTTP/1.1 200 OK</status>
-</propstat>
-</response>
-<response>
-<href>/calendars/user/calendar2</href>
-<error><not-found>Resource not found</not-found></error>
-</response>
-</multistatus>`,
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+<D:response>
+<D:href>/calendars/user/calendar1</D:href>
+<D:propstat>
+<D:prop><D:resourcetype><D:collection/><C:calendar/></D:resourcetype></D:prop>
+<D:status>HTTP/1.1 200 OK</D:status>
+</D:propstat>
+</D:response>
+<D:response>
+<D:href>/calendars/user/calendar2</D:href>
+<D:error><not-found>Resource not found</not-found></D:error>
+</D:response>
+</D:multistatus>`,
 		},
 	}
 

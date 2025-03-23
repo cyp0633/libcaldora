@@ -210,15 +210,45 @@ func TestReportRequest_ToXML(t *testing.T) {
 				t.Fatalf("failed to serialize XML: %v", err)
 			}
 
-			// Normalize spaces and newlines for comparison
+			// Use a better comparison approach with more logging
 			gotNorm := normalizeXML(got)
 			wantNorm := normalizeXML(tt.want)
 
 			if gotNorm != wantNorm {
-				t.Errorf("ReportRequest.ToXML() =\n%s\nwant:\n%s", got, tt.want)
+				// Print normalized versions to help debugging
+				t.Errorf("ReportRequest.ToXML() normalized comparison failed\nGot (normalized): %s\nWant (normalized): %s\n\nOriginal:\nGot: %s\nWant: %s",
+					gotNorm, wantNorm, got, tt.want)
+
+				// Check for common issues
+				for i := 0; i < len(gotNorm) && i < len(wantNorm); i++ {
+					if gotNorm[i] != wantNorm[i] {
+						t.Errorf("First difference at position %d: got '%c' (ASCII %d), want '%c' (ASCII %d)",
+							i, gotNorm[i], gotNorm[i], wantNorm[i], wantNorm[i])
+						// Show context around the difference
+						start := max(0, i-10)
+						end := min(len(gotNorm), i+10)
+						t.Errorf("Context: '...%s...'", gotNorm[start:end])
+						break
+					}
+				}
 			}
 		})
 	}
+}
+
+// Helper functions
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // Helper function to parse time in CalDAV format

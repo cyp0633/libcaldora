@@ -38,46 +38,39 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 
 	m.Responses = nil // Reset responses
 
-	for _, respElem := range root.SelectElements("response") {
+	for _, respElem := range root.SelectElements(GetElementPrefix(TagResponse) + ":" + TagResponse) {
 		resp := Response{}
 
 		// Parse href
-		if hrefElem := respElem.SelectElement("href"); hrefElem != nil {
+		if hrefElem := FindElementWithNS(respElem, TagHref); hrefElem != nil {
 			resp.Href = hrefElem.Text()
 		}
 
 		// Parse error if present
-		if errorElem := respElem.SelectElement("error"); errorElem != nil {
+		if errorElem := FindElementWithNS(respElem, TagError); errorElem != nil {
 			if child := errorElem.ChildElements(); len(child) > 0 {
 				resp.Error = &Error{
 					Tag:       child[0].Tag,
-					Namespace: child[0].Space,
+					Namespace: GetElementNamespace(child[0].Tag),
 					Message:   child[0].Text(),
-				}
-				if resp.Error.Namespace == "D" {
-					resp.Error.Namespace = DAV
 				}
 			}
 		} else {
 			// Parse propstat elements
-			for _, propstatElem := range respElem.SelectElements("propstat") {
+			for _, propstatElem := range respElem.SelectElements(GetElementPrefix(TagPropstat) + ":" + TagPropstat) {
 				propstat := PropStat{}
 
 				// Parse properties
-				if propElem := propstatElem.SelectElement("prop"); propElem != nil {
+				if propElem := FindElementWithNS(propstatElem, TagProp); propElem != nil {
 					for _, prop := range propElem.ChildElements() {
 						property := Property{}
 						property.FromElement(prop)
-						// Convert "D" namespace to "DAV:"
-						if property.Namespace == "D" {
-							property.Namespace = DAV
-						}
 						propstat.Props = append(propstat.Props, property)
 					}
 				}
 
 				// Parse status
-				if statusElem := propstatElem.SelectElement("status"); statusElem != nil {
+				if statusElem := FindElementWithNS(propstatElem, TagStatus); statusElem != nil {
 					propstat.Status = statusElem.Text()
 				}
 
@@ -94,54 +87,30 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 // ToXML converts a MultistatusResponse to an XML document
 func (m *MultistatusResponse) ToXML() *etree.Document {
 	doc := etree.NewDocument()
-	root := doc.CreateElement(TagMultistatus)
-	AddNamespaces(doc)
+	// Create root element with namespace prefix for multistatus responses
+	root := CreateRootElement(doc, TagMultistatus, true)
+	AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer)
 
 	for _, resp := range m.Responses {
-		response := root.CreateElement(TagResponse)
-		href := response.CreateElement(TagHref)
+		response := CreateElementWithNS(root, TagResponse)
+		href := CreateElementWithNS(response, TagHref)
 		href.SetText(resp.Href)
 
 		if resp.Error != nil {
 			response.AddChild(resp.Error.ToElement())
 		} else if resp.Status != "" {
-			status := response.CreateElement(TagStatus)
+			status := CreateElementWithNS(response, TagStatus)
 			status.SetText(resp.Status)
 		} else {
 			for _, propstat := range resp.PropStats {
-				ps := response.CreateElement(TagPropstat)
-				prop := ps.CreateElement(TagProp)
+				ps := CreateElementWithNS(response, TagPropstat)
+				prop := CreateElementWithNS(ps, TagProp)
 
 				for _, p := range propstat.Props {
-					elem := p.ToElement()
-					// Add namespace prefix only for resourcetype and collection-related elements
-					needsNamespace := p.Name == "resourcetype" || p.Name == "collection" || p.Name == "calendar"
-					if needsNamespace && p.Namespace != "" {
-						switch p.Namespace {
-						case DAV:
-							elem.Space = "D"
-						case CalDAV:
-							elem.Space = "C"
-						case CalendarServer:
-							elem.Space = "CS"
-						}
-					}
-
-					// For resourcetype's children, also set the namespace
-					for _, child := range elem.ChildElements() {
-						if child.Space == DAV {
-							child.Space = "D"
-						} else if child.Space == CalDAV {
-							child.Space = "C"
-						} else if child.Space == CalendarServer {
-							child.Space = "CS"
-						}
-					}
-
-					prop.AddChild(elem)
+					prop.AddChild(p.ToElement())
 				}
 
-				status := ps.CreateElement(TagStatus)
+				status := CreateElementWithNS(ps, TagStatus)
 				status.SetText(propstat.Status)
 			}
 		}
