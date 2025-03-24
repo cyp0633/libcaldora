@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	auth "github.com/cyp0633/libcaldora/server/auth/memory"
+	"github.com/cyp0633/libcaldora/server/handlers"
 	store "github.com/cyp0633/libcaldora/server/storage/memory"
 )
 
@@ -49,11 +50,11 @@ func TestServer_Options(t *testing.T) {
 	}
 
 	// Check headers
-	if got := w.Header().Get(headerDAV); got != davCapabilities {
-		t.Errorf("expected DAV header %q, got %q", davCapabilities, got)
+	if got := w.Header().Get(handlers.HeaderDAV); got != handlers.DavCapabilities {
+		t.Errorf("expected DAV header %q, got %q", handlers.DavCapabilities, got)
 	}
-	if got := w.Header().Get(headerAllow); got != allowedMethods {
-		t.Errorf("expected Allow header %q, got %q", allowedMethods, got)
+	if got := w.Header().Get(handlers.HeaderAllow); got != handlers.AllowedMethods {
+		t.Errorf("expected Allow header %q, got %q", handlers.AllowedMethods, got)
 	}
 }
 
