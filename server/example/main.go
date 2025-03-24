@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	"github.com/cyp0633/libcaldora/server"
-	"github.com/cyp0633/libcaldora/server/storage/memory"
+	auth "github.com/cyp0633/libcaldora/server/auth/memory"
+	store "github.com/cyp0633/libcaldora/server/storage/memory"
 )
 
 var (
@@ -19,11 +20,21 @@ func main() {
 	flag.Parse()
 
 	// Create a new in-memory storage backend
-	// In a real application, you would implement your own storage backend
-	store := memory.New()
+	storage := store.New()
 
-	// Create the CalDAV server
-	srv, err := server.New(store, *baseURI)
+	// Create a new in-memory auth store and add a test user
+	authStore := auth.New()
+	if err := authStore.AddUser("testuser", "password"); err != nil {
+		log.Fatalf("Failed to create test user: %v", err)
+	}
+
+	// Create the CalDAV server with auth enabled
+	srv, err := server.New(server.Options{
+		Storage: storage,
+		BaseURI: *baseURI,
+		Auth:    authStore,
+		Realm:   "CalDAV Test Server",
+	})
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
 	}
@@ -54,6 +65,10 @@ This is a basic CalDAV server implementation using libcaldora.
 The server is running with the following configuration:
 
 Base URI: %s
+Authentication:
+- Username: testuser
+- Password: password
+
 Test URLs:
 - CalDAV discovery:     %s/.well-known/caldav
 - User principal:       %s/u/testuser
@@ -69,6 +84,8 @@ Supported HTTP methods:
 - PUT: Create/update calendar object
 - DELETE: Remove calendar or object
 - MKCOL: Create calendar collection
+
+Note: All URLs except /.well-known/caldav require Basic Authentication.
 `, *baseURI, *baseURI, *baseURI, *baseURI, *baseURI, *baseURI)
 	})
 

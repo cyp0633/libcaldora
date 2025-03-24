@@ -7,6 +7,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/cyp0633/libcaldora/internal/xml"
+	"github.com/cyp0633/libcaldora/server/auth"
 	"github.com/cyp0633/libcaldora/server/storage"
 )
 
@@ -35,17 +36,26 @@ type Server struct {
 	storage  storage.Storage
 	baseURI  string
 	handlers map[string]http.HandlerFunc
+	handler  http.Handler
+}
+
+// Options configures a CalDAV server
+type Options struct {
+	Storage storage.Storage
+	BaseURI string
+	Auth    auth.Authenticator
+	Realm   string
 }
 
 // New creates a new CalDAV server
-func New(store storage.Storage, baseURI string) (*Server, error) {
-	if store == nil {
+func New(opts Options) (*Server, error) {
+	if opts.Storage == nil {
 		return nil, fmt.Errorf("storage is required")
 	}
 
 	s := &Server{
-		storage:  store,
-		baseURI:  baseURI,
+		storage:  opts.Storage,
+		baseURI:  opts.BaseURI,
 		handlers: make(map[string]http.HandlerFunc),
 	}
 
@@ -58,11 +68,25 @@ func New(store storage.Storage, baseURI string) (*Server, error) {
 	s.handlers["DELETE"] = s.handleDelete
 	s.handlers["MKCOL"] = s.handleMkcol
 
+	// Create base handler
+	var handler http.Handler = http.HandlerFunc(s.serveHTTP)
+
+	// Apply authentication middleware if configured
+	if opts.Auth != nil {
+		handler = auth.Middleware(opts.Auth, opts.Realm)(handler)
+	}
+
+	s.handler = handler
 	return s, nil
 }
 
 // ServeHTTP implements http.Handler interface
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.handler.ServeHTTP(w, r)
+}
+
+// serveHTTP is the internal handler that processes CalDAV methods
+func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	handler, ok := s.handlers[r.Method]
 	if !ok {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
