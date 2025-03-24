@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/cyp0633/libcaldora/server"
 	auth "github.com/cyp0633/libcaldora/server/auth/memory"
@@ -19,13 +20,20 @@ var (
 func main() {
 	flag.Parse()
 
+	// Set up logger with JSON handler for structured logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	// Create a new in-memory storage backend
-	storage := store.New()
+	storage := store.New(store.WithLogger(logger))
 
 	// Create a new in-memory auth store and add a test user
-	authStore := auth.New()
+	authStore := auth.New(auth.WithLogger(logger))
 	if err := authStore.AddUser("testuser", "password"); err != nil {
-		log.Fatalf("Failed to create test user: %v", err)
+		logger.Error("failed to create test user", "error", err)
+		os.Exit(1)
 	}
 
 	// Create the CalDAV server with auth enabled
@@ -34,9 +42,11 @@ func main() {
 		BaseURI: *baseURI,
 		Auth:    authStore,
 		Realm:   "CalDAV Test Server",
+		Logger:  logger,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
+		logger.Error("failed to create server", "error", err)
+		os.Exit(1)
 	}
 
 	// Create an HTTP mux and register the CalDAV server
@@ -89,8 +99,12 @@ Note: All URLs except /.well-known/caldav require Basic Authentication.
 `, *baseURI, *baseURI, *baseURI, *baseURI, *baseURI, *baseURI)
 	})
 
-	log.Printf("Starting CalDAV server on %s with base URI %s", *addr, *baseURI)
+	logger.Info("starting CalDAV server",
+		"addr", *addr,
+		"base_uri", *baseURI)
+
 	if err := http.ListenAndServe(*addr, mux); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		logger.Error("server stopped with error", "error", err)
+		os.Exit(1)
 	}
 }

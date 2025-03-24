@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"encoding/base64"
+	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -22,16 +24,29 @@ func GetPrincipalFromContext(ctx context.Context) *Principal {
 	return nil
 }
 
+// MiddlewareOptions configures the authentication middleware
+type MiddlewareOptions struct {
+	Authenticator Authenticator
+	Realm         string
+	Logger        *slog.Logger
+}
+
 // Middleware creates HTTP middleware that enforces authentication
-func Middleware(authenticator Authenticator, realm string) func(http.Handler) http.Handler {
-	if realm == "" {
-		realm = "CalDAV Server"
+func Middleware(opts MiddlewareOptions) func(http.Handler) http.Handler {
+	if opts.Realm == "" {
+		opts.Realm = "CalDAV Server"
+	}
+
+	if opts.Logger == nil {
+		opts.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Skip authentication for well-known paths
 			if strings.HasPrefix(r.URL.Path, "/.well-known/") {
+				opts.Logger.Debug("skipping authentication for well-known path",
+					"path", r.URL.Path)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -39,32 +54,58 @@ func Middleware(authenticator Authenticator, realm string) func(http.Handler) ht
 			// Extract credentials from Authorization header
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				requestAuth(w, realm)
+				opts.Logger.Info("missing authorization header",
+					"path", r.URL.Path,
+					"remote_addr", r.RemoteAddr)
+				requestAuth(w, opts.Realm)
 				return
 			}
 
 			creds, err := parseBasicAuth(authHeader)
 			if err != nil {
-				requestAuth(w, realm)
+				opts.Logger.Warn("invalid authorization header",
+					"error", err,
+					"path", r.URL.Path,
+					"remote_addr", r.RemoteAddr)
+				requestAuth(w, opts.Realm)
 				return
 			}
 
 			// Authenticate user
-			principal, err := authenticator.Authenticate(r.Context(), creds)
+			principal, err := opts.Authenticator.Authenticate(r.Context(), creds)
 			if err != nil {
-				requestAuth(w, realm)
+				opts.Logger.Info("authentication failed",
+					"username", creds.Username,
+					"error", err,
+					"path", r.URL.Path,
+					"remote_addr", r.RemoteAddr)
+				requestAuth(w, opts.Realm)
 				return
 			}
 
 			// Validate access to the requested path
-			if err := authenticator.ValidateAccess(r.Context(), principal, r.URL.Path); err != nil {
+			if err := opts.Authenticator.ValidateAccess(r.Context(), principal, r.URL.Path); err != nil {
 				if err, ok := err.(*Error); ok && err.Type == ErrForbidden {
+					opts.Logger.Warn("access forbidden",
+						"username", creds.Username,
+						"path", r.URL.Path,
+						"remote_addr", r.RemoteAddr)
 					http.Error(w, "Forbidden", http.StatusForbidden)
 					return
 				}
-				requestAuth(w, realm)
+				opts.Logger.Info("access validation failed",
+					"username", creds.Username,
+					"error", err,
+					"path", r.URL.Path,
+					"remote_addr", r.RemoteAddr)
+				requestAuth(w, opts.Realm)
 				return
 			}
+
+			opts.Logger.Debug("authentication successful",
+				"username", creds.Username,
+				"path", r.URL.Path,
+				"remote_addr", r.RemoteAddr)
 
 			// Store principal in context
 			ctx := context.WithValue(r.Context(), PrincipalContextKey, principal)
