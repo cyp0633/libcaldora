@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/beevik/etree"
+	"github.com/cyp0633/libcaldora/internal/xml"
 	"github.com/cyp0633/libcaldora/server/storage"
 )
 
@@ -82,15 +84,99 @@ func (s *Server) handleOptions(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePropfind(w http.ResponseWriter, r *http.Request) {
 	// Parse resource path
 	path := stripPrefix(r.URL.Path, s.baseURI)
-	_, err := storage.ParseResourcePath(path)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+
+	// Read request body
+	doc := etree.NewDocument()
+	if _, err := doc.ReadFrom(r.Body); err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
-	// TODO: Parse PROPFIND request and build response
+	// Parse PROPFIND request
+	var propfind xml.PropfindRequest
+	if err := propfind.Parse(doc); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Build multistatus response
+	response := &xml.MultistatusResponse{
+		Responses: []xml.Response{
+			{
+				Href:      s.baseURI + path,
+				PropStats: []xml.PropStat{},
+			},
+		},
+	}
+
+	// Get requested properties
+	props := propfind.Prop
+	if propfind.AllProp {
+		// Standard properties to include for allprop
+		props = []string{
+			xml.TagResourcetype,
+			"getcontenttype",
+			"displayname",
+		}
+		props = append(props, propfind.Include...)
+	}
+
+	// Handle root path specially
+	if path == "" || path == "/" {
+		// Split properties into found and not found
+		foundProps := []xml.Property{}
+		notFoundProps := []xml.Property{}
+
+		for _, prop := range props {
+			switch prop {
+			case xml.TagResourcetype:
+				// Root is a collection
+				foundProps = append(foundProps, xml.Property{
+					Name:      xml.TagResourcetype,
+					Namespace: xml.DAV,
+					Children: []xml.Property{
+						{Name: xml.TagCollection, Namespace: xml.DAV},
+					},
+				})
+			default:
+				// Other properties not found on root
+				notFoundProps = append(notFoundProps, xml.Property{
+					Name:      prop,
+					Namespace: xml.DAV,
+				})
+			}
+		}
+
+		// Add found properties
+		if len(foundProps) > 0 {
+			response.Responses[0].PropStats = append(response.Responses[0].PropStats, xml.PropStat{
+				Props:  foundProps,
+				Status: "HTTP/1.1 200 OK",
+			})
+		}
+
+		// Add not found properties
+		if len(notFoundProps) > 0 {
+			response.Responses[0].PropStats = append(response.Responses[0].PropStats, xml.PropStat{
+				Props:  notFoundProps,
+				Status: "HTTP/1.1 404 Not Found",
+			})
+		}
+	} else {
+		// Non-root paths
+		_, err := storage.ParseResourcePath(path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		// TODO: Handle non-root paths
+	}
+
+	// Convert response to XML and send
+	respDoc := response.ToXML()
 	w.Header().Set(headerContentType, "application/xml; charset=utf-8")
 	w.WriteHeader(http.StatusMultiStatus)
+	respDoc.WriteTo(w)
 }
 
 func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {

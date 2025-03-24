@@ -30,6 +30,16 @@ func main() {
 
 	// Create an HTTP mux and register the CalDAV server
 	mux := http.NewServeMux()
+	// Handle well-known caldav redirect
+	mux.HandleFunc("/.well-known/caldav", func(w http.ResponseWriter, r *http.Request) {
+		// Preserve query parameters in redirect
+		target := *baseURI
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusMovedPermanently)
+	})
+
 	mux.Handle(*baseURI+"/", srv)
 
 	// Add basic instructions
