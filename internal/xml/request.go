@@ -6,6 +6,63 @@ import (
 	"github.com/beevik/etree"
 )
 
+// CalendarMultigetRequest represents a calendar-multiget REPORT request
+type CalendarMultigetRequest struct {
+	Prop  []string
+	Hrefs []string
+}
+
+// Parse parses a calendar-multiget request from an XML document
+func (r *CalendarMultigetRequest) Parse(doc *etree.Document) error {
+	if doc == nil || doc.Root() == nil {
+		return fmt.Errorf("empty document")
+	}
+
+	root := doc.Root()
+	if root.Tag != "calendar-multiget" {
+		return fmt.Errorf("invalid root tag: %s", root.Tag)
+	}
+
+	// Reset the request fields
+	r.Prop = nil
+	r.Hrefs = nil
+
+	// Get props
+	if prop := FindElementWithNS(root, TagProp); prop != nil {
+		for _, p := range prop.ChildElements() {
+			r.Prop = append(r.Prop, p.Tag)
+		}
+	}
+
+	// Get hrefs
+	for _, href := range root.SelectElements("href") {
+		r.Hrefs = append(r.Hrefs, href.Text())
+	}
+
+	return nil
+}
+
+// ToXML converts a CalendarMultigetRequest to an XML document
+func (r *CalendarMultigetRequest) ToXML() *etree.Document {
+	doc := etree.NewDocument()
+	root := CreateRootElement(doc, "calendar-multiget", true)
+	AddSelectedNamespaces(doc, DAV, CalDAV)
+
+	if len(r.Prop) > 0 {
+		prop := CreateElementWithNS(root, TagProp)
+		for _, name := range r.Prop {
+			CreateElementWithNS(prop, name)
+		}
+	}
+
+	for _, href := range r.Hrefs {
+		h := CreateElementWithNS(root, TagHref)
+		h.SetText(href)
+	}
+
+	return doc
+}
+
 // PropfindRequest represents a PROPFIND request
 type PropfindRequest struct {
 	Prop      []string

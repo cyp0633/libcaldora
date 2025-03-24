@@ -38,7 +38,13 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 
 	m.Responses = nil // Reset responses
 
-	for _, respElem := range root.SelectElements(GetElementPrefix(TagResponse) + ":" + TagResponse) {
+	// Try both prefixed and unprefixed response elements
+	responseElements := root.SelectElements(GetElementPrefix(TagResponse) + ":" + TagResponse)
+	if len(responseElements) == 0 {
+		// If no prefixed elements found, try unprefixed
+		responseElements = root.SelectElements(TagResponse)
+	}
+	for _, respElem := range responseElements {
 		resp := Response{}
 
 		// Parse href
@@ -57,7 +63,13 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 			}
 		} else {
 			// Parse propstat elements
-			for _, propstatElem := range respElem.SelectElements(GetElementPrefix(TagPropstat) + ":" + TagPropstat) {
+			// Try both prefixed and unprefixed propstat elements
+			propstatElements := respElem.SelectElements(GetElementPrefix(TagPropstat) + ":" + TagPropstat)
+			if len(propstatElements) == 0 {
+				// If no prefixed elements found, try unprefixed
+				propstatElements = respElem.SelectElements(TagPropstat)
+			}
+			for _, propstatElem := range propstatElements {
 				propstat := PropStat{}
 
 				// Parse properties
@@ -87,7 +99,7 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 // ToXML converts a MultistatusResponse to an XML document
 func (m *MultistatusResponse) ToXML() *etree.Document {
 	doc := etree.NewDocument()
-	// Create root element with namespace prefix for multistatus responses
+	// Create root element with prefixed namespace for multistatus responses
 	root := CreateRootElement(doc, TagMultistatus, true)
 	AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer)
 

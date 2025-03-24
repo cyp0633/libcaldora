@@ -56,12 +56,25 @@ func TestRealDiscoveryResponse(t *testing.T) {
 	}
 
 	// Test parsing
+	t.Logf("Parsing calendar-multiget response file")
+	doc.WriteTo(os.Stdout) // Debug: print the XML document
 	resp := &MultistatusResponse{}
 	err = resp.Parse(doc)
 	assert.NoError(t, err)
 
+	// Log debug info
+	t.Logf("Root tag: %s", doc.Root().Tag)
+	t.Logf("Root namespaces: %v", doc.Root().Attr)
+	t.Logf("Response elements found: %d", len(resp.Responses))
+	if len(resp.Responses) > 0 {
+		t.Logf("First response href: %s", resp.Responses[0].Href)
+		if len(resp.Responses[0].PropStats) > 0 {
+			t.Logf("First propstat props: %v", resp.Responses[0].PropStats[0].Props)
+		}
+	}
+
 	// Verify parsed data
-	assert.Len(t, resp.Responses, 1)
+	assert.Len(t, resp.Responses, 1, "Expected 1 response element")
 	r := resp.Responses[0]
 	assert.Equal(t, "/", r.Href)
 	assert.Len(t, r.PropStats, 2)
@@ -151,12 +164,18 @@ func TestCalendarPropsResponse(t *testing.T) {
 	}
 
 	// Test parsing
+	t.Logf("Parsing calendar-multiget response file")
+	doc.WriteTo(os.Stdout) // Debug: print the XML document
 	resp := &MultistatusResponse{}
 	err = resp.Parse(doc)
 	assert.NoError(t, err)
 
+	// Log debug info
+	t.Logf("Root tag: %s", doc.Root().Tag)
+	t.Logf("Root namespaces: %v", doc.Root().Attr)
+
 	// Verify parsed data
-	assert.Len(t, resp.Responses, 1)
+	assert.Len(t, resp.Responses, 1, "Expected 1 response element")
 	r := resp.Responses[0]
 	assert.Equal(t, "/calendars/example/main-calendar/", r.Href)
 	assert.Len(t, r.PropStats, 1)
@@ -241,6 +260,201 @@ func TestCalendarPropsResponse(t *testing.T) {
 	assert.Equal(t, CalendarServer, calendarserver.Value)
 }
 
+func TestCalendarMultigetRequest(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/events/01_calendar_multiget_request.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	req := &CalendarMultigetRequest{}
+	err = req.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.ElementsMatch(t, []string{"getetag", "calendar-data"}, req.Prop)
+	assert.Equal(t, []string{"/calendars/user/calendar-1/event-1.ics"}, req.Hrefs)
+
+	// Test generation
+	generated := req.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "calendar-multiget", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	caldav := root.SelectAttr("xmlns:C")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+}
+
+func TestCalendarMultigetResponse(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/events/01_calendar_multiget_response.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	resp := &MultistatusResponse{}
+	err = resp.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.Len(t, resp.Responses, 1)
+	r := resp.Responses[0]
+	assert.Equal(t, "/calendars/user/calendar-1/event-1.ics", r.Href)
+	assert.Len(t, r.PropStats, 1)
+
+	// Check propstat
+	propstat := r.PropStats[0]
+	assert.Contains(t, propstat.Status, "200 OK")
+	assert.Len(t, propstat.Props, 2)
+
+	// Check individual properties
+	for _, prop := range propstat.Props {
+		switch prop.Name {
+		case "getetag":
+			assert.Equal(t, `"123456789abcdef123456789abcdef123456789a"`, prop.TextContent)
+		case "calendar-data":
+			// Verify basic iCalendar structure
+			assert.Contains(t, prop.TextContent, "BEGIN:VCALENDAR")
+			assert.Contains(t, prop.TextContent, "VERSION:2.0")
+			assert.Contains(t, prop.TextContent, "BEGIN:VEVENT")
+			assert.Contains(t, prop.TextContent, "UID:event-1")
+			assert.Contains(t, prop.TextContent, "END:VEVENT")
+			assert.Contains(t, prop.TextContent, "END:VCALENDAR")
+		}
+	}
+
+	// Test generation
+	generated := resp.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "multistatus", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	t.Logf("Generated XML: %s", elementToString(root))
+	t.Logf("Generated namespaces: %v", root.Attr)
+
+	// Check for either prefixed or default DAV namespace
+	dav := root.SelectAttr("xmlns:D")
+	if dav == nil {
+		dav = root.SelectAttr("xmlns")
+	}
+	caldav := root.SelectAttr("xmlns:C")
+
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+}
+
+func TestCalendarHomeRequest(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/events/02_calendar_home_request.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	req := &PropfindRequest{}
+	err = req.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.ElementsMatch(t, []string{"calendar-home-set"}, req.Prop)
+	assert.False(t, req.PropNames)
+	assert.False(t, req.AllProp)
+	assert.Empty(t, req.Include)
+
+	// Test generation
+	generated := req.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "propfind", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	caldav := root.SelectAttr("xmlns:C")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+}
+
+func TestCalendarHomeResponse(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/events/02_calendar_home_response.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	resp := &MultistatusResponse{}
+	err = resp.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.Len(t, resp.Responses, 1)
+	r := resp.Responses[0]
+	assert.Equal(t, "/calendars/user/", r.Href)
+	assert.Len(t, r.PropStats, 1)
+
+	// Check propstat
+	propstat := r.PropStats[0]
+	assert.Contains(t, propstat.Status, "200 OK")
+	assert.Len(t, propstat.Props, 1)
+
+	// Check calendar-home-set property
+	prop := propstat.Props[0]
+	assert.Equal(t, "calendar-home-set", prop.Name)
+	assert.Len(t, prop.Children, 1)
+	assert.Equal(t, "href", prop.Children[0].Name)
+	assert.Equal(t, "/calendars/user/", prop.Children[0].TextContent)
+
+	// Test generation
+	generated := resp.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "multistatus", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	t.Logf("Generated XML: %s", elementToString(root))
+	t.Logf("Generated namespaces: %v", root.Attr)
+
+	// Check for default DAV namespace
+	dav := root.SelectAttr("xmlns")
+	if dav == nil {
+		dav = root.SelectAttr("xmlns:D")
+	}
+	caldav := root.SelectAttr("xmlns:C")
+
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+}
+
 // TestAllRealData is a general test that verifies all XML files in testdata can be parsed
 func TestAllRealData(t *testing.T) {
 	err := filepath.Walk("testdata", func(path string, info os.FileInfo, err error) error {
@@ -261,9 +475,19 @@ func TestAllRealData(t *testing.T) {
 
 			// Try parsing based on file type
 			if strings.Contains(path, "_request") {
-				req := &PropfindRequest{}
-				if err := req.Parse(doc); err != nil {
-					t.Errorf("Failed to parse request %s: %v", path, err)
+				// Determine the type of request based on file content
+				root := doc.Root()
+				switch root.Tag {
+				case "calendar-multiget":
+					req := &CalendarMultigetRequest{}
+					if err := req.Parse(doc); err != nil {
+						t.Errorf("Failed to parse calendar-multiget request %s: %v", path, err)
+					}
+				default:
+					req := &PropfindRequest{}
+					if err := req.Parse(doc); err != nil {
+						t.Errorf("Failed to parse propfind request %s: %v", path, err)
+					}
 				}
 			} else if strings.Contains(path, "_response") {
 				resp := &MultistatusResponse{}

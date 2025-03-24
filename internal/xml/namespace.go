@@ -219,12 +219,18 @@ func CreateRootElement(doc *etree.Document, name string, applyPrefix bool) *etre
 // FindElementWithNS finds an element by name, accounting for namespaces
 func FindElementWithNS(parent *etree.Element, name string) *etree.Element {
 	prefix := GetElementPrefix(name)
+	var found *etree.Element
+
 	// Try with namespace prefix first
 	if prefix != "" {
-		if elem := parent.FindElement(prefix + ":" + name); elem != nil {
-			return elem
+		prefixedName := prefix + ":" + name
+		found = parent.FindElement(prefixedName)
+		if found != nil {
+			return found
 		}
 	}
-	// Fallback to without namespace prefix
-	return parent.FindElement(name)
+
+	// Try without prefix
+	found = parent.FindElement(name)
+	return found
 }
