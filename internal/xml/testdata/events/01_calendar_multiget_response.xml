@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<multistatus xmlns="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+    <response>
+        <href>/calendars/user/calendar-1/event-1.ics</href>
+        <propstat>
+            <prop>
+                <getetag>"123456789abcdef123456789abcdef123456789a"</getetag>
+                <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example Corp//Calendar App//EN
+BEGIN:VEVENT
+UID:event-1
+DTSTART:20250101T100000Z
+DTEND:20250101T110000Z
+DTSTAMP:20250101T000000Z
+SUMMARY:Example Event
+END:VEVENT
+END:VCALENDAR
+</C:calendar-data>
+            </prop>
+            <status>HTTP/1.1 200 OK</status>
+        </propstat>
+    </response>
+</multistatus>
