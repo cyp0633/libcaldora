@@ -713,133 +713,230 @@ func TestCalendarMultigetMultipleResponse(t *testing.T) {
 }
 
 func TestCalendarListRequest(t *testing.T) {
-// Read test file
-doc := etree.NewDocument()
-file, err := os.ReadFile("testdata/discovery/05_calendar_list_request.xml")
-if err != nil {
-t.Fatal(err)
-}
-if err := doc.ReadFromBytes(file); err != nil {
-t.Fatal(err)
-}
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/discovery/05_calendar_list_request.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
 
-// Test parsing
-req := &PropfindRequest{}
-err = req.Parse(doc)
-assert.NoError(t, err)
+	// Test parsing
+	req := &PropfindRequest{}
+	err = req.Parse(doc)
+	assert.NoError(t, err)
 
-// Verify parsed data
-assert.ElementsMatch(t, []string{
-"resourcetype",
-"displayname",
-"current-user-privilege-set",
-"calendar-color",
-}, req.Prop)
-assert.False(t, req.PropNames)
-assert.False(t, req.AllProp)
-assert.Empty(t, req.Include)
+	// Verify parsed data
+	assert.ElementsMatch(t, []string{
+		"resourcetype",
+		"displayname",
+		"current-user-privilege-set",
+		"calendar-color",
+	}, req.Prop)
+	assert.False(t, req.PropNames)
+	assert.False(t, req.AllProp)
+	assert.Empty(t, req.Include)
 
-// Test generation
-generated := req.ToXML()
-assert.NotNil(t, generated)
-assert.Equal(t, "propfind", generated.Root().Tag)
+	// Test generation
+	generated := req.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "propfind", generated.Root().Tag)
 
-// Verify generated namespaces
-root := generated.Root()
-dav := root.SelectAttr("xmlns:D")
-apple := root.SelectAttr("xmlns:A")
-assert.NotNil(t, dav, "DAV namespace should be present")
-assert.NotNil(t, apple, "Apple iCal namespace should be present")
-assert.Equal(t, DAV, dav.Value)
-assert.Equal(t, AppleICal, apple.Value)
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	apple := root.SelectAttr("xmlns:A")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, apple, "Apple iCal namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, AppleICal, apple.Value)
 }
 
 func TestCalendarListResponse(t *testing.T) {
-// Read test file
-doc := etree.NewDocument()
-file, err := os.ReadFile("testdata/discovery/05_calendar_list_response.xml")
-if err != nil {
-t.Fatal(err)
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/discovery/05_calendar_list_response.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	resp := &MultistatusResponse{}
+	err = resp.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.Len(t, resp.Responses, 3)
+
+	// Verify principal response
+	r := resp.Responses[0]
+	assert.Equal(t, "/user/", r.Href)
+	assert.Len(t, r.PropStats, 2)
+
+	// First propstat (200 OK)
+	assert.Contains(t, r.PropStats[0].Status, "200 OK")
+	assert.Len(t, r.PropStats[0].Props, 2)
+	foundResourceType := false
+	for _, prop := range r.PropStats[0].Props {
+		if prop.Name == "resourcetype" {
+			foundResourceType = true
+			assert.Len(t, prop.Children, 2)
+			types := []string{prop.Children[0].Name, prop.Children[1].Name}
+			assert.ElementsMatch(t, []string{"principal", "collection"}, types)
+		}
+	}
+	assert.True(t, foundResourceType, "resourcetype property not found")
+
+	// Second propstat (404 Not Found)
+	assert.Contains(t, r.PropStats[1].Status, "404 Not Found")
+	assert.Len(t, r.PropStats[1].Props, 2)
+
+	// Verify calendar responses
+	for i, r := range resp.Responses[1:] {
+		calNum := i + 1
+		assert.Equal(t, fmt.Sprintf("/user/calendar%d/", calNum), r.Href)
+		assert.Len(t, r.PropStats, 1)
+
+		propstat := r.PropStats[0]
+		assert.Contains(t, propstat.Status, "200 OK")
+		assert.Len(t, propstat.Props, 4)
+
+		for _, prop := range propstat.Props {
+			switch prop.Name {
+			case "resourcetype":
+				assert.Len(t, prop.Children, 2)
+				types := []string{prop.Children[0].Name, prop.Children[1].Name}
+				assert.ElementsMatch(t, []string{"calendar", "collection"}, types)
+			case "displayname":
+				assert.Equal(t, fmt.Sprintf("Calendar %d", calNum), prop.TextContent)
+			case "calendar-color":
+				if calNum == 1 {
+					assert.Equal(t, "#ff0000ff", prop.TextContent)
+				} else {
+					assert.Equal(t, "#00ff00ff", prop.TextContent)
+				}
+			}
+		}
+	}
+
+	// Test generation
+	generated := resp.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "multistatus", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	caldav := root.SelectAttr("xmlns:C")
+	apple := root.SelectAttr("xmlns:A")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.NotNil(t, apple, "Apple iCal namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+	assert.Equal(t, AppleICal, apple.Value)
 }
-if err := doc.ReadFromBytes(file); err != nil {
-t.Fatal(err)
+
+func TestCaldavHomeRequest(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/discovery/06_caldav_home_request.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	req := &PropfindRequest{}
+	err = req.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.ElementsMatch(t, []string{
+		"resourcetype",
+		"owner",
+		"displayname",
+		"current-user-principal",
+		"current-user-privilege-set",
+		"calendar-color",
+		"calendar-home-set",
+	}, req.Prop)
+	assert.False(t, req.PropNames)
+	assert.False(t, req.AllProp)
+	assert.Empty(t, req.Include)
+
+	// Test generation
+	generated := req.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "propfind", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	apple := root.SelectAttr("xmlns:A")
+	caldav := root.SelectAttr("xmlns:C")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, apple, "Apple namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, AppleICal, apple.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
 }
 
-// Test parsing
-resp := &MultistatusResponse{}
-err = resp.Parse(doc)
-assert.NoError(t, err)
+func TestCaldavHomeResponse(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/discovery/06_caldav_home_response.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
 
-// Verify parsed data
-assert.Len(t, resp.Responses, 3)
+	// Test parsing
+	resp := &MultistatusResponse{}
+	err = resp.Parse(doc)
+	assert.NoError(t, err)
 
-// Verify principal response
-r := resp.Responses[0]
-assert.Equal(t, "/user/", r.Href)
-assert.Len(t, r.PropStats, 2)
+	// Verify parsed data
+	assert.Len(t, resp.Responses, 1)
+	r := resp.Responses[0]
+	assert.Equal(t, "/user/", r.Href)
+	assert.Len(t, r.PropStats, 1)
 
-// First propstat (200 OK)
-assert.Contains(t, r.PropStats[0].Status, "200 OK")
-assert.Len(t, r.PropStats[0].Props, 2)
-foundResourceType := false
-for _, prop := range r.PropStats[0].Props {
-if prop.Name == "resourcetype" {
-foundResourceType = true
-assert.Len(t, prop.Children, 2)
-types := []string{prop.Children[0].Name, prop.Children[1].Name}
-assert.ElementsMatch(t, []string{"principal", "collection"}, types)
-}
-}
-assert.True(t, foundResourceType, "resourcetype property not found")
+	// Check propstat
+	propstat := r.PropStats[0]
+	assert.Contains(t, propstat.Status, "200 OK")
+	assert.Len(t, propstat.Props, 1)
 
-// Second propstat (404 Not Found)
-assert.Contains(t, r.PropStats[1].Status, "404 Not Found")
-assert.Len(t, r.PropStats[1].Props, 2)
+	// Check calendar-home-set property
+	prop := propstat.Props[0]
+	assert.Equal(t, "calendar-home-set", prop.Name)
+	assert.Len(t, prop.Children, 1)
+	assert.Equal(t, "href", prop.Children[0].Name)
+	assert.Equal(t, "/user/", prop.Children[0].TextContent)
 
-// Verify calendar responses
-for i, r := range resp.Responses[1:] {
-calNum := i + 1
-assert.Equal(t, fmt.Sprintf("/user/calendar%d/", calNum), r.Href)
-assert.Len(t, r.PropStats, 1)
+	// Test generation
+	generated := resp.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "multistatus", generated.Root().Tag)
 
-propstat := r.PropStats[0]
-assert.Contains(t, propstat.Status, "200 OK")
-assert.Len(t, propstat.Props, 4)
-
-for _, prop := range propstat.Props {
-switch prop.Name {
-case "resourcetype":
-assert.Len(t, prop.Children, 2)
-types := []string{prop.Children[0].Name, prop.Children[1].Name}
-assert.ElementsMatch(t, []string{"calendar", "collection"}, types)
-case "displayname":
-assert.Equal(t, fmt.Sprintf("Calendar %d", calNum), prop.TextContent)
-case "calendar-color":
-if calNum == 1 {
-assert.Equal(t, "#ff0000ff", prop.TextContent)
-} else {
-assert.Equal(t, "#00ff00ff", prop.TextContent)
-}
-}
-}
-}
-
-// Test generation
-generated := resp.ToXML()
-assert.NotNil(t, generated)
-assert.Equal(t, "multistatus", generated.Root().Tag)
-
-// Verify generated namespaces
-root := generated.Root()
-dav := root.SelectAttr("xmlns:D")
-caldav := root.SelectAttr("xmlns:C")
-apple := root.SelectAttr("xmlns:A")
-assert.NotNil(t, dav, "DAV namespace should be present")
-assert.NotNil(t, caldav, "CalDAV namespace should be present")
-assert.NotNil(t, apple, "Apple iCal namespace should be present")
-assert.Equal(t, DAV, dav.Value)
-assert.Equal(t, CalDAV, caldav.Value)
-assert.Equal(t, AppleICal, apple.Value)
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns")
+	caldav := root.SelectAttr("xmlns:C")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
 }
 
 func TestAllRealData(t *testing.T) {

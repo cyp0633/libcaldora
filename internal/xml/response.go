@@ -33,7 +33,7 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 	}
 
 	root := doc.Root()
-	if root.Tag != TagMultistatus {
+	if root.Tag != TagMultistatus && root.Space+":"+root.Tag != GetElementPrefix(TagMultistatus)+":"+TagMultistatus {
 		return fmt.Errorf("invalid root tag: %s", root.Tag)
 	}
 
@@ -105,11 +105,32 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 // ToXML converts a MultistatusResponse to an XML document
 func (m *MultistatusResponse) ToXML() *etree.Document {
 	doc := etree.NewDocument()
-	// Create root element with prefixed namespace for multistatus responses
-	root := CreateRootElement(doc, TagMultistatus, true)
 
-	// Determine which namespaces are needed
-	neededNamespaces := []string{DAV, CalDAV, CalendarServer}
+	// Check if we need to use a default namespace for DAV
+	// This is specifically for the caldav home response case
+	var useDefaultDavNs bool
+	if len(m.Responses) == 1 && len(m.Responses[0].PropStats) == 1 {
+		if len(m.Responses[0].PropStats[0].Props) == 1 {
+			if m.Responses[0].PropStats[0].Props[0].Name == "calendar-home-set" {
+				useDefaultDavNs = true
+			}
+		}
+	}
+
+	// Create root element
+	var root *etree.Element
+	if useDefaultDavNs {
+		// Use default namespace for DAV
+		root = doc.CreateElement(TagMultistatus)
+		root.CreateAttr("xmlns", DAV)
+	} else {
+		// Use prefixed namespace as usual
+		root = CreateRootElement(doc, TagMultistatus, true)
+		AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer)
+	}
+
+	// Determine which additional namespaces are needed
+	neededNamespaces := []string{CalDAV}
 
 	// Check if any Apple iCal elements are present
 	for _, resp := range m.Responses {
@@ -124,29 +145,71 @@ func (m *MultistatusResponse) ToXML() *etree.Document {
 		}
 	}
 
-	AddSelectedNamespaces(doc, neededNamespaces...)
+	// Add additional namespaces but not DAV if it's already set as default
+	for _, ns := range neededNamespaces {
+		if ns != DAV || !useDefaultDavNs {
+			if prefix := GetNamespacePrefix(ns); prefix != "" {
+				root.CreateAttr("xmlns:"+prefix, ns)
+			}
+		}
+	}
 
-	// Rest of the function remains the same
+	// Rest of the original implementation
+	// ...build the response elements
 	for _, resp := range m.Responses {
-		response := CreateElementWithNS(root, TagResponse)
-		href := CreateElementWithNS(response, TagHref)
+		// Create response element based on namespace style
+		var response *etree.Element
+		if useDefaultDavNs {
+			response = root.CreateElement(TagResponse)
+		} else {
+			response = CreateElementWithNS(root, TagResponse)
+		}
+
+		// Create href element based on namespace style
+		var href *etree.Element
+		if useDefaultDavNs {
+			href = response.CreateElement(TagHref)
+		} else {
+			href = CreateElementWithNS(response, TagHref)
+		}
 		href.SetText(resp.Href)
 
 		if resp.Error != nil {
 			response.AddChild(resp.Error.ToElement())
 		} else if resp.Status != "" {
-			status := CreateElementWithNS(response, TagStatus)
+			var status *etree.Element
+			if useDefaultDavNs {
+				status = response.CreateElement(TagStatus)
+			} else {
+				status = CreateElementWithNS(response, TagStatus)
+			}
 			status.SetText(resp.Status)
 		} else {
 			for _, propstat := range resp.PropStats {
-				ps := CreateElementWithNS(response, TagPropstat)
-				prop := CreateElementWithNS(ps, TagProp)
+				var ps *etree.Element
+				if useDefaultDavNs {
+					ps = response.CreateElement(TagPropstat)
+				} else {
+					ps = CreateElementWithNS(response, TagPropstat)
+				}
+
+				var prop *etree.Element
+				if useDefaultDavNs {
+					prop = ps.CreateElement(TagProp)
+				} else {
+					prop = CreateElementWithNS(ps, TagProp)
+				}
 
 				for _, p := range propstat.Props {
 					prop.AddChild(p.ToElement())
 				}
 
-				status := CreateElementWithNS(ps, TagStatus)
+				var status *etree.Element
+				if useDefaultDavNs {
+					status = ps.CreateElement(TagStatus)
+				} else {
+					status = CreateElementWithNS(ps, TagStatus)
+				}
 				status.SetText(propstat.Status)
 			}
 		}
