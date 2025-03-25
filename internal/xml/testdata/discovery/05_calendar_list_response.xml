@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:A="http://apple.com/ns/ical/">
+    <D:response>
+        <D:href>/user/</D:href>
+        <D:propstat>
+            <D:prop>
+                <D:resourcetype>
+                    <D:principal/>
+                    <D:collection/>
+                </D:resourcetype>
+                <D:current-user-privilege-set>
+                    <D:privilege><D:read/></D:privilege>
+                    <D:privilege><D:all/></D:privilege>
+                    <D:privilege><D:write/></D:privilege>
+                    <D:privilege><D:write-properties/></D:privilege>
+                    <D:privilege><D:write-content/></D:privilege>
+                </D:current-user-privilege-set>
+            </D:prop>
+            <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+        <D:propstat>
+            <D:prop>
+                <D:displayname/>
+                <A:calendar-color/>
+            </D:prop>
+            <D:status>HTTP/1.1 404 Not Found</D:status>
+        </D:propstat>
+    </D:response>
+    <D:response>
+        <D:href>/user/calendar1/</D:href>
+        <D:propstat>
+            <D:prop>
+                <D:resourcetype>
+                    <C:calendar/>
+                    <D:collection/>
+                </D:resourcetype>
+                <D:displayname>Calendar 1</D:displayname>
+                <D:current-user-privilege-set>
+                    <D:privilege><D:read/></D:privilege>
+                    <D:privilege><D:all/></D:privilege>
+                    <D:privilege><D:write/></D:privilege>
+                    <D:privilege><D:write-properties/></D:privilege>
+                    <D:privilege><D:write-content/></D:privilege>
+                </D:current-user-privilege-set>
+                <A:calendar-color>#ff0000ff</A:calendar-color>
+            </D:prop>
+            <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+    </D:response>
+    <D:response>
+        <D:href>/user/calendar2/</D:href>
+        <D:propstat>
+            <D:prop>
+                <D:resourcetype>
+                    <C:calendar/>
+                    <D:collection/>
+                </D:resourcetype>
+                <D:displayname>Calendar 2</D:displayname>
+                <D:current-user-privilege-set>
+                    <D:privilege><D:read/></D:privilege>
+                    <D:privilege><D:all/></D:privilege>
+                    <D:privilege><D:write/></D:privilege>
+                    <D:privilege><D:write-properties/></D:privilege>
+                    <D:privilege><D:write-content/></D:privilege>
+                </D:current-user-privilege-set>
+                <A:calendar-color>#00ff00ff</A:calendar-color>
+            </D:prop>
+            <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+    </D:response>
+</D:multistatus>

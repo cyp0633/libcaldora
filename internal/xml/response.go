@@ -9,6 +9,7 @@ import (
 // MultistatusResponse represents a multistatus response
 type MultistatusResponse struct {
 	Responses []Response
+	SyncToken string
 }
 
 // Response represents a single response within a multistatus
@@ -93,6 +94,11 @@ func (m *MultistatusResponse) Parse(doc *etree.Document) error {
 		m.Responses = append(m.Responses, resp)
 	}
 
+	// Parse sync-token if present
+	if token := FindElementWithNS(root, "sync-token"); token != nil {
+		m.SyncToken = token.Text()
+	}
+
 	return nil
 }
 
@@ -101,7 +107,7 @@ func (m *MultistatusResponse) ToXML() *etree.Document {
 	doc := etree.NewDocument()
 	// Create root element with prefixed namespace for multistatus responses
 	root := CreateRootElement(doc, TagMultistatus, true)
-	AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer)
+	AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer, AppleICal)
 
 	for _, resp := range m.Responses {
 		response := CreateElementWithNS(root, TagResponse)

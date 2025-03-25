@@ -1,0 +1,72 @@
+<?xml version='1.0' encoding='utf-8'?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+    <D:response>
+        <D:href>/user/calendar1/event1.ics</D:href>
+        <D:propstat>
+            <D:prop>
+                <D:getetag>"event1-etag"</D:getetag>
+                <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//NONSGML test//EN
+BEGIN:VEVENT
+UID:event1-uid
+DTSTART:20250301T090000Z
+DTEND:20250301T100000Z
+DTSTAMP:20250301T080000Z
+SUMMARY:Simple Event
+END:VEVENT
+END:VCALENDAR</C:calendar-data>
+            </D:prop>
+            <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+    </D:response>
+    <D:response>
+        <D:href>/user/calendar1/event2.ics</D:href>
+        <D:propstat>
+            <D:prop>
+                <D:getetag>"event2-etag"</D:getetag>
+                <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//NONSGML test//EN
+BEGIN:VEVENT
+UID:event2-uid
+DTSTART:20250301T230000Z
+DTEND:20250302T000000Z
+DTSTAMP:20250301T080000Z
+RRULE:FREQ=DAILY;UNTIL=20250305T040000Z
+SUMMARY:Recurring Event
+END:VEVENT
+END:VCALENDAR</C:calendar-data>
+            </D:prop>
+            <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+    </D:response>
+    <D:response>
+        <D:href>/user/calendar1/event3.ics</D:href>
+        <D:propstat>
+            <D:prop>
+                <D:getetag>"event3-etag"</D:getetag>
+                <C:calendar-data>BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//test//NONSGML test//EN
+BEGIN:VTIMEZONE
+TZID:Asia/Shanghai
+BEGIN:STANDARD
+DTSTART:19010101T000000
+TZOFFSETFROM:+0800
+TZOFFSETTO:+0800
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:event3-uid
+DTSTART;TZID=Asia/Shanghai:20250301T170000
+DTEND;TZID=Asia/Shanghai:20250301T180000
+DTSTAMP:20250301T080000Z
+SUMMARY:Event with Timezone
+END:VEVENT
+END:VCALENDAR</C:calendar-data>
+            </D:prop>
+            <D:status>HTTP/1.1 200 OK</D:status>
+        </D:propstat>
+    </D:response>
+</D:multistatus>
