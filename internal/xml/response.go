@@ -107,8 +107,26 @@ func (m *MultistatusResponse) ToXML() *etree.Document {
 	doc := etree.NewDocument()
 	// Create root element with prefixed namespace for multistatus responses
 	root := CreateRootElement(doc, TagMultistatus, true)
-	AddSelectedNamespaces(doc, DAV, CalDAV, CalendarServer, AppleICal)
 
+	// Determine which namespaces are needed
+	neededNamespaces := []string{DAV, CalDAV, CalendarServer}
+
+	// Check if any Apple iCal elements are present
+	for _, resp := range m.Responses {
+		for _, propstat := range resp.PropStats {
+			for _, prop := range propstat.Props {
+				if prop.Name == "calendar-color" || prop.Name == "calendar-order" ||
+					prop.Namespace == AppleICal {
+					neededNamespaces = append(neededNamespaces, AppleICal)
+					break
+				}
+			}
+		}
+	}
+
+	AddSelectedNamespaces(doc, neededNamespaces...)
+
+	// Rest of the function remains the same
 	for _, resp := range m.Responses {
 		response := CreateElementWithNS(root, TagResponse)
 		href := CreateElementWithNS(response, TagHref)
