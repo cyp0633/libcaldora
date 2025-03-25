@@ -939,6 +939,113 @@ func TestCaldavHomeResponse(t *testing.T) {
 	assert.Equal(t, CalDAV, caldav.Value)
 }
 
+func TestCalendarPropsEnhancedRequest(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/discovery/07_calendar_props_enhanced_request.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := doc.ReadFromBytes(file); err != nil {
+		t.Fatal(err)
+	}
+
+	// Test parsing
+	req := &PropfindRequest{}
+	err = req.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.ElementsMatch(t, []string{
+		"resourcetype",
+		"owner",
+		"current-user-principal",
+		"current-user-privilege-set",
+		"supported-report-set",
+		"supported-calendar-component-set",
+		"getctag",
+	}, req.Prop)
+	assert.False(t, req.PropNames)
+	assert.False(t, req.AllProp)
+	assert.Empty(t, req.Include)
+
+	// Test generation
+	generated := req.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "propfind", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	caldav := root.SelectAttr("xmlns:C")
+	calendarserver := root.SelectAttr("xmlns:CS")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.NotNil(t, calendarserver, "CalendarServer namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+	assert.Equal(t, CalendarServer, calendarserver.Value)
+}
+
+func TestCalendarPropsEnhancedResponse(t *testing.T) {
+	// Read test file
+	doc := etree.NewDocument()
+	file, err := os.ReadFile("testdata/discovery/07_calendar_props_enhanced_response.xml")
+	if err != nil {
+		t.Fatalf("Failed to read test file: %v", err)
+	}
+	err = doc.ReadFromBytes(file)
+	if err != nil {
+		t.Fatalf("Failed to parse XML: %v", err)
+	}
+
+	// Test parsing
+	resp := &MultistatusResponse{}
+	err = resp.Parse(doc)
+	assert.NoError(t, err)
+
+	// Verify parsed data
+	assert.Len(t, resp.Responses, 1)
+	r := resp.Responses[0]
+	assert.Equal(t, "/user/calendar1/", r.Href)
+	assert.Len(t, r.PropStats, 1)
+
+	// Check propstat
+	propstat := r.PropStats[0]
+	assert.Contains(t, propstat.Status, "200 OK")
+	assert.Len(t, propstat.Props, 7) // Correct count is 7, not 8
+
+	// Verify each property
+	var foundResourceType, foundGetCtag bool
+	for _, prop := range propstat.Props {
+		if prop.Name == "resourcetype" {
+			foundResourceType = true
+			assert.Len(t, prop.Children, 2)
+		} else if prop.Name == "getctag" {
+			foundGetCtag = true
+			assert.Equal(t, "\"test-calendar-enhanced-etag\"", prop.TextContent)
+		}
+	}
+	assert.True(t, foundResourceType, "resourcetype property not found")
+	assert.True(t, foundGetCtag, "getctag property not found")
+
+	// Test generation
+	generated := resp.ToXML()
+	assert.NotNil(t, generated)
+	assert.Equal(t, "multistatus", generated.Root().Tag)
+
+	// Verify generated namespaces
+	root := generated.Root()
+	dav := root.SelectAttr("xmlns:D")
+	caldav := root.SelectAttr("xmlns:C")
+	calendarserver := root.SelectAttr("xmlns:CS")
+	assert.NotNil(t, dav, "DAV namespace should be present")
+	assert.NotNil(t, caldav, "CalDAV namespace should be present")
+	assert.NotNil(t, calendarserver, "CalendarServer namespace should be present")
+	assert.Equal(t, DAV, dav.Value)
+	assert.Equal(t, CalDAV, caldav.Value)
+	assert.Equal(t, CalendarServer, calendarserver.Value)
+}
 func TestAllRealData(t *testing.T) {
 	err := filepath.Walk("testdata", func(path string, info os.FileInfo, err error) error {
 		if err != nil {

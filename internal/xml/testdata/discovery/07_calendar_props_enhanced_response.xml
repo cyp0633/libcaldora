@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='utf-8'?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:CS="http://calendarserver.org/ns/">
+  <D:response>
+    <D:href>/user/calendar1/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype>
+          <C:calendar/>
+          <D:collection/>
+        </D:resourcetype>
+        <D:owner>
+          <D:href>/user/</D:href>
+        </D:owner>
+        <D:current-user-principal>
+          <D:href>/user/</D:href>
+        </D:current-user-principal>
+        <D:current-user-privilege-set>
+          <D:privilege>
+            <D:read/>
+          </D:privilege>
+          <D:privilege>
+            <D:all/>
+          </D:privilege>
+          <D:privilege>
+            <D:write/>
+          </D:privilege>
+          <D:privilege>
+            <D:write-properties/>
+          </D:privilege>
+          <D:privilege>
+            <D:write-content/>
+          </D:privilege>
+        </D:current-user-privilege-set>
+        <D:supported-report-set>
+          <D:supported-report>
+            <D:report>
+              <D:expand-property/>
+            </D:report>
+          </D:supported-report>
+          <D:supported-report>
+            <D:report>
+              <D:principal-search-property-set/>
+            </D:report>
+          </D:supported-report>
+          <D:supported-report>
+            <D:report>
+              <D:principal-property-search/>
+            </D:report>
+          </D:supported-report>
+          <D:supported-report>
+            <D:report>
+              <D:sync-collection/>
+            </D:report>
+          </D:supported-report>
+          <D:supported-report>
+            <D:report>
+              <C:calendar-multiget/>
+            </D:report>
+          </D:supported-report>
+          <D:supported-report>
+            <D:report>
+              <C:calendar-query/>
+            </D:report>
+          </D:supported-report>
+        </D:supported-report-set>
+        <C:supported-calendar-component-set>
+          <C:comp name="VEVENT"/>
+          <C:comp name="VJOURNAL"/>
+          <C:comp name="VTODO"/>
+        </C:supported-calendar-component-set>
+        <CS:getctag>"test-calendar-enhanced-etag"</CS:getctag>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>
