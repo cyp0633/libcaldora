@@ -121,7 +121,7 @@ func (r *Router) handlePropfind(w http.ResponseWriter, req *http.Request) {
 		}
 	} else {
 		// Non-root paths
-		_, err := storage.ParseResourcePath(path)
+		resourcePath, err := storage.ParseResourcePath(path)
 		if err != nil {
 			r.logger.Error("invalid resource path in PROPFIND request",
 				"error", err,
@@ -129,7 +129,70 @@ func (r *Router) handlePropfind(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		// TODO: Handle non-root paths
+
+		// Handle user principal paths
+		if resourcePath.Type == storage.ResourceTypePrincipal {
+			// Split properties into found and not found
+			foundProps := []xml.Property{}
+			notFoundProps := []xml.Property{}
+
+			for _, prop := range props {
+				switch prop {
+				case "calendar-home-set":
+					// Return the calendar home URL for the user
+					foundProps = append(foundProps, xml.Property{
+						Name:       "calendar-home-set",
+						Namespace:  xml.CalDAV,
+						Attributes: make(map[string]string),
+						Children: []xml.Property{
+							{
+								Name:        "href",
+								Namespace:   xml.DAV,
+								TextContent: r.baseURI + "/u/" + resourcePath.UserID + "/cal",
+								Attributes:  make(map[string]string),
+							},
+						},
+					})
+				case xml.TagResourcetype:
+					// User principal is a collection
+					foundProps = append(foundProps, xml.Property{
+						Name:      xml.TagResourcetype,
+						Namespace: xml.DAV,
+						Children: []xml.Property{
+							{Name: xml.TagCollection, Namespace: xml.DAV},
+						},
+					})
+				default:
+					notFoundProps = append(notFoundProps, xml.Property{
+						Name:      prop,
+						Namespace: xml.DAV,
+					})
+				}
+			}
+
+			// Add found properties
+			if len(foundProps) > 0 {
+				response.Responses[0].PropStats = append(response.Responses[0].PropStats, xml.PropStat{
+					Props:  foundProps,
+					Status: "HTTP/1.1 200 OK",
+				})
+			}
+
+			// Add not found properties
+			if len(notFoundProps) > 0 {
+				response.Responses[0].PropStats = append(response.Responses[0].PropStats, xml.PropStat{
+					Props:  notFoundProps,
+					Status: "HTTP/1.1 404 Not Found",
+				})
+			}
+		} else {
+			// Other non-root paths not handled yet
+			r.logger.Error("unhandled resource type in PROPFIND request",
+				"type", resourcePath.Type,
+				"path", path)
+			http.Error(w, "Resource type not supported", http.StatusNotImplemented)
+			return
+		}
 	}
 
 	// Convert response to XML and send
