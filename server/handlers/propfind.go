@@ -5,6 +5,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/cyp0633/libcaldora/internal/xml"
+	"github.com/cyp0633/libcaldora/server/auth"
 	"github.com/cyp0633/libcaldora/server/storage"
 )
 
@@ -51,12 +52,21 @@ func (r *Router) handlePropfind(w http.ResponseWriter, req *http.Request) {
 			xml.TagResourcetype,
 			"getcontenttype",
 			"displayname",
+			"current-user-principal",
 		}
 		props = append(props, propfind.Include...)
 	}
 
 	// Handle root path specially
 	if path == "" || path == "/" {
+		// Get authenticated principal
+		principal := auth.GetPrincipalFromContext(req.Context())
+		if principal == nil {
+			r.logger.Error("no authenticated principal in context")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		// Split properties into found and not found
 		foundProps := []xml.Property{}
 		notFoundProps := []xml.Property{}
@@ -70,6 +80,19 @@ func (r *Router) handlePropfind(w http.ResponseWriter, req *http.Request) {
 					Namespace: xml.DAV,
 					Children: []xml.Property{
 						{Name: xml.TagCollection, Namespace: xml.DAV},
+					},
+				})
+			case "current-user-principal":
+				// Return the principal URL for the authenticated user
+				foundProps = append(foundProps, xml.Property{
+					Name:      "current-user-principal",
+					Namespace: xml.DAV,
+					Children: []xml.Property{
+						{
+							Name:        "href",
+							Namespace:   xml.DAV,
+							TextContent: "/u/" + principal.ID,
+						},
 					},
 				})
 			default:
