@@ -53,8 +53,8 @@ func main() {
 	mux := http.NewServeMux()
 	// Handle well-known caldav redirect
 	mux.HandleFunc("/.well-known/caldav", func(w http.ResponseWriter, r *http.Request) {
-		// Preserve query parameters in redirect
-		target := *baseURI
+		// Add trailing slash to the target
+		target := *baseURI + "/" // Now redirects to "/caldav/"
 		if r.URL.RawQuery != "" {
 			target += "?" + r.URL.RawQuery
 		}

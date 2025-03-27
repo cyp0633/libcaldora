@@ -91,7 +91,7 @@ func (r *Router) handlePropfind(w http.ResponseWriter, req *http.Request) {
 						{
 							Name:        "href",
 							Namespace:   xml.DAV,
-							TextContent: "/u/" + principal.ID,
+							TextContent: r.baseURI + "/u/" + principal.ID,
 						},
 					},
 				})
