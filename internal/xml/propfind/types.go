@@ -64,7 +64,7 @@ var propNameToStruct = map[string]PropertyEncoder{
 	"selected": new(selected),
 }
 
-// Prefix map for each property
+// Prefix map for each property and child element
 var propPrefixMap = map[string]string{
 	// WebDAV properties (d: prefix)
 	"displayname":                "d",
@@ -80,6 +80,14 @@ var propPrefixMap = map[string]string{
 	"current-user-privilege-set": "d",
 	"quota-available-bytes":      "d",
 	"quota-used-bytes":           "d",
+	// Additional child elements for WebDAV
+	"collection": "d",
+	"report":     "d",
+	"ace":        "d",
+	"principal":  "d",
+	"href":       "d",
+	"grant":      "d",
+	"privilege":  "d",
 
 	// CalDAV properties (cal: prefix)
 	"calendar-description":             "cal",
@@ -97,6 +105,8 @@ var propPrefixMap = map[string]string{
 	"schedule-default-calendar-url":    "cal",
 	"calendar-user-address-set":        "cal",
 	"calendar-user-type":               "cal",
+	"calendar":                         "cal",
+	"comp":                             "cal",
 
 	// Apple CalendarServer Extensions (cs: prefix)
 	"getctag":                  "cs",
@@ -116,6 +126,7 @@ var propPrefixMap = map[string]string{
 	"selected": "g",
 }
 
+// Namespace map for declaration (if needed by etree)
 var namespaceMap = map[string]string{
 	"D":  "DAV:",
 	"C":  "urn:ietf:params:xml:ns:caldav",
@@ -123,22 +134,22 @@ var namespaceMap = map[string]string{
 	"g":  "http://schemas.google.com/gCal/2005",
 }
 
-// Helper function to create element with prefix
+// createElement creates an element with the namespace prefix taken from the propPrefixMap.
+// If the name is not found in the map, it defaults to "d".
 func createElement(name string) *etree.Element {
 	prefix, exists := propPrefixMap[name]
 	if !exists {
 		prefix = "d" // Default to DAV namespace
 	}
-
-	// Create element with proper namespace
 	elem := etree.NewElement(name)
+	elem.Space = prefix
+	return elem
+}
 
-	// Set the namespace
-	if _, ok := namespaceMap[strings.ToUpper(prefix)]; ok {
-		elem.Space = prefix
-		// Note: etree will handle namespace declarations automatically
-	}
-
+// createElementWithPrefix creates an element with the provided name and explicitly sets the given prefix.
+func createElementWithPrefix(name, prefix string) *etree.Element {
+	elem := etree.NewElement(name)
+	elem.Space = prefix
 	return elem
 }
 
@@ -163,24 +174,19 @@ func (p *resourcetype) Encode() *etree.Element {
 
 	for _, typeName := range p.Types {
 		if typeName == "collection" {
-			collElem := etree.NewElement("collection")
-			collElem.Space = "d"
+			collElem := createElement("collection")
 			elem.AddChild(collElem)
 		} else if typeName == "calendar" {
-			calElem := etree.NewElement("calendar")
-			calElem.Space = "cal"
+			calElem := createElement("calendar")
 			elem.AddChild(calElem)
 		} else {
 			parts := strings.Split(typeName, ":")
 			if len(parts) > 1 {
-				// If already has prefix, use as is
-				child := etree.NewElement(parts[1])
-				child.Space = parts[0]
+				// Use the provided prefix and element name
+				child := createElementWithPrefix(parts[1], parts[0])
 				elem.AddChild(child)
 			} else {
-				// Otherwise, default to DAV namespace
-				child := etree.NewElement(typeName)
-				child.Space = "d"
+				child := createElement(typeName)
 				elem.AddChild(child)
 			}
 		}
@@ -255,10 +261,9 @@ type supportedReportSet struct {
 func (p *supportedReportSet) Encode() *etree.Element {
 	elem := createElement("supported-report-set")
 	for _, report := range p.Reports {
-		reportElem := etree.NewElement("report")
-		reportElem.Space = "d"
-		elem.AddChild(reportElem)
+		reportElem := createElement("report")
 		reportElem.SetText(report)
+		elem.AddChild(reportElem)
 	}
 	return elem
 }
@@ -271,50 +276,41 @@ func (p *acl) Encode() *etree.Element {
 	elem := createElement("acl")
 
 	for _, aceEntry := range p.Aces {
-		aceElem := etree.NewElement("ace")
-		aceElem.Space = "d"
+		aceElem := createElement("ace")
 		elem.AddChild(aceElem)
 
 		// Principal
-		principalElem := etree.NewElement("principal")
-		principalElem.Space = "d"
+		principalElem := createElement("principal")
 		aceElem.AddChild(principalElem)
 
-		hrefElem := etree.NewElement("href")
-		hrefElem.Space = "d"
+		hrefElem := createElement("href")
 		principalElem.AddChild(hrefElem)
 		hrefElem.SetText(aceEntry.Principal)
 
 		// Grant privileges
 		if len(aceEntry.Grant) > 0 {
-			grantElem := etree.NewElement("grant")
-			grantElem.Space = "d"
+			grantElem := createElement("grant")
 			aceElem.AddChild(grantElem)
 
 			for _, privilege := range aceEntry.Grant {
-				privElem := etree.NewElement("privilege")
-				privElem.Space = "d"
+				privElem := createElement("privilege")
 				grantElem.AddChild(privElem)
 
-				privTypeElem := etree.NewElement(privilege)
-				privTypeElem.Space = "d"
+				privTypeElem := createElement(privilege)
 				privElem.AddChild(privTypeElem)
 			}
 		}
 
 		// Deny privileges
 		if len(aceEntry.Deny) > 0 {
-			denyElem := etree.NewElement("deny")
-			denyElem.Space = "d"
+			denyElem := createElement("deny")
 			aceElem.AddChild(denyElem)
 
 			for _, privilege := range aceEntry.Deny {
-				privElem := etree.NewElement("privilege")
-				privElem.Space = "d"
+				privElem := createElement("privilege")
 				denyElem.AddChild(privElem)
 
-				privTypeElem := etree.NewElement(privilege)
-				privTypeElem.Space = "d"
+				privTypeElem := createElement(privilege)
 				privElem.AddChild(privTypeElem)
 			}
 		}
@@ -337,12 +333,10 @@ func (p *currentUserPrivilegeSet) Encode() *etree.Element {
 	elem := createElement("current-user-privilege-set")
 
 	for _, privilege := range p.Privileges {
-		privElem := etree.NewElement("privilege")
-		privElem.Space = "d"
+		privElem := createElement("privilege")
 		elem.AddChild(privElem)
 
-		privTypeElem := etree.NewElement(privilege)
-		privTypeElem.Space = "d"
+		privTypeElem := createElement(privilege)
 		privElem.AddChild(privTypeElem)
 	}
 
@@ -399,8 +393,7 @@ func (p *supportedCalendarComponentSet) Encode() *etree.Element {
 	elem := createElement("supported-calendar-component-set")
 
 	for _, component := range p.Components {
-		compElem := etree.NewElement("comp")
-		compElem.Space = "cal"
+		compElem := createElement("comp")
 		compElem.CreateAttr("name", component)
 		elem.AddChild(compElem)
 	}
@@ -478,8 +471,7 @@ type calendarHomeSet struct {
 
 func (p *calendarHomeSet) Encode() *etree.Element {
 	elem := createElement("calendar-home-set")
-	hrefElem := etree.NewElement("href")
-	hrefElem.Space = "d"
+	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
 	hrefElem.SetText(p.Href)
 	return elem
@@ -491,8 +483,7 @@ type scheduleInboxURL struct {
 
 func (p *scheduleInboxURL) Encode() *etree.Element {
 	elem := createElement("schedule-inbox-url")
-	hrefElem := etree.NewElement("href")
-	hrefElem.Space = "d"
+	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
 	hrefElem.SetText(p.Href)
 	return elem
@@ -504,8 +495,7 @@ type scheduleOutboxURL struct {
 
 func (p *scheduleOutboxURL) Encode() *etree.Element {
 	elem := createElement("schedule-outbox-url")
-	hrefElem := etree.NewElement("href")
-	hrefElem.Space = "d"
+	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
 	hrefElem.SetText(p.Href)
 	return elem
@@ -517,8 +507,7 @@ type scheduleDefaultCalendarURL struct {
 
 func (p *scheduleDefaultCalendarURL) Encode() *etree.Element {
 	elem := createElement("schedule-default-calendar-url")
-	hrefElem := etree.NewElement("href")
-	hrefElem.Space = "d"
+	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
 	hrefElem.SetText(p.Href)
 	return elem
@@ -532,8 +521,7 @@ func (p *calendarUserAddressSet) Encode() *etree.Element {
 	elem := createElement("calendar-user-address-set")
 
 	for _, address := range p.Addresses {
-		hrefElem := etree.NewElement("href")
-		hrefElem.Space = "d"
+		hrefElem := createElement("href")
 		elem.AddChild(hrefElem)
 		hrefElem.SetText(address)
 	}
@@ -569,8 +557,7 @@ type calendarChanges struct {
 
 func (p *calendarChanges) Encode() *etree.Element {
 	elem := createElement("calendar-changes")
-	hrefElem := etree.NewElement("href")
-	hrefElem.Space = "d"
+	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
 	hrefElem.SetText(p.Href)
 	return elem
@@ -628,8 +615,7 @@ func (p *calendarProxyReadFor) Encode() *etree.Element {
 	elem := createElement("calendar-proxy-read-for")
 
 	for _, href := range p.Hrefs {
-		hrefElem := etree.NewElement("href")
-		hrefElem.Space = "d"
+		hrefElem := createElement("href")
 		elem.AddChild(hrefElem)
 		hrefElem.SetText(href)
 	}
@@ -645,8 +631,7 @@ func (p *calendarProxyWriteFor) Encode() *etree.Element {
 	elem := createElement("calendar-proxy-write-for")
 
 	for _, href := range p.Hrefs {
-		hrefElem := etree.NewElement("href")
-		hrefElem.Space = "d"
+		hrefElem := createElement("href")
 		elem.AddChild(hrefElem)
 		hrefElem.SetText(href)
 	}
