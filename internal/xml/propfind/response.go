@@ -7,24 +7,47 @@ import (
 	"github.com/samber/mo"
 )
 
-func ParseRequest(xmlStr string) map[string]mo.Option[PropertyEncoder] {
+// Extend ParseRequest to handle different request types
+func ParseRequest(xmlStr string) (map[string]mo.Option[PropertyEncoder], string) {
 	props := make(map[string]mo.Option[PropertyEncoder])
+	requestType := "prop" // Default
 
 	// Parse XML using etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
-		return props
+		return props, requestType
 	}
 
 	// Find all property elements under propfind/prop
 	propfindElem := doc.FindElement("//propfind")
 	if propfindElem == nil {
-		return props
+		return props, requestType
 	}
 
+	// Check for allprop or propname
+	if allprop := propfindElem.FindElement("allprop"); allprop != nil {
+		requestType = "allprop"
+		// For allprop, add all known properties
+		for propName, structPtr := range propNameToStruct {
+			props[propName] = mo.Some(structPtr)
+		}
+		return props, requestType
+	}
+
+	if propname := propfindElem.FindElement("propname"); propname != nil {
+		requestType = "propname"
+		// For propname, add all known properties but mark them as None
+		// (they'll be rendered as empty elements)
+		for propName := range propNameToStruct {
+			props[propName] = mo.None[PropertyEncoder]()
+		}
+		return props, requestType
+	}
+
+	// Handle standard prop requests (already implemented)
 	propElem := propfindElem.FindElement("prop")
 	if propElem == nil {
-		return props
+		return props, requestType
 	}
 
 	// Iterate through all child elements of prop
@@ -48,7 +71,7 @@ func ParseRequest(xmlStr string) map[string]mo.Option[PropertyEncoder] {
 		// Skip unknown properties instead of adding them as None
 	}
 
-	return props
+	return props, requestType
 }
 
 func EncodeResponse(props map[string]mo.Option[PropertyEncoder], href string) *etree.Document {

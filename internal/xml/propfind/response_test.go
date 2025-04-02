@@ -115,11 +115,12 @@ func TestParseRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseRequest(tt.xmlInput)
+			got,typ := ParseRequest(tt.xmlInput)
 
 			// Check if the number of properties matches
 			assert.Equal(t, len(tt.want), len(got),
 				"Result should have %d properties, got %d", len(tt.want), len(got))
+			assert.Equal(t,typ,"prop")
 
 			// Check each expected property type
 			for propName, expectedType := range tt.want {
@@ -190,11 +191,12 @@ func TestParseRequest_AllProperties(t *testing.T) {
 	xmlInput := xmlStart + xmlMiddle + xmlEnd
 
 	// Parse the request
-	got := ParseRequest(xmlInput)
+	got,typ := ParseRequest(xmlInput)
 
 	// Check if all properties are correctly parsed
 	assert.Equal(t, len(expectedProps), len(got),
 		"Should have parsed all %d properties", len(expectedProps))
+	assert.Equal(t,typ, "prop")
 
 	// Check each property type
 	for propName, expectedType := range expectedProps {
