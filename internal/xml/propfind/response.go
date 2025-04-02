@@ -7,8 +7,8 @@ import (
 	"github.com/samber/mo"
 )
 
-func ParseRequest(xmlStr string) map[string]mo.Option[any] {
-	props := make(map[string]mo.Option[any])
+func ParseRequest(xmlStr string) map[string]mo.Option[PropertyEncoder] {
+	props := make(map[string]mo.Option[PropertyEncoder])
 
 	// Parse XML using etree
 	doc := etree.NewDocument()
