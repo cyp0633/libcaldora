@@ -128,10 +128,10 @@ var propPrefixMap = map[string]string{
 
 // Namespace map for declaration (if needed by etree)
 var namespaceMap = map[string]string{
-	"D":  "DAV:",
-	"C":  "urn:ietf:params:xml:ns:caldav",
-	"CS": "http://calendarserver.org/ns/",
-	"g":  "http://schemas.google.com/gCal/2005",
+	"d":   "DAV:",
+	"cal": "urn:ietf:params:xml:ns:caldav",
+	"cs":  "http://calendarserver.org/ns/",
+	"g":   "http://schemas.google.com/gCal/2005",
 }
 
 // createElement creates an element with the namespace prefix taken from the propPrefixMap.
