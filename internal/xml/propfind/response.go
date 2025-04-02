@@ -1,75 +1,51 @@
 package propfind
 
-import "github.com/samber/mo"
+import (
+	"strings"
 
-type PropfindResponse struct {
-	// WebDAV properties
-	DisplayName             mo.Option[string]
-	Resourcetype            mo.Option[string]
-	GetEtag                 mo.Option[string]
-	GetLastModified         mo.Option[string]
-	GetContentType          mo.Option[string]
-	Owner                   mo.Option[string]
-	CurrentUserPrincipal    mo.Option[string]
-	PrincipalURL            mo.Option[string]
-	SupportedReportSet      mo.Option[[]string] // List of supported reports
-	ACL                     mo.Option[[]ACLEntry]
-	CurrentUserPrivilegeSet mo.Option[[]string]
-	QuotaAvailableBytes     mo.Option[int64]
-	QuotaUsedBytes          mo.Option[int64]
+	"github.com/beevik/etree"
+	"github.com/samber/mo"
+)
 
-	// CalDAV properties
-	CalendarDescription           mo.Option[string]
-	CalendarTimezone              mo.Option[string]
-	SupportedCalendarComponentSet mo.Option[[]string]
-	SupportedCalendarData         mo.Option[[]string]
-	MaxResourceSize               mo.Option[int64]
-	MinDateTime                   mo.Option[string]
-	MaxDateTime                   mo.Option[string]
-	MaxInstances                  mo.Option[int]
-	MaxAttendeesPerInstance       mo.Option[int]
-	CalendarHomeSet               mo.Option[string]
-	ScheduleInboxURL              mo.Option[string]
-	ScheduleOutboxURL             mo.Option[string]
-	ScheduleDefaultCalendarURL    mo.Option[string]
-	CalendarUserAddressSet        mo.Option[[]string]
-	CalendarUserType              mo.Option[string]
+func ParseRequest(xmlStr string) map[string]mo.Option[any] {
+	props := make(map[string]mo.Option[any])
 
-	// Apple CalendarServer Extensions
-	GetCTag               mo.Option[string]
-	CalendarChanges       mo.Option[string]
-	SharedURL             mo.Option[string]
-	Invite                mo.Option[string] // Might need a more complex type
-	NotificationURL       mo.Option[string]
-	AutoSchedule          mo.Option[bool]
-	CalendarProxyReadFor  mo.Option[[]string]
-	CalendarProxyWriteFor mo.Option[[]string]
+	// Parse XML using etree
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xmlStr); err != nil {
+		return props
+	}
 
-	// Google CalDAV Extensions
-	Color    mo.Option[string]
-	Timezone mo.Option[string]
-	Hidden   mo.Option[bool]
-	Selected mo.Option[bool]
-}
+	// Find all property elements under propfind/prop
+	propfindElem := doc.FindElement("//propfind")
+	if propfindElem == nil {
+		return props
+	}
 
-// ACLEntry represents a single entry in the ACL property
-type ACLEntry struct {
-	Principal string
-	Grant     []string
-	Deny      []string
-}
+	propElem := propfindElem.FindElement("prop")
+	if propElem == nil {
+		return props
+	}
 
-var namespaceMap = map[string]string{
-	"D":  "DAV:",
-	"C":  "urn:ietf:params:xml:ns:caldav",
-	"CS": "http://calendarserver.org/ns/",
-	"g":  "http://schemas.google.com/gCal/2005",
-}
+	// Iterate through all child elements of prop
+	for _, elem := range propElem.ChildElements() {
+		// Get local name of the property (without namespace)
+		localName := elem.Tag
 
-func (r *PropfindResponse) Parse() {
-	// Implementation will parse XML response into this structure
-}
+		// If there's a namespace prefix, remove it
+		if strings.Contains(localName, ":") {
+			localName = strings.Split(localName, ":")[1]
+		}
 
-func (r *PropfindResponse) Encode() {
-	// Implementation will encode this structure into XML
+		// Convert to lowercase for case-insensitive matching
+		localName = strings.ToLower(localName)
+
+		// Check if we have a struct for this property
+		if structPtr, exists := propNameToStruct[localName]; exists {
+			// Add the property to the response map
+			props[localName] = mo.Some(structPtr)
+		}
+	}
+
+	return props
 }
