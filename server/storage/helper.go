@@ -9,7 +9,7 @@ import (
 	"github.com/emersion/go-ical"
 )
 
-func IcalEventToICS(event ical.Event) (string, error) {
+func ICalEventToICS(event ical.Event, removeCalendarWrapper bool) (string, error) {
 	cal := ical.NewCalendar()
 	cal.Props.SetText(ical.PropVersion, "2.0")
 	cal.Props.SetText(ical.PropProductID, "-//Caldora//Go Calendar//EN")
@@ -25,7 +25,41 @@ func IcalEventToICS(event ical.Event) (string, error) {
 	if err := ical.NewEncoder(&buf).Encode(cal); err != nil {
 		return "", fmt.Errorf("failed to encode calendar: %w", err)
 	}
-	return buf.String(), nil
+
+	icsString := buf.String()
+
+	if removeCalendarWrapper {
+		// Determine line ending type used in the ICS file
+		lineEnding := "\n"
+		if strings.Contains(icsString, "\r\n") {
+			lineEnding = "\r\n"
+		}
+
+		// Split by line endings to process line by line
+		lines := strings.Split(icsString, lineEnding)
+
+		startIdx := -1
+		endIdx := -1
+
+		// Find the VEVENT section
+		for i, line := range lines {
+			if line == "BEGIN:VEVENT" {
+				startIdx = i
+			} else if line == "END:VEVENT" {
+				endIdx = i
+				break // We only want the first EVENT
+			}
+		}
+
+		// If we found the VEVENT section
+		if startIdx != -1 && endIdx != -1 && startIdx < endIdx {
+			// Extract just the VEVENT lines (including BEGIN:VEVENT and END:VEVENT)
+			eventLines := lines[startIdx : endIdx+1]
+			return strings.Join(eventLines, lineEnding), nil
+		}
+	}
+
+	return icsString, nil
 }
 
 func ICSToICalEvent(ics string) (*ical.Event, error) {
