@@ -9,17 +9,18 @@ import (
 	"github.com/emersion/go-ical"
 )
 
-func ICalEventToICS(event ical.Event, removeCalendarWrapper bool) (string, error) {
+// ICalCompToICS converts a ical.Component (event or other calendar component) to an ICS string.
+func ICalCompToICS(component ical.Component, removeCalendarWrapper bool) (string, error) {
 	cal := ical.NewCalendar()
 	cal.Props.SetText(ical.PropVersion, "2.0")
 	cal.Props.SetText(ical.PropProductID, "-//Caldora//Go Calendar//EN")
 
 	// Ensure DTSTAMP is present
-	if event.Props.Get(ical.PropDateTimeStamp) == nil {
-		event.Props.SetDateTime(ical.PropDateTimeStamp, time.Now())
+	if component.Props.Get(ical.PropDateTimeStamp) == nil {
+		component.Props.SetDateTime(ical.PropDateTimeStamp, time.Now())
 	}
 
-	cal.Children = append(cal.Children, event.Component)
+	cal.Children = append(cal.Children, &component) // Adding the component directly
 
 	var buf bytes.Buffer
 	if err := ical.NewEncoder(&buf).Encode(cal); err != nil {
@@ -62,22 +63,27 @@ func ICalEventToICS(event ical.Event, removeCalendarWrapper bool) (string, error
 	return icsString, nil
 }
 
-func ICSToICalEvent(ics string) (*ical.Event, error) {
+// ICSToICalComp parses an ICS string and returns an ical.Component (event or other calendar component).
+func ICSToICalComp(ics string) (*ical.Component, error) {
 	r := strings.NewReader(ics)
 	dec := ical.NewDecoder(r)
 
+	// Decode the calendar
 	cal, err := dec.Decode()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode calendar: %w", err)
 	}
 
-	events := cal.Events()
-	if len(events) == 0 {
-		return nil, fmt.Errorf("no events found in calendar")
-	}
-	if len(events) > 1 {
-		return nil, fmt.Errorf("multiple events found in calendar")
+	// Check if there are multiple components in the calendar
+	if len(cal.Children) > 1 {
+		return nil, fmt.Errorf("multiple components found in calendar")
 	}
 
-	return &events[0], nil
+	// If no components are found, return an error
+	if len(cal.Children) == 0 {
+		return nil, fmt.Errorf("no components found in calendar")
+	}
+
+	// Return the first component (event or other)
+	return cal.Children[0], nil
 }

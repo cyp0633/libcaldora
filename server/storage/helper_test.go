@@ -11,7 +11,7 @@ import (
 func TestIcalEventToICS(t *testing.T) {
 	tests := []struct {
 		name                  string
-		event                 ical.Event
+		component             ical.Component
 		removeCalendarWrapper bool
 		want                  []string // substrings that should be in result
 		dontWant              []string // substrings that should not be in result when wrapper is removed
@@ -19,13 +19,13 @@ func TestIcalEventToICS(t *testing.T) {
 	}{
 		{
 			name: "basic event with wrapper",
-			event: func() ical.Event {
+			component: func() ical.Component {
 				e := ical.NewEvent()
 				e.Props.SetText(ical.PropSummary, "Test Event")
 				e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
 				e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
 				e.Props.SetText(ical.PropUID, "test-event-1")
-				return *e
+				return *e.Component
 			}(),
 			removeCalendarWrapper: false,
 			want: []string{
@@ -44,13 +44,13 @@ func TestIcalEventToICS(t *testing.T) {
 		},
 		{
 			name: "basic event without wrapper",
-			event: func() ical.Event {
+			component: func() ical.Component {
 				e := ical.NewEvent()
 				e.Props.SetText(ical.PropSummary, "Test Event")
 				e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
 				e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
 				e.Props.SetText(ical.PropUID, "test-event-1")
-				return *e
+				return *e.Component
 			}(),
 			removeCalendarWrapper: true,
 			want: []string{
@@ -73,7 +73,7 @@ func TestIcalEventToICS(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ICalEventToICS(tt.event, tt.removeCalendarWrapper)
+			got, err := ICalCompToICS(tt.component, tt.removeCalendarWrapper)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("IcalEventToICS() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -101,7 +101,7 @@ func TestICSToICalEvent(t *testing.T) {
 	tests := []struct {
 		name    string
 		ics     string
-		check   func(*testing.T, *ical.Event)
+		check   func(*testing.T, *ical.Component) // Check against component
 		wantErr string
 	}{
 		{
@@ -116,8 +116,9 @@ DTEND:20240101T110000Z
 UID:test-event-1
 END:VEVENT
 END:VCALENDAR`,
-			check: func(t *testing.T, e *ical.Event) {
-				summary, err := e.Props.Text(ical.PropSummary)
+			check: func(t *testing.T, c *ical.Component) {
+				// Extract summary property from the component
+				summary, err := c.Props.Text(ical.PropSummary)
 				if err != nil {
 					t.Errorf("failed to get summary: %v", err)
 				}
@@ -134,7 +135,7 @@ VERSION:2.0
 PRODID:-//Caldora//Go Calendar//EN
 END:VCALENDAR`,
 			check:   nil,
-			wantErr: "no events found in calendar",
+			wantErr: "no components found in calendar",
 		},
 		{
 			name: "multiple events",
@@ -155,7 +156,7 @@ UID:event-2
 END:VEVENT
 END:VCALENDAR`,
 			check:   nil,
-			wantErr: "multiple events found in calendar",
+			wantErr: "multiple components found in calendar",
 		},
 		{
 			name:    "invalid format",
@@ -167,7 +168,7 @@ END:VCALENDAR`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ICSToICalEvent(tt.ics)
+			got, err := ICSToICalComp(tt.ics)
 			if tt.wantErr != "" {
 				if err == nil {
 					t.Errorf("ICSToICalEvent() error = nil, wantErr %v", tt.wantErr)
