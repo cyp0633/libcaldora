@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -41,6 +42,7 @@ type RequestContext struct {
 	ObjectID     string
 	ResourceType ResourceType
 	AuthUser     string // Authenticated user (from Basic Auth)
+	Depth        int    // -1 for infinity
 	// Add other relevant context if needed, e.g., Depth header
 }
 
@@ -106,6 +108,21 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// --- End TODO ---
+
+	depth := r.Header.Get("Depth")
+	if depth == "" {
+		ctx.Depth = 0 // Default depth
+	} else if depth == "infinity" {
+		ctx.Depth = -1 // Infinity
+	} else {
+		// Parse depth as integer, default to 0 if invalid
+		var err error
+		ctx.Depth, err = strconv.Atoi(depth)
+		if err != nil {
+			log.Printf("Invalid Depth header value: %s, defaulting to 0", depth)
+			ctx.Depth = 0
+		}
+	}
 
 	// 4. Routing based on HTTP Method (CalDAV methods)
 	switch r.Method {
