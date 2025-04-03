@@ -94,7 +94,20 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Parsed path: Type=%s, UserID=%s, CalendarID=%s, ObjectID=%s",
 		ctx.ResourceType, ctx.UserID, ctx.CalendarID, ctx.ObjectID)
 
-	// 3. Routing based on HTTP Method (CalDAV methods)
+	// 3. --- TODO: User Access Control Check ---
+	// After identifying the resource and the authenticated user (ctx.AuthUser),
+	// check if ctx.AuthUser is allowed to access the resource identified by
+	// ctx.UserID, ctx.CalendarID etc. For example, normally ctx.AuthUser must
+	// be equal to ctx.UserID unless delegation or public calendars are involved.
+	if ctx.UserID != "" && ctx.UserID != ctx.AuthUser {
+		log.Printf("TODO: Implement access control check: AuthUser '%s' accessing UserID '%s'", ctx.AuthUser, ctx.UserID)
+		// For now, let's assume users can only access their own resources
+		http.Error(w, "Forbidden: Access denied to the requested resource", http.StatusForbidden)
+		return
+	}
+	// --- End TODO ---
+
+	// 4. Routing based on HTTP Method (CalDAV methods)
 	switch r.Method {
 	case "PROPFIND":
 		h.handlePropfind(w, r, ctx)
