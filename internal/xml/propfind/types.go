@@ -1,6 +1,7 @@
 package propfind
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -125,6 +126,13 @@ var propPrefixMap = map[string]string{
 	"hidden":   "g",
 	"selected": "g",
 }
+
+var (
+	ErrNotFound   = errors.New("HTTP 404: Property not found")
+	ErrForbidden  = errors.New("HTTP 403: Forbidden access to the resource")
+	ErrInternal   = errors.New("HTTP 500: Internal server error")
+	ErrBadRequest = errors.New("HTTP 400: Bad request")
+)
 
 // Namespace map for declaration (if needed by etree)
 var namespaceMap = map[string]string{

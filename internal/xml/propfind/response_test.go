@@ -115,24 +115,24 @@ func TestParseRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got,typ := ParseRequest(tt.xmlInput)
+			got, typ := ParseRequest(tt.xmlInput)
 
 			// Check if the number of properties matches
 			assert.Equal(t, len(tt.want), len(got),
 				"Result should have %d properties, got %d", len(tt.want), len(got))
-			assert.Equal(t,typ,"prop")
+			assert.Equal(t, typ, "prop")
 
 			// Check each expected property type
 			for propName, expectedType := range tt.want {
-				option, exists := got[propName]
+				result, exists := got[propName]
 				assert.True(t, exists, "Property %s should exist in result", propName)
 
 				if exists {
-					// Check if the option has a value
-					assert.True(t, option.IsPresent(), "Property %s should have a value", propName)
+					// Check if the result has a value
+					assert.True(t, result.IsOk(), "Property %s should have a value", propName)
 
 					// Check if the value is of the expected type
-					value := option.MustGet()
+					value := result.MustGet()
 					actualType := reflect.TypeOf(value)
 					assert.Equal(t, expectedType, actualType,
 						"Property %s should have type %v, got %v", propName, expectedType, actualType)
@@ -191,24 +191,24 @@ func TestParseRequest_AllProperties(t *testing.T) {
 	xmlInput := xmlStart + xmlMiddle + xmlEnd
 
 	// Parse the request
-	got,typ := ParseRequest(xmlInput)
+	got, typ := ParseRequest(xmlInput)
 
 	// Check if all properties are correctly parsed
 	assert.Equal(t, len(expectedProps), len(got),
 		"Should have parsed all %d properties", len(expectedProps))
-	assert.Equal(t,typ, "prop")
+	assert.Equal(t, typ, "prop")
 
 	// Check each property type
 	for propName, expectedType := range expectedProps {
-		option, exists := got[propName]
+		result, exists := got[propName]
 		assert.True(t, exists, "Property %s should exist in result", propName)
 
 		if exists {
-			// Check if the option has a value
-			assert.True(t, option.IsPresent(), "Property %s should have a value", propName)
+			// Check if the result has a value
+			assert.True(t, result.IsOk(), "Property %s should have a value", propName)
 
 			// Check if the value is of the expected type
-			value := option.MustGet()
+			value := result.MustGet()
 			actualType := reflect.TypeOf(value)
 			assert.Equal(t, expectedType, actualType,
 				"Property %s should have type %v, got %v", propName, expectedType, actualType)
@@ -225,21 +225,21 @@ func TestParseRequest_AllProperties(t *testing.T) {
 func TestEncodeResponse(t *testing.T) {
 	tests := []struct {
 		name     string
-		props    map[string]mo.Option[PropertyEncoder]
+		props    map[string]mo.Result[PropertyEncoder]
 		href     string
 		expected func(t *testing.T, doc *etree.Document)
 	}{
 		{
 			name: "Mix of found and not found properties",
-			props: map[string]mo.Option[PropertyEncoder]{
-				"displayname": mo.Some(PropertyEncoder(&displayName{Value: "Test Calendar"})),
-				"resourcetype": mo.Some(PropertyEncoder(&resourcetype{
+			props: map[string]mo.Result[PropertyEncoder]{
+				"displayname": mo.Ok[PropertyEncoder](&displayName{Value: "Test Calendar"}),
+				"resourcetype": mo.Ok[PropertyEncoder](&resourcetype{
 					Types: []string{"collection", "calendar"},
-				})),
-				"getetag":                mo.None[PropertyEncoder](),
-				"calendar-color":         mo.None[PropertyEncoder](),
-				"getcontenttype":         mo.Some(PropertyEncoder(&getContentType{Value: "text/calendar"})),
-				"current-user-principal": mo.None[PropertyEncoder](),
+				}),
+				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
+				"calendar-color":         mo.Err[PropertyEncoder](ErrNotFound),
+				"getcontenttype":         mo.Ok[PropertyEncoder](&getContentType{Value: "text/calendar"}),
+				"current-user-principal": mo.Err[PropertyEncoder](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -301,9 +301,9 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "All properties found",
-			props: map[string]mo.Option[PropertyEncoder]{
-				"displayname": mo.Some(PropertyEncoder(&displayName{Value: "Test Calendar"})),
-				"getetag":     mo.Some(PropertyEncoder(&getEtag{Value: "\"etag12345\""})),
+			props: map[string]mo.Result[PropertyEncoder]{
+				"displayname": mo.Ok[PropertyEncoder](&displayName{Value: "Test Calendar"}),
+				"getetag":     mo.Ok[PropertyEncoder](&getEtag{Value: "\"etag12345\""}),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -325,9 +325,9 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "All properties not found",
-			props: map[string]mo.Option[PropertyEncoder]{
-				"displayname": mo.None[PropertyEncoder](),
-				"getetag":     mo.None[PropertyEncoder](),
+			props: map[string]mo.Result[PropertyEncoder]{
+				"displayname": mo.Err[PropertyEncoder](ErrNotFound),
+				"getetag":     mo.Err[PropertyEncoder](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -346,7 +346,7 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name:  "Empty properties",
-			props: map[string]mo.Option[PropertyEncoder]{},
+			props: map[string]mo.Result[PropertyEncoder]{},
 			href:  "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
 				// Both propstat sections should be missing
@@ -367,16 +367,16 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "Complex CalDAV properties",
-			props: map[string]mo.Option[PropertyEncoder]{
-				"supported-calendar-component-set": mo.Some(PropertyEncoder(&supportedCalendarComponentSet{
+			props: map[string]mo.Result[PropertyEncoder]{
+				"supported-calendar-component-set": mo.Ok[PropertyEncoder](&supportedCalendarComponentSet{
 					Components: []string{"VEVENT", "VTODO"},
-				})),
-				"calendar-user-address-set": mo.Some(PropertyEncoder(&calendarUserAddressSet{
+				}),
+				"calendar-user-address-set": mo.Ok[PropertyEncoder](&calendarUserAddressSet{
 					Addresses: []string{"mailto:user1@example.com", "mailto:user.one@example.org"},
-				})),
-				"current-user-privilege-set": mo.Some(PropertyEncoder(&currentUserPrivilegeSet{
+				}),
+				"current-user-privilege-set": mo.Ok[PropertyEncoder](&currentUserPrivilegeSet{
 					Privileges: []string{"read", "write", "read-acl"},
-				})),
+				}),
 			},
 			href: "/principals/users/user1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -409,6 +409,47 @@ func TestEncodeResponse(t *testing.T) {
 				assert.Equal(t, 3, len(privs), "Should have 3 privilege elements")
 			},
 		},
+		{
+			name: "Mixed error types",
+			props: map[string]mo.Result[PropertyEncoder]{
+				"displayname":            mo.Ok[PropertyEncoder](&displayName{Value: "Test Calendar"}),
+				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
+				"current-user-principal": mo.Err[PropertyEncoder](ErrForbidden),
+				"resourcetype":           mo.Err[PropertyEncoder](ErrInternal),
+				"getcontenttype":         mo.Err[PropertyEncoder](ErrBadRequest),
+			},
+			href: "/calendars/user1/calendar1/",
+			expected: func(t *testing.T, doc *etree.Document) {
+				// Verify we have different status sections for each error type
+				okPropstat := doc.FindElement("//d:response/d:propstat[d:status='HTTP/1.1 200 OK']")
+				assert.NotNil(t, okPropstat, "Should have 200 OK propstat")
+
+				notFoundPropstat := doc.FindElement("//d:response/d:propstat[d:status='HTTP/1.1 404 Not Found']")
+				assert.NotNil(t, notFoundPropstat, "Should have 404 Not Found propstat")
+
+				forbiddenPropstat := doc.FindElement("//d:response/d:propstat[d:status='HTTP/1.1 403 Forbidden']")
+				assert.NotNil(t, forbiddenPropstat, "Should have 403 Forbidden propstat")
+
+				internalPropstat := doc.FindElement("//d:response/d:propstat[d:status='HTTP/1.1 500 Internal Server Error']")
+				assert.NotNil(t, internalPropstat, "Should have 500 Internal Server Error propstat")
+
+				badRequestPropstat := doc.FindElement("//d:response/d:propstat[d:status='HTTP/1.1 400 Bad Request']")
+				assert.NotNil(t, badRequestPropstat, "Should have 400 Bad Request propstat")
+
+				// Check that each prop is in the right section
+				notFoundProp := notFoundPropstat.FindElement("d:prop/d:getetag")
+				assert.NotNil(t, notFoundProp, "getetag should be in 404 section")
+
+				forbiddenProp := forbiddenPropstat.FindElement("d:prop/d:current-user-principal")
+				assert.NotNil(t, forbiddenProp, "current-user-principal should be in 403 section")
+
+				internalProp := internalPropstat.FindElement("d:prop/d:resourcetype")
+				assert.NotNil(t, internalProp, "resourcetype should be in 500 section")
+
+				badRequestProp := badRequestPropstat.FindElement("d:prop/d:getcontenttype")
+				assert.NotNil(t, badRequestProp, "getcontenttype should be in 400 section")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -427,8 +468,8 @@ func TestEncodeResponse(t *testing.T) {
 
 func TestEncodeResponseHref(t *testing.T) {
 	// Test that the href parameter is properly used
-	props := map[string]mo.Option[PropertyEncoder]{
-		"displayname": mo.Some(PropertyEncoder(&displayName{Value: "Test"})),
+	props := map[string]mo.Result[PropertyEncoder]{
+		"displayname": mo.Ok[PropertyEncoder](&displayName{Value: "Test"}),
 	}
 
 	customHref := "/custom/path/to/resource/"
