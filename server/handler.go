@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/cyp0633/libcaldora/server/storage"
 )
 
 // ResourceType indicates the type of CalDAV resource identified by the URL path.
@@ -42,19 +44,21 @@ type RequestContext struct {
 	ObjectID     string
 	ResourceType ResourceType
 	AuthUser     string // Authenticated user (from Basic Auth)
-	Depth        int    // -1 for infinity
+	Depth        int    // >3 is the same as infinity
 	// Add other relevant context if needed, e.g., Depth header
 }
 
 // CaldavHandler is the main HTTP handler for CalDAV requests under a specific prefix.
 type CaldavHandler struct {
-	Prefix string // e.g., "/caldav/"
-	Realm  string // Realm for Basic Auth
+	Prefix   string // e.g., "/caldav/"
+	Realm    string // Realm for Basic Auth
+	Storage  storage.Storage
+	MaxDepth int // Optional: Max depth for PROPFIND requests, >3 for infinity
 	// TODO: Add backend interface dependency here later
 }
 
 // NewCaldavHandler creates a new CaldavHandler.
-func NewCaldavHandler(prefix, realm string) *CaldavHandler {
+func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth int) *CaldavHandler {
 	// Ensure prefix starts and ends with a slash for consistent parsing
 	if !strings.HasPrefix(prefix, "/") {
 		prefix = "/" + prefix
@@ -63,8 +67,10 @@ func NewCaldavHandler(prefix, realm string) *CaldavHandler {
 		prefix = prefix + "/"
 	}
 	return &CaldavHandler{
-		Prefix: prefix,
-		Realm:  realm,
+		Prefix:   prefix,
+		Realm:    realm,
+		Storage:  storage,
+		MaxDepth: maxDepth,
 	}
 }
 
@@ -113,7 +119,7 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if depth == "" {
 		ctx.Depth = 0 // Default depth
 	} else if depth == "infinity" {
-		ctx.Depth = -1 // Infinity
+		ctx.Depth = 114514
 	} else {
 		// Parse depth as integer, default to 0 if invalid
 		var err error
@@ -122,6 +128,7 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Invalid Depth header value: %s, defaulting to 0", depth)
 			ctx.Depth = 0
 		}
+		ctx.Depth = min(ctx.Depth, h.MaxDepth)
 	}
 
 	// 4. Routing based on HTTP Method (CalDAV methods)

@@ -6,10 +6,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/cyp0633/libcaldora/server/storage"
 )
 
 func TestParsePath(t *testing.T) {
-	h := NewCaldavHandler("/caldav/", "Test Realm")
+	mockStorage := storage.NewMockStorage()
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1)
 
 	testCases := []struct {
 		name           string
@@ -84,7 +87,8 @@ func TestResourceTypeString(t *testing.T) {
 }
 
 func TestCheckAuth(t *testing.T) {
-	h := NewCaldavHandler("/caldav/", "Test Realm")
+	mockStorage := storage.NewMockStorage()
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1)
 
 	tests := []struct {
 		name           string
