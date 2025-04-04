@@ -7,6 +7,7 @@ import (
 )
 
 // ResourceType indicates the type of CalDAV resource identified by the URL path.
+// This is distinct from CalDAV prop "resourcetype".
 type ResourceType int
 
 // URLConverter helps you define URL path convention. Leave this blank when creating handler defaults to defaultURLConverter.
@@ -35,6 +36,7 @@ type Resource struct {
 	UserID       string
 	CalendarID   string
 	ObjectID     string
+	URI          string // may save encode/parsing overhead
 	ResourceType ResourceType
 }
 
@@ -102,9 +104,11 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 		return resource, fmt.Errorf("invalid path: too many segments (%d)", numSegments)
 	}
 
+	resource.URI = path
 	return resource, nil
 }
 
+// EncodePath encodes a Resource into URI, regardless of whether URI field is filled
 func (c defaultURLConverter) EncodePath(resource Resource) (string, error) {
 	switch resource.ResourceType {
 	case ResourcePrincipal:
