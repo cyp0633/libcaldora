@@ -150,6 +150,8 @@ func EncodeResponse(props ResponseMap, href string) *etree.Document {
 	return doc
 }
 
+// MergeResponses is used for merging responses for individual calendar resources into
+// one response to a PROPFIND request (often with depth>0).
 func MergeResponses(docs []*etree.Document) (*etree.Document, error) {
 	if len(docs) == 0 {
 		return nil, errors.New("no documents to merge")
@@ -164,18 +166,26 @@ func MergeResponses(docs []*etree.Document) (*etree.Document, error) {
 	mergedDoc := etree.NewDocument()
 	mergedDoc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
 
-	// Create multistatus root element with namespaces from first document
+	// Create multistatus root element with namespaces
 	mergedMultistatus := mergedDoc.CreateElement("d:multistatus")
 
-	// Copy namespaces from the first document's multistatus
+	// Explicitly add required namespace declarations first
+	mergedMultistatus.CreateAttr("xmlns:d", "DAV:")
+	mergedMultistatus.CreateAttr("xmlns:cal", "urn:ietf:params:xml:ns:caldav")
+	mergedMultistatus.CreateAttr("xmlns:cs", "http://calendarserver.org/ns/")
+
+	// Copy namespaces from the first document's multistatus (for any additional namespaces)
 	firstMultistatus := docs[0].FindElement("//d:multistatus")
 	if firstMultistatus == nil {
 		return nil, errors.New("first document missing multistatus element")
 	}
 
-	// Add namespace declarations
+	// Add any additional namespace declarations that aren't standard
 	for _, attr := range firstMultistatus.Attr {
-		if strings.HasPrefix(attr.Key, "xmlns:") {
+		if strings.HasPrefix(attr.Key, "xmlns:") &&
+			attr.Key != "xmlns:d" &&
+			attr.Key != "xmlns:cal" &&
+			attr.Key != "xmlns:cs" {
 			mergedMultistatus.CreateAttr(attr.Key, attr.Value)
 		}
 	}
