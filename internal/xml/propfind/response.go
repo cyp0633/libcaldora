@@ -1,6 +1,7 @@
 package propfind
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/beevik/etree"
@@ -8,9 +9,9 @@ import (
 )
 
 // Extend ParseRequest to handle different request types
-func ParseRequest(xmlStr string) (map[string]mo.Result[PropertyEncoder], string) {
-	props := make(map[string]mo.Result[PropertyEncoder])
-	requestType := "prop" // Default
+func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
+	props := make(ResponseMap)
+	requestType := RequestTypeProp // Default
 
 	// Parse XML using etree
 	doc := etree.NewDocument()
@@ -26,7 +27,7 @@ func ParseRequest(xmlStr string) (map[string]mo.Result[PropertyEncoder], string)
 
 	// Check for allprop or propname
 	if allprop := propfindElem.FindElement("allprop"); allprop != nil {
-		requestType = "allprop"
+		requestType = RequestTypeAllProp
 		// For allprop, add all known properties
 		for propName, structPtr := range propNameToStruct {
 			props[propName] = mo.Ok(structPtr)
@@ -35,7 +36,7 @@ func ParseRequest(xmlStr string) (map[string]mo.Result[PropertyEncoder], string)
 	}
 
 	if propname := propfindElem.FindElement("propname"); propname != nil {
-		requestType = "propname"
+		requestType = RequestTypePropName
 		// For propname, add all known properties but mark them with ErrNotFound
 		for propName := range propNameToStruct {
 			props[propName] = mo.Err[PropertyEncoder](ErrNotFound)
@@ -73,7 +74,7 @@ func ParseRequest(xmlStr string) (map[string]mo.Result[PropertyEncoder], string)
 	return props, requestType
 }
 
-func EncodeResponse(props map[string]mo.Result[PropertyEncoder], href string) *etree.Document {
+func EncodeResponse(props ResponseMap, href string) *etree.Document {
 	doc := etree.NewDocument()
 	doc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
 
@@ -147,4 +148,48 @@ func EncodeResponse(props map[string]mo.Result[PropertyEncoder], href string) *e
 	}
 
 	return doc
+}
+
+func MergeResponses(docs []*etree.Document) (*etree.Document, error) {
+	if len(docs) == 0 {
+		return nil, errors.New("no documents to merge")
+	}
+
+	// If only one document, return it directly
+	if len(docs) == 1 {
+		return docs[0], nil
+	}
+
+	// Create a new merged document
+	mergedDoc := etree.NewDocument()
+	mergedDoc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
+
+	// Create multistatus root element with namespaces from first document
+	mergedMultistatus := mergedDoc.CreateElement("d:multistatus")
+
+	// Copy namespaces from the first document's multistatus
+	firstMultistatus := docs[0].FindElement("//d:multistatus")
+	if firstMultistatus == nil {
+		return nil, errors.New("first document missing multistatus element")
+	}
+
+	// Add namespace declarations
+	for _, attr := range firstMultistatus.Attr {
+		if strings.HasPrefix(attr.Key, "xmlns:") {
+			mergedMultistatus.CreateAttr(attr.Key, attr.Value)
+		}
+	}
+
+	// For each document, find and copy all response elements to the merged document
+	for _, doc := range docs {
+		// Find all response elements
+		responses := doc.FindElements("//d:multistatus/d:response")
+		for _, resp := range responses {
+			// Deep copy the response element
+			respCopy := resp.Copy()
+			mergedMultistatus.AddChild(respCopy)
+		}
+	}
+
+	return mergedDoc, nil
 }

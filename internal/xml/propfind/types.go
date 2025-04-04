@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
+	"github.com/samber/mo"
 )
 
 // PropertyEncoder interface for all property types
@@ -126,6 +127,16 @@ var propPrefixMap = map[string]string{
 	"hidden":   "g",
 	"selected": "g",
 }
+
+type ResponseMap map[string]mo.Result[PropertyEncoder]
+
+type RequestType int
+
+const (
+	RequestTypeProp     RequestType = iota // Propfind request
+	RequestTypePropName                    // Propname request (only return property names)
+	RequestTypeAllProp                     // Allprop request (return all properties)
+)
 
 var (
 	ErrNotFound   = errors.New("HTTP 404: Property not found")
