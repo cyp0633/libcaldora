@@ -7,15 +7,19 @@ import (
 )
 
 type Storage interface {
-	GetEventsInCollection(calendarID string) (CalendarObject, error)
-	GetUserCalendars(userID string) (Calendar, error) // Returns a list of calendars for a user
+	// GetObjectsInCollection retrieves all calendar objects (like VEVENT, VTODO) in a given calendar collection.
+	GetObjectsInCollection(calendarID string) ([]CalendarObject, error)
+	// GetObjectPathsInCollection retrieves paths of all calendar objects in a given calendar collection.
+	GetObjectPathsInCollection(calendarID string) ([]string, error)
+	// GetUserCalendars retrieves all calendar collections for a user.
+	GetUserCalendars(userID string) ([]Calendar, error)
 }
 
 // Calendar represents a CalDAV calendar collection.
 // It holds metadata and the core iCalendar data.
 type Calendar struct {
 	// Path is the unique URI path for this calendar resource.
-	// Example: "/calendars/users/alice/work/"
+	// Example: "/alice/cal/work"
 	Path string
 
 	// CTag represents the calendar collection tag.
@@ -28,7 +32,7 @@ type Calendar struct {
 
 	// Component stores the underlying VCALENDAR data using go-ical.
 	// This holds properties like NAME, DESCRIPTION, COLOR etc.
-	Component *ical.Component
+	CalendarData *ical.Calendar
 
 	// Add any other necessary metadata specific to your implementation,
 	// e.g., OwnerPrincipalPath string
@@ -38,7 +42,10 @@ type Calendar struct {
 // task (VTODO), or journal entry (VJOURNAL) within a calendar collection.
 type CalendarObject struct {
 	// Path is the unique URI path for this calendar object resource.
-	// Example: "/calendars/users/alice/work/event123.ics"
+	//
+	// NOTE: This has nothing to do with iCal UID.
+	//
+	// Example: "/alice/cal/work/event1.ics"
 	Path string
 
 	// ETag represents the entity tag of the calendar object.
@@ -50,7 +57,4 @@ type CalendarObject struct {
 
 	// Component stores the underlying VEVENT, VTODO, etc. data using go-ical.
 	Component *ical.Component
-
-	// CalendarPath links back to the parent Calendar collection's Path.
-	CalendarPath string
 }

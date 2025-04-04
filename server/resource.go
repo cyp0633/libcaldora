@@ -9,6 +9,13 @@ import (
 // ResourceType indicates the type of CalDAV resource identified by the URL path.
 type ResourceType int
 
+// URLConverter helps you define URL path convention. Leave this blank when creating handler defaults to defaultURLConverter.
+//
+// However, there are some basic assumptions you should respect:
+//
+// A resource should be able to find its parent from its path. For example, /<userid>/cal/<calendarid>/<objectid> belongs to
+// user <userid> and calendar <calendarid>. Please consider including all those information in your URI, or you might
+// encounter excessive overhead looking for parent resources.
 type URLConverter interface {
 	// ParsePath parses a given path and returns the corresponding Resource.
 	ParsePath(path string) (Resource, error)
