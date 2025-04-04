@@ -64,7 +64,13 @@ func ICalCompToICS(component ical.Component, removeCalendarWrapper bool) (string
 }
 
 // ICSToICalComp parses an ICS string and returns an ical.Component (event or other calendar component).
+// It automatically adds the VCALENDAR wrapper if not present in the input.
 func ICSToICalComp(ics string) (*ical.Component, error) {
+	// Add the VCALENDAR wrapper
+	if !strings.HasPrefix(strings.TrimSpace(ics), "BEGIN:VCALENDAR") {
+		ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Caldora//Go Calendar//EN\r\n" + ics + "\r\nEND:VCALENDAR"
+	}
+
 	r := strings.NewReader(ics)
 	dec := ical.NewDecoder(r)
 

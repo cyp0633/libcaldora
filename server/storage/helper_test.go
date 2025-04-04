@@ -8,7 +8,7 @@ import (
 	"github.com/emersion/go-ical"
 )
 
-func TestIcalEventToICS(t *testing.T) {
+func TestICalCompToICS(t *testing.T) {
 	tests := []struct {
 		name                  string
 		component             ical.Component
@@ -97,7 +97,7 @@ func TestIcalEventToICS(t *testing.T) {
 	}
 }
 
-func TestICSToICalEvent(t *testing.T) {
+func TestICSToICalComp(t *testing.T) {
 	tests := []struct {
 		name    string
 		ics     string
@@ -163,6 +163,67 @@ END:VCALENDAR`,
 			ics:     "invalid ics format",
 			check:   nil,
 			wantErr: "failed to decode calendar",
+		},
+		{
+			name: "raw event without VCALENDAR wrapper",
+			ics: `BEGIN:VEVENT
+SUMMARY:Raw Event
+DTSTART:20240101T100000Z
+DTEND:20240101T110000Z
+UID:raw-event-1
+END:VEVENT`,
+			check: func(t *testing.T, c *ical.Component) {
+				// Extract summary property from the component
+				summary, err := c.Props.Text(ical.PropSummary)
+				if err != nil {
+					t.Errorf("failed to get summary: %v", err)
+				}
+				if summary != "Raw Event" {
+					t.Errorf("got summary = %v, want Raw Event", summary)
+				}
+			},
+			wantErr: "",
+		},
+		{
+			name: "raw event with whitespace before",
+			ics: `
+BEGIN:VEVENT
+SUMMARY:Raw Event With Whitespace
+DTSTART:20240101T100000Z
+DTEND:20240101T110000Z
+UID:raw-event-2
+END:VEVENT`,
+			check: func(t *testing.T, c *ical.Component) {
+				summary, err := c.Props.Text(ical.PropSummary)
+				if err != nil {
+					t.Errorf("failed to get summary: %v", err)
+				}
+				if summary != "Raw Event With Whitespace" {
+					t.Errorf("got summary = %v, want Raw Event With Whitespace", summary)
+				}
+			},
+			wantErr: "",
+		},
+		{
+			name: "raw todo component without wrapper",
+			ics: `BEGIN:VTODO
+SUMMARY:Raw Task
+DUE:20240101T110000Z
+UID:raw-task-1
+END:VTODO`,
+			check: func(t *testing.T, c *ical.Component) {
+				if c.Name != "VTODO" {
+					t.Errorf("expected VTODO component, got %s", c.Name)
+				}
+				summary, err := c.Props.Text(ical.PropSummary)
+				if err != nil {
+					t.Errorf("failed to get summary: %v", err)
+				}
+				if summary != "Raw Task" {
+					t.Errorf("got summary = %v, want Raw Task", summary)
+				}
+			},
+			wantErr: "",
 		},
 	}
 
