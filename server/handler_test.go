@@ -12,7 +12,7 @@ import (
 
 func TestParsePath(t *testing.T) {
 	mockStorage := storage.NewMockStorage()
-	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1)
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
 
 	testCases := []struct {
 		name           string
@@ -34,7 +34,7 @@ func TestParsePath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, err := h.parsePath(tc.path)
+			ctx, err := h.URLConverter.ParsePath(tc.path)
 
 			// Check error status
 			if (err != nil) != tc.wantErr {
@@ -88,7 +88,7 @@ func TestResourceTypeString(t *testing.T) {
 
 func TestCheckAuth(t *testing.T) {
 	mockStorage := storage.NewMockStorage()
-	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1)
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
 
 	tests := []struct {
 		name           string
