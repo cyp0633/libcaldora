@@ -11,7 +11,8 @@ import (
 )
 
 func TestParsePath(t *testing.T) {
-	mockStorage := storage.NewMockStorage()
+	// Create mock storage directly - no longer using NewMockStorage()
+	mockStorage := &storage.MockStorage{}
 	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
 
 	testCases := []struct {
@@ -34,7 +35,8 @@ func TestParsePath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, err := h.URLConverter.ParsePath(tc.path)
+			// ParsePath now returns Resource, not RequestContext
+			resource, err := h.URLConverter.ParsePath(tc.path)
 
 			// Check error status
 			if (err != nil) != tc.wantErr {
@@ -43,22 +45,22 @@ func TestParsePath(t *testing.T) {
 			}
 
 			if err != nil {
-				// If we expected an error, no need to check the context
+				// If we expected an error, no need to check the resource
 				return
 			}
 
-			// Check context values
-			if ctx.UserID != tc.wantUserID {
-				t.Errorf("UserID = %q, want %q", ctx.UserID, tc.wantUserID)
+			// Check resource values
+			if resource.UserID != tc.wantUserID {
+				t.Errorf("UserID = %q, want %q", resource.UserID, tc.wantUserID)
 			}
-			if ctx.CalendarID != tc.wantCalendarID {
-				t.Errorf("CalendarID = %q, want %q", ctx.CalendarID, tc.wantCalendarID)
+			if resource.CalendarID != tc.wantCalendarID {
+				t.Errorf("CalendarID = %q, want %q", resource.CalendarID, tc.wantCalendarID)
 			}
-			if ctx.ObjectID != tc.wantObjectID {
-				t.Errorf("ObjectID = %q, want %q", ctx.ObjectID, tc.wantObjectID)
+			if resource.ObjectID != tc.wantObjectID {
+				t.Errorf("ObjectID = %q, want %q", resource.ObjectID, tc.wantObjectID)
 			}
-			if ctx.ResourceType != tc.wantResType {
-				t.Errorf("ResourceType = %v, want %v", ctx.ResourceType, tc.wantResType)
+			if resource.ResourceType != tc.wantResType {
+				t.Errorf("ResourceType = %v, want %v", resource.ResourceType, tc.wantResType)
 			}
 		})
 	}
@@ -87,7 +89,8 @@ func TestResourceTypeString(t *testing.T) {
 }
 
 func TestCheckAuth(t *testing.T) {
-	mockStorage := storage.NewMockStorage()
+	// Create mock storage directly
+	mockStorage := &storage.MockStorage{}
 	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
 
 	tests := []struct {
