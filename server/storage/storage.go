@@ -15,6 +15,8 @@ type Storage interface {
 	GetUserCalendars(userID string) ([]Calendar, error)
 	// GetUser gets user information.
 	GetUser(userID string) (*User, error)
+	// GetCalendar retrieves a specific calendar by user id and calendar id.
+	GetCalendar(userID, calendarID string) (*Calendar, error)	
 }
 
 // Calendar represents a CalDAV calendar collection.

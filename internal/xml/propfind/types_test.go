@@ -45,7 +45,7 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name:            "getLastModified",
-			property:        &GetLastModified{Value: "Wed, 28 Mar 2025 14:30:45 GMT"},
+			property:        &GetLastModified{Value: time.Date(2025, 3, 28, 14, 30, 45, 0, time.UTC)},
 			expectedPrefix:  "d",
 			expectedTag:     "getlastmodified",
 			expectedContent: "Wed, 28 Mar 2025 14:30:45 GMT",

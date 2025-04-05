@@ -225,12 +225,13 @@ func (p GetEtag) Encode() *etree.Element {
 }
 
 type GetLastModified struct {
-	Value string
+	Value time.Time
 }
 
 func (p GetLastModified) Encode() *etree.Element {
 	elem := createElement("getlastmodified")
-	elem.SetText(p.Value)
+	// Format to RFC1123 format: "Wed, 05 Apr 2025 14:30:00 GMT"
+	elem.SetText(p.Value.UTC().Format(time.RFC1123))
 	return elem
 }
 
