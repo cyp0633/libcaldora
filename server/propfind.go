@@ -4,9 +4,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/beevik/etree"
 	"github.com/cyp0633/libcaldora/internal/xml/propfind"
+	"github.com/samber/mo"
 )
 
 // Update the handlePropfind function to use MergeResponses
@@ -90,7 +92,86 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 		log.Printf("Failed to encode path for resource %s: %v", ctx.Resource, err)
 		return nil, err
 	}
-
+	for key := range req {
+		switch key {
+		case "displayname":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: "Calendar Home"})
+		case "resourcetype":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "getetag":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "getlastmodified":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "owner":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "current-user-principal":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "principal-url":
+			res := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: ResourcePrincipal,
+			}
+			encodedPath, err := h.URLConverter.EncodePath(res)
+			if err != nil {
+				log.Printf("Failed to encode principal URL for resource %s: %v", ctx.Resource, err)
+				return nil, err
+			}
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: encodedPath})
+		case "supported-report-set":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "acl":
+			res := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: ResourcePrincipal,
+			}
+			principalPath, err := h.URLConverter.EncodePath(res)
+			if err != nil {
+				log.Printf("Failed to encode principal URL for resource %s: %v", ctx.Resource, err)
+				return nil, err
+			}
+			ace := propfind.ACE{
+				Principal: principalPath,
+				Grant:     []string{"read", "write"}, // TODO: complete ACL
+				Deny:      []string{},
+			}
+			acl := propfind.ACL{Aces: []propfind.ACE{ace}}
+			req[key] = mo.Ok[propfind.PropertyEncoder](acl)
+		case "current-user-privilege-set":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+		case "supported-calendar-component-set":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarComponentSet{Components: []string{"VEVENT", "VTODO", "VJOURNAL", "VFREEBUSY"}})
+		case "supported-calendar-data":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarData{
+				ContentType: "icalendar",
+				Version:     "2.0",
+			})
+		case "max-resource-size":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxResourceSize{Value: 10485760})
+		case "min-date-time":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MinDateTime{Value: time.Unix(0, 0).UTC()})
+		case "max-date-time":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)})
+		case "max-instances":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxInstances{Value: 100000})
+		case "max-attendees-per-instance":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxAttendeesPerInstance{Value: 100})
+		case "calendar-home-set":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarHomeSet{Href: path})
+		case "calendar-user-address-set":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "calendar-user-type":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarUserType{Value: "individual"})
+		default:
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		}
+	}
 	return propfind.EncodeResponse(req, path), nil
 }
 
@@ -130,13 +211,12 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 	if depth <= 0 {
 		return
 	}
+
 	switch parent.ResourceType {
-	case ResourceObject:
-		// object does not have children, return
-		return
-	case ResourcePrincipal:
-		// no nested resources for principals, return empty
-		return
+	case ResourceObject, ResourcePrincipal:
+		// These types don't have children, return empty slice
+		return []Resource{}, nil
+
 	case ResourceCollection:
 		// find object (event) paths in the collection
 		paths, err := h.Storage.GetObjectPathsInCollection(parent.CalendarID)
