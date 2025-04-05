@@ -175,14 +175,99 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 	return propfind.EncodeResponse(req, path), nil
 }
 
-// handles individual resource
+// handles user principal request
 func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *RequestContext) (*etree.Document, error) {
 	path, err := h.URLConverter.EncodePath(ctx.Resource)
 	if err != nil {
 		log.Printf("Failed to encode path for resource %s: %v", ctx.Resource, err)
 		return nil, err
 	}
+	user, err := h.Storage.GetUser(ctx.Resource.UserID)
+	if err != nil {
+		log.Printf("Failed to get user for resource %s: %v", ctx.Resource, err)
+		// Return an internal error if we cannot get the user
+		return nil, err
+	}
 
+	for key := range req {
+		switch key {
+		case "displayname":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: user.DisplayName})
+		case "resourcetype":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "getetag":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "getlastmodified":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "getcontenttype":
+			// No file, on purpose
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "owner":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "current-user-principal":
+			// TODO
+		case "principal-url":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: path})
+		case "supported-report-set":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "acl":
+			// For now, return a simple ACL with read/write for the principal itself
+			ace := propfind.ACE{
+				Principal: path,
+				Grant:     []string{"read", "write"}, // TODO: complete ACL
+				Deny:      []string{},
+			}
+			acl := propfind.ACL{Aces: []propfind.ACE{ace}}
+			req[key] = mo.Ok[propfind.PropertyEncoder](acl)
+		case "current-user-privilege-set":
+			// Return a simple privilege set for the principal
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+		case "calendar-home-set":
+			resource := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: ResourceHomeSet,
+			}
+			homeSetPath, err := h.URLConverter.EncodePath(resource)
+			if err != nil {
+				log.Printf("Failed to encode calendar home set for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+				continue
+			}
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarHomeSet{Href: homeSetPath})
+		case "schedule-inbox-url":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "schedule-outbox-url":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "schedule-default-calendar-url":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "calendar-user-address-set":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
+		case "calendar-user-type":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarUserType{Value: "individual"})
+		case "calendar-color":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarColor{Value: user.PreferredColor})
+		case "color":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarColor{Value: user.PreferredColor})
+		case "timezone":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Timezone{Value: user.PreferredTimezone})
+		case "hidden":
+			// default to false
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Hidden{Value: false})
+		case "selected":
+			// default to true
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Selected{Value: true})
+		default:
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		}
+	}
 	return propfind.EncodeResponse(req, path), nil
 }
 

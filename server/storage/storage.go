@@ -13,6 +13,8 @@ type Storage interface {
 	GetObjectPathsInCollection(calendarID string) ([]string, error)
 	// GetUserCalendars retrieves all calendar collections for a user.
 	GetUserCalendars(userID string) ([]Calendar, error)
+	// GetUser gets user information.
+	GetUser(userID string) (*User, error)
 }
 
 // Calendar represents a CalDAV calendar collection.
@@ -57,4 +59,15 @@ type CalendarObject struct {
 
 	// Component stores the underlying VEVENT, VTODO, etc. data using go-ical.
 	Component *ical.Component
+}
+
+type User struct {
+	// Will be returned in displayname
+	DisplayName string
+	// used for calendar-user-address-set
+	UserAddress string
+	// 6-character HEX string with # prefix, used for cs:calendar-color and g:color
+	PreferredColor string
+	// ISO 8601 timezone, e.g. Asia/Shanghai, used for g:timezone
+	PreferredTimezone string
 }

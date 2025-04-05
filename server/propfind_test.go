@@ -49,6 +49,14 @@ func (m *MockStorage) GetUserCalendars(userID string) ([]Calendar, error) {
 	return args.Get(0).([]Calendar), args.Error(1)
 }
 
+func (m *MockStorage) GetUser(userID string) (*storage.User, error) {
+	args := m.Called(userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*storage.User), args.Error(1)
+}
+
 func TestHandlePropfindHomeSet(t *testing.T) {
 	// Setup
 	mockURLConverter := new(MockURLConverter)
