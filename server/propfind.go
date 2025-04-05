@@ -305,13 +305,220 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *R
 
 // handles individual resource
 func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *RequestContext) (*etree.Document, error) {
-	path, err := h.URLConverter.EncodePath(ctx.Resource)
+	if ctx.Resource.URI == "" {
+		path, err := h.URLConverter.EncodePath(ctx.Resource)
+		if err != nil {
+			log.Printf("Failed to encode path for resource %s: %v", ctx.Resource, err)
+			return nil, err
+		}
+		ctx.Resource.URI = path
+	}
+	var calendar *storage.Calendar
+	var user *storage.User
+	object, err := h.Storage.GetObject(ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
 	if err != nil {
-		log.Printf("Failed to encode path for resource %s: %v", ctx.Resource, err)
+		log.Printf("Failed to get object for resource %s: %v", ctx.Resource, err)
 		return nil, err
 	}
+	if object == nil || object.Component == nil {
+		log.Printf("No object found for resource %s", ctx.Resource)
+		return nil, propfind.ErrNotFound
+	}
 
-	return propfind.EncodeResponse(req, path), nil
+	for key := range req {
+		switch key {
+		case "displayname":
+			name, err := object.Component.Props.Text(ical.PropName)
+			if err != nil {
+				log.Printf("Failed to get display name for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: name})
+			}
+		case "resourcetype":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "getetag":
+			if object.ETag != "" {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetEtag{Value: object.ETag})
+			} else {
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			}
+		case "getlastmodified":
+			lastModified, err := object.Component.Props.DateTime(ical.PropLastModified, nil)
+			if err != nil {
+				log.Printf("Failed to get last modified date for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetLastModified{Value: lastModified})
+			}
+		case "getcontenttype":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetContentType{Value: "text/calendar"})
+		case "owner":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "current-user-principal":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "principal-url":
+			resource := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: ResourcePrincipal,
+			}
+			encodedPath, err := h.URLConverter.EncodePath(resource)
+			if err != nil {
+				log.Printf("Failed to encode principal URL for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+				continue
+			}
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: encodedPath})
+		case "supported-report-set":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "acl":
+			// For now, return a simple ACL with read/write for the principal itself
+			ace := propfind.ACE{
+				Principal: ctx.Resource.URI,
+				Grant:     []string{"read", "write"}, // TODO: complete ACL
+				Deny:      []string{},
+			}
+			acl := propfind.ACL{Aces: []propfind.ACE{ace}}
+			req[key] = mo.Ok[propfind.PropertyEncoder](acl)
+		case "current-user-privilege-set":
+			// Return a simple privilege set for the principal
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+		case "calendar-description":
+			if calendar == nil {
+				calendar, err = h.Storage.GetCalendar(ctx.Resource.UserID, ctx.Resource.CalendarID)
+				if err != nil {
+					log.Printf("Failed to get calendar for resource %s: %v", ctx.Resource, err)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+					continue
+				}
+				if calendar == nil || calendar.CalendarData == nil {
+					log.Printf("No calendar found for resource %s", ctx.Resource)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+					continue
+				}
+			}
+			description, err := calendar.CalendarData.Props.Text(ical.PropDescription)
+			if err != nil {
+				log.Printf("Failed to get calendar description for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarDescription{Value: description})
+			}
+		case "calendar-timezone", "timezone":
+			if calendar == nil {
+				calendar, err = h.Storage.GetCalendar(ctx.Resource.UserID, ctx.Resource.CalendarID)
+				if err != nil {
+					log.Printf("Failed to get calendar for resource %s: %v", ctx.Resource, err)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+					continue
+				}
+				if calendar == nil || calendar.CalendarData == nil {
+					log.Printf("No calendar found for resource %s", ctx.Resource)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+					continue
+				}
+			}
+			timezone, err := calendar.CalendarData.Component.Props.Text(ical.PropTimezoneID)
+			if err != nil {
+				log.Printf("Failed to get timezone from calendar data for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarTimezone{Value: timezone})
+			}
+		case "supported-calendar-component-set":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "supported-calendar-data":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarData{
+				ContentType: "text/calendar",
+				Version:     "2.0",
+			})
+		case "max-resource-size":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxResourceSize{Value: 10485760})
+		case "min-date-time":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MinDateTime{Value: time.Unix(0, 0).UTC()})
+		case "max-date-time":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)})
+		case "max-instances":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxInstances{Value: 100000})
+		case "max-attendees-per-instance":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.MaxAttendeesPerInstance{Value: 100})
+		case "calendar-home-set":
+			resource := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: ResourceHomeSet,
+			}
+			homeSetPath, err := h.URLConverter.EncodePath(resource)
+			if err != nil {
+				log.Printf("Failed to encode calendar home set for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+				continue
+			}
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarHomeSet{Href: homeSetPath})
+		case "schedule-inbox-url":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "schedule-outbox-url":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "schedule-default-calendar-url":
+			// TODO
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		case "calendar-user-address-set":
+			if user == nil {
+				user, err = h.Storage.GetUser(ctx.Resource.UserID)
+				if err != nil {
+					log.Printf("Failed to get user for resource %s: %v", ctx.Resource, err)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+					continue
+				}
+				if user == nil || user.UserAddress == "" {
+					log.Printf("No user found for resource %s", ctx.Resource)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+					continue
+				}
+			}
+			if user.UserAddress == "" {
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
+			}
+		case "calendar-user-type":
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarUserType{Value: "individual"})
+		case "calendar-color", "color":
+			if user == nil {
+				user, err = h.Storage.GetUser(ctx.Resource.UserID)
+				if err != nil {
+					log.Printf("Failed to get user for resource %s: %v", ctx.Resource, err)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
+					continue
+				}
+				if user == nil || user.PreferredColor == "" {
+					log.Printf("No user found for resource %s", ctx.Resource)
+					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+					continue
+				}
+			}
+			if user.PreferredColor == "" {
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarColor{Value: user.PreferredColor})
+			}
+		case "hidden":
+			// default to false
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Hidden{Value: false})
+		case "selected":
+			// default to true
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Selected{Value: true})
+		default:
+			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+		}
+	}
+	return propfind.EncodeResponse(req, ctx.Resource.URI), nil
 }
 
 func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *RequestContext) (*etree.Document, error) {
@@ -334,12 +541,11 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 	for key := range req {
 		switch key {
 		case "displayname":
-			name := calendar.CalendarData.Props.Get(ical.PropName)
-			if name != nil && name.Value != "" {
-				// Use the NAME property from the iCalendar data if available
-				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: name.Value})
-			} else {
+			name, err := calendar.CalendarData.Props.Text(ical.PropName)
+			if err != nil {
 				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: name})
 			}
 		case "resourcetype":
 			// TODO
@@ -350,19 +556,13 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
 			}
 		case "getlastmodified":
-			lastModified := calendar.CalendarData.Props.Get(ical.PropLastModified)
-			if lastModified == nil {
-				log.Printf("Last-Modified property not found in calendar data for resource %s, falling back to current time", path)
-				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-				continue
-			}
-			datetime, err := lastModified.DateTime(time.Local)
+			lastModified, err := calendar.CalendarData.Props.DateTime(ical.PropLastModified, nil)
 			if err != nil {
-				log.Printf("Failed to parse Last-Modified date for resource %s: %v", path, err)
-				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrInternal)
-				continue
+				log.Printf("Failed to get last modified date for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetLastModified{Value: lastModified})
 			}
-			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetLastModified{Value: datetime})
 		case "getcontenttype":
 			// TODO
 			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
@@ -399,19 +599,19 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 			// Return a simple privilege set for the principal
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
 		case "calendar-description":
-			description := calendar.CalendarData.Props.Get(ical.PropDescription)
-			if description != nil && description.Value != "" {
-				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarDescription{Value: description.Value})
-			} else {
+			description, err := calendar.CalendarData.Props.Text(ical.PropDescription)
+			if err != nil {
 				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarDescription{Value: description})
 			}
 		case "calendar-timezone", "timezone":
 			timezone, err := calendar.CalendarData.Component.Props.Text(ical.PropTimezoneID)
 			if err != nil {
 				log.Printf("Failed to get timezone from calendar data for resource %s: %v", path, err)
-				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarTimezone{Value: timezone})
-			} else {
 				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarTimezone{Value: timezone})
 			}
 		case "supported-calendar-component-set":
 			// TODO

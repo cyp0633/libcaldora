@@ -54,6 +54,18 @@ func (m *MockStorage) GetCalendar(userID, calendarID string) (*Calendar, error) 
 	return cal, args.Error(1)
 }
 
+func (m *MockStorage) GetObject(userID, calendarID, objectID string) (*CalendarObject, error) {
+	args := m.Called(userID, calendarID, objectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	obj := args.Get(0).(*CalendarObject)
+	if obj == nil {
+		return nil, args.Error(1)
+	}
+	return obj, args.Error(1)
+}
+
 // --- Helper methods for creating test data ---
 
 // NewMockCalendar creates a test Calendar with basic properties
