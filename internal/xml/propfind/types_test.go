@@ -3,6 +3,7 @@ package propfind
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/beevik/etree"
 	"github.com/stretchr/testify/assert"
@@ -20,14 +21,14 @@ func TestEncodeFunctions(t *testing.T) {
 		// WebDAV properties
 		{
 			name:            "displayName",
-			property:        &displayName{Value: "Test Calendar"},
+			property:        &DisplayName{Value: "Test Calendar"},
 			expectedPrefix:  "d",
 			expectedTag:     "displayname",
 			expectedContent: "Test Calendar",
 		},
 		{
 			name: "resourcetype",
-			property: &resourcetype{
+			property: &Resourcetype{
 				Types: []string{"collection", "calendar"},
 			},
 			expectedPrefix:  "d",
@@ -36,49 +37,49 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name:            "getEtag",
-			property:        &getEtag{Value: "\"2a6b327d6f32a599eb457bedb8c25c1c\""},
+			property:        &GetEtag{Value: "\"2a6b327d6f32a599eb457bedb8c25c1c\""},
 			expectedPrefix:  "d",
 			expectedTag:     "getetag",
 			expectedContent: "\"2a6b327d6f32a599eb457bedb8c25c1c\"",
 		},
 		{
 			name:            "getLastModified",
-			property:        &getLastModified{Value: "Wed, 28 Mar 2025 14:30:45 GMT"},
+			property:        &GetLastModified{Value: "Wed, 28 Mar 2025 14:30:45 GMT"},
 			expectedPrefix:  "d",
 			expectedTag:     "getlastmodified",
 			expectedContent: "Wed, 28 Mar 2025 14:30:45 GMT",
 		},
 		{
 			name:            "getContentType",
-			property:        &getContentType{Value: "text/calendar"},
+			property:        &GetContentType{Value: "text/calendar"},
 			expectedPrefix:  "d",
 			expectedTag:     "getcontenttype",
 			expectedContent: "text/calendar",
 		},
 		{
 			name:            "owner",
-			property:        &owner{Value: "mailto:alice@example.com"},
+			property:        &Owner{Value: "mailto:alice@example.com"},
 			expectedPrefix:  "d",
 			expectedTag:     "owner",
 			expectedContent: "mailto:alice@example.com",
 		},
 		{
 			name:            "currentUserPrincipal",
-			property:        &currentUserPrincipal{Value: "mailto:alice@example.com"},
+			property:        &CurrentUserPrincipal{Value: "mailto:alice@example.com"},
 			expectedPrefix:  "d",
 			expectedTag:     "current-user-principal",
 			expectedContent: "mailto:alice@example.com",
 		},
 		{
 			name:            "principalURL",
-			property:        &principalURL{Value: "/principals/users/alice/"},
+			property:        &PrincipalURL{Value: "/principals/users/alice/"},
 			expectedPrefix:  "d",
 			expectedTag:     "principal-url",
 			expectedContent: "/principals/users/alice/",
 		},
 		{
 			name: "supportedReportSet",
-			property: &supportedReportSet{
+			property: &SupportedReportSet{
 				Reports: []string{"calendar-query", "sync-collection"},
 			},
 			expectedPrefix:  "d",
@@ -87,8 +88,8 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name: "acl",
-			property: &acl{
-				Aces: []ace{
+			property: &ACL{
+				Aces: []ACE{
 					{
 						Principal: "/principals/users/alice/",
 						Grant:     []string{"read", "write"},
@@ -101,7 +102,7 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name: "currentUserPrivilegeSet",
-			property: &currentUserPrivilegeSet{
+			property: &CurrentUserPrivilegeSet{
 				Privileges: []string{"read", "write"},
 			},
 			expectedPrefix:  "d",
@@ -110,14 +111,14 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name:            "quotaAvailableBytes",
-			property:        &quotaAvailableBytes{Value: 1073741824},
+			property:        &QuotaAvailableBytes{Value: 1073741824},
 			expectedPrefix:  "d",
 			expectedTag:     "quota-available-bytes",
 			expectedContent: "1073741824",
 		},
 		{
 			name:            "quotaUsedBytes",
-			property:        &quotaUsedBytes{Value: 214748364},
+			property:        &QuotaUsedBytes{Value: 214748364},
 			expectedPrefix:  "d",
 			expectedTag:     "quota-used-bytes",
 			expectedContent: "214748364",
@@ -126,21 +127,21 @@ func TestEncodeFunctions(t *testing.T) {
 		// CalDAV properties
 		{
 			name:            "calendarDescription",
-			property:        &calendarDescription{Value: "My personal work calendar"},
+			property:        &CalendarDescription{Value: "My personal work calendar"},
 			expectedPrefix:  "cal",
 			expectedTag:     "calendar-description",
 			expectedContent: "My personal work calendar",
 		},
 		{
 			name:            "calendarTimezone",
-			property:        &calendarTimezone{Value: "UTC"},
+			property:        &CalendarTimezone{Value: "UTC"},
 			expectedPrefix:  "cal",
 			expectedTag:     "calendar-timezone",
 			expectedContent: "UTC",
 		},
 		{
 			name: "supportedCalendarComponentSet",
-			property: &supportedCalendarComponentSet{
+			property: &SupportedCalendarComponentSet{
 				Components: []string{"VEVENT", "VTODO"},
 			},
 			expectedPrefix:  "cal",
@@ -149,7 +150,7 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name: "supportedCalendarData",
-			property: &supportedCalendarData{
+			property: &SupportedCalendarData{
 				ContentType: "text/calendar",
 				Version:     "2.0",
 			},
@@ -159,70 +160,70 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name:            "maxResourceSize",
-			property:        &maxResourceSize{Value: 10485760},
+			property:        &MaxResourceSize{Value: 10485760},
 			expectedPrefix:  "cal",
 			expectedTag:     "max-resource-size",
 			expectedContent: "10485760",
 		},
 		{
 			name:            "minDateTime",
-			property:        &minDateTime{Value: "2025-01-01T00:00:00Z"},
+			property:        &MinDateTime{Value: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 			expectedPrefix:  "cal",
 			expectedTag:     "min-date-time",
 			expectedContent: "2025-01-01T00:00:00Z",
 		},
 		{
 			name:            "maxDateTime",
-			property:        &maxDateTime{Value: "2025-12-31T23:59:59Z"},
+			property:        &MaxDateTime{Value: time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC)},
 			expectedPrefix:  "cal",
 			expectedTag:     "max-date-time",
 			expectedContent: "2025-12-31T23:59:59Z",
 		},
 		{
 			name:            "maxInstances",
-			property:        &maxInstances{Value: 100},
+			property:        &MaxInstances{Value: 100},
 			expectedPrefix:  "cal",
 			expectedTag:     "max-instances",
 			expectedContent: "100",
 		},
 		{
 			name:            "maxAttendeesPerInstance",
-			property:        &maxAttendeesPerInstance{Value: 50},
+			property:        &MaxAttendeesPerInstance{Value: 50},
 			expectedPrefix:  "cal",
 			expectedTag:     "max-attendees-per-instance",
 			expectedContent: "50",
 		},
 		{
 			name:            "calendarHomeSet",
-			property:        &calendarHomeSet{Href: "/calendars/users/alice/"},
+			property:        &CalendarHomeSet{Href: "/calendars/users/alice/"},
 			expectedPrefix:  "cal",
 			expectedTag:     "calendar-home-set",
 			expectedContent: "<d:href>/calendars/users/alice/</d:href>",
 		},
 		{
 			name:            "scheduleInboxURL",
-			property:        &scheduleInboxURL{Href: "/schedules/inbox/alice/"},
+			property:        &ScheduleInboxURL{Href: "/schedules/inbox/alice/"},
 			expectedPrefix:  "cal",
 			expectedTag:     "schedule-inbox-url",
 			expectedContent: "<d:href>/schedules/inbox/alice/</d:href>",
 		},
 		{
 			name:            "scheduleOutboxURL",
-			property:        &scheduleOutboxURL{Href: "/schedules/outbox/alice/"},
+			property:        &ScheduleOutboxURL{Href: "/schedules/outbox/alice/"},
 			expectedPrefix:  "cal",
 			expectedTag:     "schedule-outbox-url",
 			expectedContent: "<d:href>/schedules/outbox/alice/</d:href>",
 		},
 		{
 			name:            "scheduleDefaultCalendarURL",
-			property:        &scheduleDefaultCalendarURL{Href: "/calendars/users/alice/work-calendar/"},
+			property:        &ScheduleDefaultCalendarURL{Href: "/calendars/users/alice/work-calendar/"},
 			expectedPrefix:  "cal",
 			expectedTag:     "schedule-default-calendar-url",
 			expectedContent: "<d:href>/calendars/users/alice/work-calendar/</d:href>",
 		},
 		{
 			name: "calendarUserAddressSet",
-			property: &calendarUserAddressSet{
+			property: &CalendarUserAddressSet{
 				Addresses: []string{"mailto:alice@example.com"},
 			},
 			expectedPrefix:  "cal",
@@ -231,7 +232,7 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name:            "calendarUserType",
-			property:        &calendarUserType{Value: "individual"},
+			property:        &CalendarUserType{Value: "individual"},
 			expectedPrefix:  "cal",
 			expectedTag:     "calendar-user-type",
 			expectedContent: "individual",
@@ -240,49 +241,49 @@ func TestEncodeFunctions(t *testing.T) {
 		// Apple CalendarServer Extensions
 		{
 			name:            "getCTag",
-			property:        &getCTag{Value: "f7c7abdf2cb5f8c6d2f8d6bd6c71f8d3"},
+			property:        &GetCTag{Value: "f7c7abdf2cb5f8c6d2f8d6bd6c71f8d3"},
 			expectedPrefix:  "cs",
 			expectedTag:     "getctag",
 			expectedContent: "f7c7abdf2cb5f8c6d2f8d6bd6c71f8d3",
 		},
 		{
 			name:            "calendarChanges",
-			property:        &calendarChanges{Href: "/calendars/users/alice/work-calendar/"},
+			property:        &CalendarChanges{Href: "/calendars/users/alice/work-calendar/"},
 			expectedPrefix:  "cs",
 			expectedTag:     "calendar-changes",
 			expectedContent: "<d:href>/calendars/users/alice/work-calendar/</d:href>",
 		},
 		{
 			name:            "sharedURL",
-			property:        &sharedURL{Value: "https://example.com/shared/xyz123"},
+			property:        &SharedURL{Value: "https://example.com/shared/xyz123"},
 			expectedPrefix:  "cs",
 			expectedTag:     "shared-url",
 			expectedContent: "https://example.com/shared/xyz123",
 		},
 		{
 			name:            "invite",
-			property:        &invite{Value: "https://example.com/invite/abc456"},
+			property:        &Invite{Value: "https://example.com/invite/abc456"},
 			expectedPrefix:  "cs",
 			expectedTag:     "invite",
 			expectedContent: "https://example.com/invite/abc456",
 		},
 		{
 			name:            "notificationURL",
-			property:        &notificationURL{Value: "https://example.com/notify/alice"},
+			property:        &NotificationURL{Value: "https://example.com/notify/alice"},
 			expectedPrefix:  "cs",
 			expectedTag:     "notification-url",
 			expectedContent: "https://example.com/notify/alice",
 		},
 		{
 			name:            "autoSchedule",
-			property:        &autoSchedule{Value: false},
+			property:        &AutoSchedule{Value: false},
 			expectedPrefix:  "cs",
 			expectedTag:     "auto-schedule",
 			expectedContent: "false",
 		},
 		{
 			name: "calendarProxyReadFor",
-			property: &calendarProxyReadFor{
+			property: &CalendarProxyReadFor{
 				Hrefs: []string{"mailto:manager@example.com"},
 			},
 			expectedPrefix:  "cs",
@@ -291,7 +292,7 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name: "calendarProxyWriteFor",
-			property: &calendarProxyWriteFor{
+			property: &CalendarProxyWriteFor{
 				Hrefs: []string{"mailto:assistant@example.com"},
 			},
 			expectedPrefix:  "cs",
@@ -300,7 +301,7 @@ func TestEncodeFunctions(t *testing.T) {
 		},
 		{
 			name:            "calendarColor",
-			property:        &calendarColor{Value: "#FF5733"},
+			property:        &CalendarColor{Value: "#FF5733"},
 			expectedPrefix:  "cs",
 			expectedTag:     "calendar-color",
 			expectedContent: "#FF5733",
@@ -309,28 +310,28 @@ func TestEncodeFunctions(t *testing.T) {
 		// Google CalDAV Extensions
 		{
 			name:            "color",
-			property:        &color{Value: "#FF5733"},
+			property:        &Color{Value: "#FF5733"},
 			expectedPrefix:  "g",
 			expectedTag:     "color",
 			expectedContent: "#FF5733",
 		},
 		{
 			name:            "timezone",
-			property:        &timezone{Value: "America/New_York"},
+			property:        &Timezone{Value: "America/New_York"},
 			expectedPrefix:  "g",
 			expectedTag:     "timezone",
 			expectedContent: "America/New_York",
 		},
 		{
 			name:            "hidden",
-			property:        &hidden{Value: false},
+			property:        &Hidden{Value: false},
 			expectedPrefix:  "g",
 			expectedTag:     "hidden",
 			expectedContent: "false",
 		},
 		{
 			name:            "selected",
-			property:        &selected{Value: true},
+			property:        &Selected{Value: true},
 			expectedPrefix:  "g",
 			expectedTag:     "selected",
 			expectedContent: "true",
@@ -368,8 +369,8 @@ func TestEncodeFunctions(t *testing.T) {
 // Test the full encode/decode cycle for a complex property
 func TestEncodeDecodeCycle(t *testing.T) {
 	// Create a complex property with nested structure
-	original := &acl{
-		Aces: []ace{
+	original := &ACL{
+		Aces: []ACE{
 			{
 				Principal: "/principals/users/alice/",
 				Grant:     []string{"read", "write"},

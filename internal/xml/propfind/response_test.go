@@ -28,10 +28,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname":     reflect.TypeOf(new(displayName)),
-				"resourcetype":    reflect.TypeOf(new(resourcetype)),
-				"getetag":         reflect.TypeOf(new(getEtag)),
-				"getlastmodified": reflect.TypeOf(new(getLastModified)),
+				"displayname":     reflect.TypeOf(new(DisplayName)),
+				"resourcetype":    reflect.TypeOf(new(Resourcetype)),
+				"getetag":         reflect.TypeOf(new(GetEtag)),
+				"getlastmodified": reflect.TypeOf(new(GetLastModified)),
 			},
 		},
 		{
@@ -46,10 +46,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname":                      reflect.TypeOf(new(displayName)),
-				"calendar-description":             reflect.TypeOf(new(calendarDescription)),
-				"resourcetype":                     reflect.TypeOf(new(resourcetype)),
-				"supported-calendar-component-set": reflect.TypeOf(new(supportedCalendarComponentSet)),
+				"displayname":                      reflect.TypeOf(new(DisplayName)),
+				"calendar-description":             reflect.TypeOf(new(CalendarDescription)),
+				"resourcetype":                     reflect.TypeOf(new(Resourcetype)),
+				"supported-calendar-component-set": reflect.TypeOf(new(SupportedCalendarComponentSet)),
 			},
 		},
 		{
@@ -64,10 +64,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"getctag": reflect.TypeOf(new(getCTag)),
-				"color":   reflect.TypeOf(new(color)),
-				"invite":  reflect.TypeOf(new(invite)),
-				"hidden":  reflect.TypeOf(new(hidden)),
+				"getctag": reflect.TypeOf(new(GetCTag)),
+				"color":   reflect.TypeOf(new(Color)),
+				"invite":  reflect.TypeOf(new(Invite)),
+				"hidden":  reflect.TypeOf(new(Hidden)),
 			},
 		},
 		{
@@ -107,8 +107,8 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname": reflect.TypeOf(new(displayName)),
-				"getetag":     reflect.TypeOf(new(getEtag)),
+				"displayname": reflect.TypeOf(new(DisplayName)),
+				"getetag":     reflect.TypeOf(new(GetEtag)),
 			},
 		},
 	}
@@ -232,13 +232,13 @@ func TestEncodeResponse(t *testing.T) {
 		{
 			name: "Mix of found and not found properties",
 			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname": mo.Ok[PropertyEncoder](&displayName{Value: "Test Calendar"}),
-				"resourcetype": mo.Ok[PropertyEncoder](&resourcetype{
+				"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
+				"resourcetype": mo.Ok[PropertyEncoder](&Resourcetype{
 					Types: []string{"collection", "calendar"},
 				}),
 				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
 				"calendar-color":         mo.Err[PropertyEncoder](ErrNotFound),
-				"getcontenttype":         mo.Ok[PropertyEncoder](&getContentType{Value: "text/calendar"}),
+				"getcontenttype":         mo.Ok[PropertyEncoder](&GetContentType{Value: "text/calendar"}),
 				"current-user-principal": mo.Err[PropertyEncoder](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
@@ -302,8 +302,8 @@ func TestEncodeResponse(t *testing.T) {
 		{
 			name: "All properties found",
 			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname": mo.Ok[PropertyEncoder](&displayName{Value: "Test Calendar"}),
-				"getetag":     mo.Ok[PropertyEncoder](&getEtag{Value: "\"etag12345\""}),
+				"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
+				"getetag":     mo.Ok[PropertyEncoder](&GetEtag{Value: "\"etag12345\""}),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -368,13 +368,13 @@ func TestEncodeResponse(t *testing.T) {
 		{
 			name: "Complex CalDAV properties",
 			props: map[string]mo.Result[PropertyEncoder]{
-				"supported-calendar-component-set": mo.Ok[PropertyEncoder](&supportedCalendarComponentSet{
+				"supported-calendar-component-set": mo.Ok[PropertyEncoder](&SupportedCalendarComponentSet{
 					Components: []string{"VEVENT", "VTODO"},
 				}),
-				"calendar-user-address-set": mo.Ok[PropertyEncoder](&calendarUserAddressSet{
+				"calendar-user-address-set": mo.Ok[PropertyEncoder](&CalendarUserAddressSet{
 					Addresses: []string{"mailto:user1@example.com", "mailto:user.one@example.org"},
 				}),
-				"current-user-privilege-set": mo.Ok[PropertyEncoder](&currentUserPrivilegeSet{
+				"current-user-privilege-set": mo.Ok[PropertyEncoder](&CurrentUserPrivilegeSet{
 					Privileges: []string{"read", "write", "read-acl"},
 				}),
 			},
@@ -412,7 +412,7 @@ func TestEncodeResponse(t *testing.T) {
 		{
 			name: "Mixed error types",
 			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname":            mo.Ok[PropertyEncoder](&displayName{Value: "Test Calendar"}),
+				"displayname":            mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
 				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
 				"current-user-principal": mo.Err[PropertyEncoder](ErrForbidden),
 				"resourcetype":           mo.Err[PropertyEncoder](ErrInternal),
@@ -469,7 +469,7 @@ func TestEncodeResponse(t *testing.T) {
 func TestEncodeResponseHref(t *testing.T) {
 	// Test that the href parameter is properly used
 	props := map[string]mo.Result[PropertyEncoder]{
-		"displayname": mo.Ok[PropertyEncoder](&displayName{Value: "Test"}),
+		"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test"}),
 	}
 
 	customHref := "/custom/path/to/resource/"

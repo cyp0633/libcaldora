@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/beevik/etree"
 	"github.com/samber/mo"
@@ -17,53 +18,53 @@ type PropertyEncoder interface {
 // Mapping of WebDAV/CalDAV property names to their struct types
 var propNameToStruct = map[string]PropertyEncoder{
 	// WebDAV properties
-	"displayname":                new(displayName),
-	"resourcetype":               new(resourcetype),
-	"getetag":                    new(getEtag),
-	"getlastmodified":            new(getLastModified),
-	"getcontenttype":             new(getContentType),
-	"owner":                      new(owner),
-	"current-user-principal":     new(currentUserPrincipal),
-	"principal-url":              new(principalURL),
-	"supported-report-set":       new(supportedReportSet),
-	"acl":                        new(acl),
-	"current-user-privilege-set": new(currentUserPrivilegeSet),
-	"quota-available-bytes":      new(quotaAvailableBytes),
-	"quota-used-bytes":           new(quotaUsedBytes),
+	"displayname":                new(DisplayName),
+	"resourcetype":               new(Resourcetype),
+	"getetag":                    new(GetEtag),
+	"getlastmodified":            new(GetLastModified),
+	"getcontenttype":             new(GetContentType),
+	"owner":                      new(Owner),
+	"current-user-principal":     new(CurrentUserPrincipal),
+	"principal-url":              new(PrincipalURL),
+	"supported-report-set":       new(SupportedReportSet),
+	"acl":                        new(ACL),
+	"current-user-privilege-set": new(CurrentUserPrivilegeSet),
+	"quota-available-bytes":      new(QuotaAvailableBytes),
+	"quota-used-bytes":           new(QuotaUsedBytes),
 
 	// CalDAV properties
-	"calendar-description":             new(calendarDescription),
-	"calendar-timezone":                new(calendarTimezone),
-	"supported-calendar-component-set": new(supportedCalendarComponentSet),
-	"supported-calendar-data":          new(supportedCalendarData),
-	"max-resource-size":                new(maxResourceSize),
-	"min-date-time":                    new(minDateTime),
-	"max-date-time":                    new(maxDateTime),
-	"max-instances":                    new(maxInstances),
-	"max-attendees-per-instance":       new(maxAttendeesPerInstance),
-	"calendar-home-set":                new(calendarHomeSet),
-	"schedule-inbox-url":               new(scheduleInboxURL),
-	"schedule-outbox-url":              new(scheduleOutboxURL),
-	"schedule-default-calendar-url":    new(scheduleDefaultCalendarURL),
-	"calendar-user-address-set":        new(calendarUserAddressSet),
-	"calendar-user-type":               new(calendarUserType),
+	"calendar-description":             new(CalendarDescription),
+	"calendar-timezone":                new(CalendarTimezone),
+	"supported-calendar-component-set": new(SupportedCalendarComponentSet),
+	"supported-calendar-data":          new(SupportedCalendarData),
+	"max-resource-size":                new(MaxResourceSize),
+	"min-date-time":                    new(MinDateTime),
+	"max-date-time":                    new(MaxDateTime),
+	"max-instances":                    new(MaxInstances),
+	"max-attendees-per-instance":       new(MaxAttendeesPerInstance),
+	"calendar-home-set":                new(CalendarHomeSet),
+	"schedule-inbox-url":               new(ScheduleInboxURL),
+	"schedule-outbox-url":              new(ScheduleOutboxURL),
+	"schedule-default-calendar-url":    new(ScheduleDefaultCalendarURL),
+	"calendar-user-address-set":        new(CalendarUserAddressSet),
+	"calendar-user-type":               new(CalendarUserType),
 
 	// Apple CalendarServer Extensions
-	"getctag":                  new(getCTag),
-	"calendar-changes":         new(calendarChanges),
-	"shared-url":               new(sharedURL),
-	"invite":                   new(invite),
-	"notification-url":         new(notificationURL),
-	"auto-schedule":            new(autoSchedule),
-	"calendar-proxy-read-for":  new(calendarProxyReadFor),
-	"calendar-proxy-write-for": new(calendarProxyWriteFor),
-	"calendar-color":           new(calendarColor),
+	"getctag":                  new(GetCTag),
+	"calendar-changes":         new(CalendarChanges),
+	"shared-url":               new(SharedURL),
+	"invite":                   new(Invite),
+	"notification-url":         new(NotificationURL),
+	"auto-schedule":            new(AutoSchedule),
+	"calendar-proxy-read-for":  new(CalendarProxyReadFor),
+	"calendar-proxy-write-for": new(CalendarProxyWriteFor),
+	"calendar-color":           new(CalendarColor),
 
 	// Google CalDAV Extensions
-	"color":    new(color),
-	"timezone": new(timezone),
-	"hidden":   new(hidden),
-	"selected": new(selected),
+	"color":    new(Color),
+	"timezone": new(Timezone),
+	"hidden":   new(Hidden),
+	"selected": new(Selected),
 }
 
 // Prefix map for each property and child element
@@ -174,21 +175,21 @@ func createElementWithPrefix(name, prefix string) *etree.Element {
 
 // WebDAV properties
 
-type displayName struct {
+type DisplayName struct {
 	Value string
 }
 
-func (p *displayName) Encode() *etree.Element {
+func (p DisplayName) Encode() *etree.Element {
 	elem := createElement("displayname")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type resourcetype struct {
+type Resourcetype struct {
 	Types []string
 }
 
-func (p *resourcetype) Encode() *etree.Element {
+func (p Resourcetype) Encode() *etree.Element {
 	elem := createElement("resourcetype")
 
 	for _, typeName := range p.Types {
@@ -213,71 +214,71 @@ func (p *resourcetype) Encode() *etree.Element {
 	return elem
 }
 
-type getEtag struct {
+type GetEtag struct {
 	Value string
 }
 
-func (p *getEtag) Encode() *etree.Element {
+func (p GetEtag) Encode() *etree.Element {
 	elem := createElement("getetag")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type getLastModified struct {
+type GetLastModified struct {
 	Value string
 }
 
-func (p *getLastModified) Encode() *etree.Element {
+func (p GetLastModified) Encode() *etree.Element {
 	elem := createElement("getlastmodified")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type getContentType struct {
+type GetContentType struct {
 	Value string
 }
 
-func (p *getContentType) Encode() *etree.Element {
+func (p GetContentType) Encode() *etree.Element {
 	elem := createElement("getcontenttype")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type owner struct {
+type Owner struct {
 	Value string
 }
 
-func (p *owner) Encode() *etree.Element {
+func (p Owner) Encode() *etree.Element {
 	elem := createElement("owner")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type currentUserPrincipal struct {
+type CurrentUserPrincipal struct {
 	Value string
 }
 
-func (p *currentUserPrincipal) Encode() *etree.Element {
+func (p CurrentUserPrincipal) Encode() *etree.Element {
 	elem := createElement("current-user-principal")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type principalURL struct {
+type PrincipalURL struct {
 	Value string
 }
 
-func (p *principalURL) Encode() *etree.Element {
+func (p PrincipalURL) Encode() *etree.Element {
 	elem := createElement("principal-url")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type supportedReportSet struct {
+type SupportedReportSet struct {
 	Reports []string
 }
 
-func (p *supportedReportSet) Encode() *etree.Element {
+func (p SupportedReportSet) Encode() *etree.Element {
 	elem := createElement("supported-report-set")
 	for _, report := range p.Reports {
 		reportElem := createElement("report")
@@ -287,11 +288,11 @@ func (p *supportedReportSet) Encode() *etree.Element {
 	return elem
 }
 
-type acl struct {
-	Aces []ace
+type ACL struct {
+	Aces []ACE
 }
 
-func (p *acl) Encode() *etree.Element {
+func (p ACL) Encode() *etree.Element {
 	elem := createElement("acl")
 
 	for _, aceEntry := range p.Aces {
@@ -338,17 +339,17 @@ func (p *acl) Encode() *etree.Element {
 	return elem
 }
 
-type ace struct {
+type ACE struct {
 	Principal string
 	Grant     []string
 	Deny      []string
 }
 
-type currentUserPrivilegeSet struct {
+type CurrentUserPrivilegeSet struct {
 	Privileges []string
 }
 
-func (p *currentUserPrivilegeSet) Encode() *etree.Element {
+func (p CurrentUserPrivilegeSet) Encode() *etree.Element {
 	elem := createElement("current-user-privilege-set")
 
 	for _, privilege := range p.Privileges {
@@ -362,21 +363,21 @@ func (p *currentUserPrivilegeSet) Encode() *etree.Element {
 	return elem
 }
 
-type quotaAvailableBytes struct {
+type QuotaAvailableBytes struct {
 	Value int64
 }
 
-func (p *quotaAvailableBytes) Encode() *etree.Element {
+func (p QuotaAvailableBytes) Encode() *etree.Element {
 	elem := createElement("quota-available-bytes")
 	elem.SetText(strconv.FormatInt(p.Value, 10))
 	return elem
 }
 
-type quotaUsedBytes struct {
+type QuotaUsedBytes struct {
 	Value int64
 }
 
-func (p *quotaUsedBytes) Encode() *etree.Element {
+func (p QuotaUsedBytes) Encode() *etree.Element {
 	elem := createElement("quota-used-bytes")
 	elem.SetText(strconv.FormatInt(p.Value, 10))
 	return elem
@@ -384,31 +385,31 @@ func (p *quotaUsedBytes) Encode() *etree.Element {
 
 // CalDAV properties
 
-type calendarDescription struct {
+type CalendarDescription struct {
 	Value string
 }
 
-func (p *calendarDescription) Encode() *etree.Element {
+func (p CalendarDescription) Encode() *etree.Element {
 	elem := createElement("calendar-description")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type calendarTimezone struct {
+type CalendarTimezone struct {
 	Value string
 }
 
-func (p *calendarTimezone) Encode() *etree.Element {
+func (p CalendarTimezone) Encode() *etree.Element {
 	elem := createElement("calendar-timezone")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type supportedCalendarComponentSet struct {
+type SupportedCalendarComponentSet struct {
 	Components []string
 }
 
-func (p *supportedCalendarComponentSet) Encode() *etree.Element {
+func (p SupportedCalendarComponentSet) Encode() *etree.Element {
 	elem := createElement("supported-calendar-component-set")
 
 	for _, component := range p.Components {
@@ -420,12 +421,12 @@ func (p *supportedCalendarComponentSet) Encode() *etree.Element {
 	return elem
 }
 
-type supportedCalendarData struct {
+type SupportedCalendarData struct {
 	ContentType string
 	Version     string
 }
 
-func (p *supportedCalendarData) Encode() *etree.Element {
+func (p SupportedCalendarData) Encode() *etree.Element {
 	elem := createElement("supported-calendar-data")
 	elem.SetText(p.ContentType)
 	if p.Version != "" {
@@ -434,61 +435,61 @@ func (p *supportedCalendarData) Encode() *etree.Element {
 	return elem
 }
 
-type maxResourceSize struct {
+type MaxResourceSize struct {
 	Value int64
 }
 
-func (p *maxResourceSize) Encode() *etree.Element {
+func (p MaxResourceSize) Encode() *etree.Element {
 	elem := createElement("max-resource-size")
 	elem.SetText(strconv.FormatInt(p.Value, 10))
 	return elem
 }
 
-type minDateTime struct {
-	Value string
+type MinDateTime struct {
+	Value time.Time
 }
 
-func (p *minDateTime) Encode() *etree.Element {
+func (p MinDateTime) Encode() *etree.Element {
 	elem := createElement("min-date-time")
-	elem.SetText(p.Value)
+	elem.SetText(p.Value.Format(time.RFC3339))
 	return elem
 }
 
-type maxDateTime struct {
-	Value string
+type MaxDateTime struct {
+	Value time.Time
 }
 
-func (p *maxDateTime) Encode() *etree.Element {
+func (p MaxDateTime) Encode() *etree.Element {
 	elem := createElement("max-date-time")
-	elem.SetText(p.Value)
+	elem.SetText(p.Value.Format(time.RFC3339))
 	return elem
 }
 
-type maxInstances struct {
+type MaxInstances struct {
 	Value int
 }
 
-func (p *maxInstances) Encode() *etree.Element {
+func (p MaxInstances) Encode() *etree.Element {
 	elem := createElement("max-instances")
 	elem.SetText(strconv.Itoa(p.Value))
 	return elem
 }
 
-type maxAttendeesPerInstance struct {
+type MaxAttendeesPerInstance struct {
 	Value int
 }
 
-func (p *maxAttendeesPerInstance) Encode() *etree.Element {
+func (p MaxAttendeesPerInstance) Encode() *etree.Element {
 	elem := createElement("max-attendees-per-instance")
 	elem.SetText(strconv.Itoa(p.Value))
 	return elem
 }
 
-type calendarHomeSet struct {
+type CalendarHomeSet struct {
 	Href string
 }
 
-func (p *calendarHomeSet) Encode() *etree.Element {
+func (p CalendarHomeSet) Encode() *etree.Element {
 	elem := createElement("calendar-home-set")
 	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
@@ -496,11 +497,11 @@ func (p *calendarHomeSet) Encode() *etree.Element {
 	return elem
 }
 
-type scheduleInboxURL struct {
+type ScheduleInboxURL struct {
 	Href string
 }
 
-func (p *scheduleInboxURL) Encode() *etree.Element {
+func (p ScheduleInboxURL) Encode() *etree.Element {
 	elem := createElement("schedule-inbox-url")
 	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
@@ -508,11 +509,11 @@ func (p *scheduleInboxURL) Encode() *etree.Element {
 	return elem
 }
 
-type scheduleOutboxURL struct {
+type ScheduleOutboxURL struct {
 	Href string
 }
 
-func (p *scheduleOutboxURL) Encode() *etree.Element {
+func (p ScheduleOutboxURL) Encode() *etree.Element {
 	elem := createElement("schedule-outbox-url")
 	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
@@ -520,11 +521,11 @@ func (p *scheduleOutboxURL) Encode() *etree.Element {
 	return elem
 }
 
-type scheduleDefaultCalendarURL struct {
+type ScheduleDefaultCalendarURL struct {
 	Href string
 }
 
-func (p *scheduleDefaultCalendarURL) Encode() *etree.Element {
+func (p ScheduleDefaultCalendarURL) Encode() *etree.Element {
 	elem := createElement("schedule-default-calendar-url")
 	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
@@ -532,11 +533,11 @@ func (p *scheduleDefaultCalendarURL) Encode() *etree.Element {
 	return elem
 }
 
-type calendarUserAddressSet struct {
+type CalendarUserAddressSet struct {
 	Addresses []string
 }
 
-func (p *calendarUserAddressSet) Encode() *etree.Element {
+func (p CalendarUserAddressSet) Encode() *etree.Element {
 	elem := createElement("calendar-user-address-set")
 
 	for _, address := range p.Addresses {
@@ -548,11 +549,11 @@ func (p *calendarUserAddressSet) Encode() *etree.Element {
 	return elem
 }
 
-type calendarUserType struct {
+type CalendarUserType struct {
 	Value string
 }
 
-func (p *calendarUserType) Encode() *etree.Element {
+func (p CalendarUserType) Encode() *etree.Element {
 	elem := createElement("calendar-user-type")
 	elem.SetText(p.Value)
 	return elem
@@ -560,21 +561,21 @@ func (p *calendarUserType) Encode() *etree.Element {
 
 // Apple CalendarServer Extensions
 
-type getCTag struct {
+type GetCTag struct {
 	Value string
 }
 
-func (p *getCTag) Encode() *etree.Element {
+func (p GetCTag) Encode() *etree.Element {
 	elem := createElement("getctag")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type calendarChanges struct {
+type CalendarChanges struct {
 	Href string
 }
 
-func (p *calendarChanges) Encode() *etree.Element {
+func (p CalendarChanges) Encode() *etree.Element {
 	elem := createElement("calendar-changes")
 	hrefElem := createElement("href")
 	elem.AddChild(hrefElem)
@@ -582,41 +583,41 @@ func (p *calendarChanges) Encode() *etree.Element {
 	return elem
 }
 
-type sharedURL struct {
+type SharedURL struct {
 	Value string
 }
 
-func (p *sharedURL) Encode() *etree.Element {
+func (p SharedURL) Encode() *etree.Element {
 	elem := createElement("shared-url")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type invite struct {
+type Invite struct {
 	Value string
 }
 
-func (p *invite) Encode() *etree.Element {
+func (p Invite) Encode() *etree.Element {
 	elem := createElement("invite")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type notificationURL struct {
+type NotificationURL struct {
 	Value string
 }
 
-func (p *notificationURL) Encode() *etree.Element {
+func (p NotificationURL) Encode() *etree.Element {
 	elem := createElement("notification-url")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type autoSchedule struct {
+type AutoSchedule struct {
 	Value bool
 }
 
-func (p *autoSchedule) Encode() *etree.Element {
+func (p AutoSchedule) Encode() *etree.Element {
 	elem := createElement("auto-schedule")
 	if p.Value {
 		elem.SetText("true")
@@ -626,11 +627,11 @@ func (p *autoSchedule) Encode() *etree.Element {
 	return elem
 }
 
-type calendarProxyReadFor struct {
+type CalendarProxyReadFor struct {
 	Hrefs []string
 }
 
-func (p *calendarProxyReadFor) Encode() *etree.Element {
+func (p CalendarProxyReadFor) Encode() *etree.Element {
 	elem := createElement("calendar-proxy-read-for")
 
 	for _, href := range p.Hrefs {
@@ -642,11 +643,11 @@ func (p *calendarProxyReadFor) Encode() *etree.Element {
 	return elem
 }
 
-type calendarProxyWriteFor struct {
+type CalendarProxyWriteFor struct {
 	Hrefs []string
 }
 
-func (p *calendarProxyWriteFor) Encode() *etree.Element {
+func (p CalendarProxyWriteFor) Encode() *etree.Element {
 	elem := createElement("calendar-proxy-write-for")
 
 	for _, href := range p.Hrefs {
@@ -658,11 +659,11 @@ func (p *calendarProxyWriteFor) Encode() *etree.Element {
 	return elem
 }
 
-type calendarColor struct {
+type CalendarColor struct {
 	Value string
 }
 
-func (p *calendarColor) Encode() *etree.Element {
+func (p CalendarColor) Encode() *etree.Element {
 	elem := createElement("calendar-color")
 	elem.SetText(p.Value)
 	return elem
@@ -670,31 +671,31 @@ func (p *calendarColor) Encode() *etree.Element {
 
 // Google CalDAV Extensions
 
-type color struct {
+type Color struct {
 	Value string
 }
 
-func (p *color) Encode() *etree.Element {
+func (p Color) Encode() *etree.Element {
 	elem := createElement("color")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type timezone struct {
+type Timezone struct {
 	Value string
 }
 
-func (p *timezone) Encode() *etree.Element {
+func (p Timezone) Encode() *etree.Element {
 	elem := createElement("timezone")
 	elem.SetText(p.Value)
 	return elem
 }
 
-type hidden struct {
+type Hidden struct {
 	Value bool
 }
 
-func (p *hidden) Encode() *etree.Element {
+func (p Hidden) Encode() *etree.Element {
 	elem := createElement("hidden")
 	if p.Value {
 		elem.SetText("true")
@@ -704,11 +705,11 @@ func (p *hidden) Encode() *etree.Element {
 	return elem
 }
 
-type selected struct {
+type Selected struct {
 	Value bool
 }
 
-func (p *selected) Encode() *etree.Element {
+func (p Selected) Encode() *etree.Element {
 	elem := createElement("selected")
 	if p.Value {
 		elem.SetText("true")
