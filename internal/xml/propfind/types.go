@@ -270,7 +270,9 @@ type PrincipalURL struct {
 
 func (p PrincipalURL) Encode() *etree.Element {
 	elem := createElement("principal-url")
-	elem.SetText(p.Value)
+	hrefElem := createElement("href")
+	elem.AddChild(hrefElem)
+	hrefElem.SetText(p.Value)
 	return elem
 }
 
@@ -589,8 +591,11 @@ type SharedURL struct {
 
 func (p SharedURL) Encode() *etree.Element {
 	elem := createElement("shared-url")
-	elem.SetText(p.Value)
+	hrefElem := createElement("href")
+	elem.AddChild(hrefElem)
+	hrefElem.SetText(p.Value)
 	return elem
+
 }
 
 type Invite struct {
@@ -609,8 +614,11 @@ type NotificationURL struct {
 
 func (p NotificationURL) Encode() *etree.Element {
 	elem := createElement("notification-url")
-	elem.SetText(p.Value)
+	hrefElem := createElement("href")
+	elem.AddChild(hrefElem)
+	hrefElem.SetText(p.Value)
 	return elem
+
 }
 
 type AutoSchedule struct {

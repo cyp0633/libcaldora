@@ -17,6 +17,7 @@ func TestEncodeFunctions(t *testing.T) {
 		expectedPrefix  string // Expected namespace prefix
 		expectedTag     string // Expected element tag (local name only)
 		expectedContent string // Expected content or specific element structure
+		hasHrefChild    bool   // Whether the property has a nested href element
 	}{
 		// WebDAV properties
 		{
@@ -76,6 +77,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "d",
 			expectedTag:     "principal-url",
 			expectedContent: "/principals/users/alice/",
+			hasHrefChild:    true,
 		},
 		{
 			name: "supportedReportSet",
@@ -259,6 +261,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "cs",
 			expectedTag:     "shared-url",
 			expectedContent: "https://example.com/shared/xyz123",
+			hasHrefChild:    true,
 		},
 		{
 			name:            "invite",
@@ -273,6 +276,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "cs",
 			expectedTag:     "notification-url",
 			expectedContent: "https://example.com/notify/alice",
+			hasHrefChild:    true,
 		},
 		{
 			name:            "autoSchedule",
@@ -349,7 +353,15 @@ func TestEncodeFunctions(t *testing.T) {
 
 			// For simple text content
 			if !strings.Contains(tt.expectedContent, "<") {
-				assert.Equal(t, tt.expectedContent, elem.Text(), "Element content should be %s, got %s", tt.expectedContent, elem.Text())
+				if tt.hasHrefChild {
+					// Check text in href child element for URL properties
+					hrefElem := elem.FindElement("./d:href")
+					assert.NotNil(t, hrefElem, "Element should have href child element")
+					assert.Equal(t, tt.expectedContent, hrefElem.Text(), "href element content should be %s, got %s", tt.expectedContent, hrefElem.Text())
+				} else {
+					// Check text directly on element
+					assert.Equal(t, tt.expectedContent, elem.Text(), "Element content should be %s, got %s", tt.expectedContent, elem.Text())
+				}
 			} else {
 				// For complex element structure, convert element to string and check content
 				// We need to clean up whitespace to make comparison reliable
