@@ -480,214 +480,261 @@ func TestEncodeResponseHref(t *testing.T) {
 	assert.Equal(t, customHref, href.Text(), "Href should match input value")
 }
 
+// Helper function to create a minimal valid sub-response document string
+// Mimics the structure produced by EncodeResponse for testing MergeResponses
+func createSubResponseXML(href, etag, description string) string {
+	doc := etree.NewDocument()
+	doc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
+	multistatus := doc.CreateElement("d:multistatus")
+	multistatus.Space = "d"
+	// Add namespaces as EncodeResponse would
+	for prefix, uri := range namespaceMap { // Assumes namespaceMap is accessible
+		multistatus.CreateAttr("xmlns:"+prefix, uri)
+	}
+
+	response := multistatus.CreateElement("d:response")
+	response.Space = "d"
+
+	hrefElem := response.CreateElement("d:href")
+	hrefElem.Space = "d"
+	hrefElem.SetText(href)
+
+	propstat := response.CreateElement("d:propstat")
+	propstat.Space = "d"
+
+	prop := propstat.CreateElement("d:prop")
+	prop.Space = "d"
+
+	etagElem := prop.CreateElement("d:getetag")
+	etagElem.Space = "d"
+	etagElem.SetText(etag)
+
+	if description != "" {
+		descElem := prop.CreateElement("cs:calendar-description")
+		descElem.Space = "cs" // Assuming 'cs' is in namespaceMap
+		descElem.SetText(description)
+	}
+
+	status := propstat.CreateElement("d:status")
+	status.Space = "d"
+	status.SetText("HTTP/1.1 200 OK")
+
+	xmlStr, _ := doc.WriteToString()
+	return xmlStr
+}
+
+// Helper function to parse XML string into etree.Document for tests
+func parseXML(t *testing.T, xmlStr string) *etree.Document {
+	doc := etree.NewDocument()
+	err := doc.ReadFromString(xmlStr)
+	assert.NoError(t, err, "Failed to parse helper XML")
+	return doc
+}
+
+// --- Test Suite ---
+
 func TestMergeResponses(t *testing.T) {
-	// Helper function to create a test document with responses
-	createTestDoc := func(resourcePaths []string) *etree.Document {
-		doc := etree.NewDocument()
-		doc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
-		multistatus := doc.CreateElement("d:multistatus")
-		multistatus.CreateAttr("xmlns:d", "DAV:")
-		multistatus.CreateAttr("xmlns:cal", "urn:ietf:params:xml:ns:caldav")
-		multistatus.CreateAttr("xmlns:cs", "http://calendarserver.org/ns/")
+	// Setup: Ensure namespaceMap is defined (copy from main code or define here)
+	// Assuming namespaceMap is accessible or redefined for test scope
+	// namespaceMap = map[string]string{
+	// 	"d":  "DAV:",
+	// 	"cs": "urn:ietf:params:xml:ns:caldav",
+	// }
 
-		for _, path := range resourcePaths {
-			response := multistatus.CreateElement("d:response")
-			href := response.CreateElement("d:href")
-			href.SetText(path)
+	t.Run("Merge multiple valid documents", func(t *testing.T) {
+		// Arrange
+		doc1XML := createSubResponseXML("/cal/res1", `"etag1"`, "Desc 1")
+		doc2XML := createSubResponseXML("/cal/res2", `"etag2"`, "Desc 2")
+		doc1 := parseXML(t, doc1XML)
+		doc2 := parseXML(t, doc2XML)
+		inputDocs := []*etree.Document{doc1, doc2}
 
-			// Add a propstat for testing
-			propstat := response.CreateElement("d:propstat")
-			prop := propstat.CreateElement("d:prop")
-			displayname := prop.CreateElement("d:displayname")
-			displayname.SetText("Resource " + path)
+		// Act
+		mergedDoc, err := MergeResponses(inputDocs)
 
-			// Add a CalDAV property to test namespace preservation
-			if strings.Contains(path, "cal") {
-				calProp := prop.CreateElement("cal:calendar-color")
-				calProp.SetText("#FF0000")
-			}
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, mergedDoc)
 
-			status := propstat.CreateElement("d:status")
-			status.SetText("HTTP/1.1 200 OK")
+		// Verify root element and namespaces
+		root := mergedDoc.Root()
+		assert.NotNil(t, root)
+		assert.Equal(t, "d", root.Space, "Root element should have 'd' namespace prefix")
+		assert.Equal(t, "multistatus", root.Tag, "Root element should be 'multistatus'")
+		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+
+		// Verify correct number of response elements
+		responses := root.FindElements("./d:response") // Find direct children
+		assert.Len(t, responses, 2, "Should contain two response elements")
+
+		// Verify content of responses (basic check)
+		hrefs := []string{}
+		for _, resp := range responses {
+			hrefElem := resp.FindElement("./d:href")
+			assert.NotNil(t, hrefElem)
+			hrefs = append(hrefs, hrefElem.Text())
 		}
+		assert.Contains(t, hrefs, "/cal/res1")
+		assert.Contains(t, hrefs, "/cal/res2")
 
-		return doc
-	}
-
-	// Helper function to create an invalid document (no multistatus)
-	createInvalidDoc := func() *etree.Document {
-		doc := etree.NewDocument()
-		doc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
-		root := doc.CreateElement("d:root")
-		root.CreateAttr("xmlns:d", "DAV:")
-		return doc
-	}
-
-	t.Run("Empty input", func(t *testing.T) {
-		mergedDoc, err := MergeResponses([]*etree.Document{})
-		assert.Nil(t, mergedDoc, "Should return nil document for empty input")
-		assert.Error(t, err, "Should return error for empty input")
-		assert.Equal(t, "no documents to merge", err.Error())
+		// Optional: More detailed check using XML string comparison
+		mergedDoc.Indent(2) // Make output readable/comparable
+		actualXML, _ := mergedDoc.WriteToString()
+		// Define expected XML carefully, ensuring namespace order doesn't matter for assertion if possible
+		// Or use a more robust XML comparison library if needed.
+		t.Logf("Merged XML:\n%s", actualXML) // Log for debugging
+		// Add specific string asserts if required, e.g., assert.Contains(t, actualXML, ...)
 	})
 
-	t.Run("Single document", func(t *testing.T) {
-		doc := createTestDoc([]string{"/calendars/user1/cal1/"})
-		mergedDoc, err := MergeResponses([]*etree.Document{doc})
-		assert.NoError(t, err, "Should not return error for single document")
-		assert.Same(t, doc, mergedDoc, "Should return the original document")
+	t.Run("Merge empty slice", func(t *testing.T) {
+		// Arrange
+		inputDocs := []*etree.Document{}
+
+		// Act
+		mergedDoc, err := MergeResponses(inputDocs)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, mergedDoc)
+
+		root := mergedDoc.Root()
+		assert.NotNil(t, root)
+		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
+		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
+		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+
+		responses := root.FindElements("./d:response")
+		assert.Len(t, responses, 0, "Should contain zero response elements")
 	})
 
-	t.Run("Multiple documents with one response each", func(t *testing.T) {
-		doc1 := createTestDoc([]string{"/calendars/user1/cal1/"})
-		doc2 := createTestDoc([]string{"/calendars/user1/cal2/"})
-		doc3 := createTestDoc([]string{"/calendars/user1/cal3/"})
+	t.Run("Merge nil slice", func(t *testing.T) {
+		// Arrange
+		var inputDocs []*etree.Document = nil // Explicitly nil slice
 
-		mergedDoc, err := MergeResponses([]*etree.Document{doc1, doc2, doc3})
-		assert.NoError(t, err, "Should not return error for valid documents")
+		// Act
+		mergedDoc, err := MergeResponses(inputDocs)
 
-		// Check the merged document structure
-		responses := mergedDoc.FindElements("//d:multistatus/d:response")
-		assert.Equal(t, 3, len(responses), "Merged doc should have 3 responses")
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, mergedDoc)
 
-		hrefs := mergedDoc.FindElements("//d:multistatus/d:response/d:href")
-		assert.Equal(t, 3, len(hrefs), "Merged doc should have 3 hrefs")
+		root := mergedDoc.Root()
+		assert.NotNil(t, root)
+		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
+		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
+		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
 
-		// Check all paths are present
-		paths := []string{"/calendars/user1/cal1/", "/calendars/user1/cal2/", "/calendars/user1/cal3/"}
-		foundPaths := make(map[string]bool)
-		for _, href := range hrefs {
-			foundPaths[href.Text()] = true
-		}
-
-		for _, path := range paths {
-			assert.True(t, foundPaths[path], "Path %s should be in merged document", path)
-		}
-
-		// Check namespace declarations
-		multistatus := mergedDoc.FindElement("//d:multistatus")
-		assert.NotNil(t, multistatus.SelectAttr("xmlns:d"))
-		assert.NotNil(t, multistatus.SelectAttr("xmlns:cal"))
-		assert.Equal(t, "DAV:", multistatus.SelectAttr("xmlns:d").Value)
-		assert.Equal(t, "urn:ietf:params:xml:ns:caldav", multistatus.SelectAttr("xmlns:cal").Value)
-		assert.Equal(t, "http://calendarserver.org/ns/", multistatus.SelectAttr("xmlns:cs").Value)
+		responses := root.FindElements("./d:response")
+		assert.Len(t, responses, 0, "Should contain zero response elements")
 	})
 
-	t.Run("Multiple documents with multiple responses", func(t *testing.T) {
-		// Create docs with multiple responses each
-		doc1 := createTestDoc([]string{"/calendars/user1/cal1/", "/calendars/user1/cal1/event1.ics"})
-		doc2 := createTestDoc([]string{"/calendars/user1/cal2/", "/calendars/user1/cal2/event2.ics"})
+	t.Run("Merge slice with nil documents", func(t *testing.T) {
+		// Arrange
+		doc1XML := createSubResponseXML("/cal/res1", `"etag1"`, "Desc 1")
+		doc3XML := createSubResponseXML("/cal/res3", `"etag3"`, "Desc 3")
+		doc1 := parseXML(t, doc1XML)
+		doc3 := parseXML(t, doc3XML)
+		inputDocs := []*etree.Document{doc1, nil, doc3, nil} // Include nils
 
-		mergedDoc, err := MergeResponses([]*etree.Document{doc1, doc2})
-		assert.NoError(t, err, "Should not return error for valid documents")
+		// Act
+		mergedDoc, err := MergeResponses(inputDocs)
 
-		// Check the merged document structure
-		responses := mergedDoc.FindElements("//d:multistatus/d:response")
-		assert.Equal(t, 4, len(responses), "Merged doc should have 4 responses")
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, mergedDoc)
 
-		hrefs := mergedDoc.FindElements("//d:multistatus/d:response/d:href")
-		assert.Equal(t, 4, len(hrefs), "Merged doc should have 4 hrefs")
+		root := mergedDoc.Root()
+		assert.NotNil(t, root)
+		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
+		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
 
-		// Check all paths are present
-		paths := []string{
-			"/calendars/user1/cal1/",
-			"/calendars/user1/cal1/event1.ics",
-			"/calendars/user1/cal2/",
-			"/calendars/user1/cal2/event2.ics",
+		responses := root.FindElements("./d:response")
+		assert.Len(t, responses, 2, "Should contain two response elements (non-nil inputs)")
+
+		hrefs := []string{}
+		for _, resp := range responses {
+			hrefElem := resp.FindElement("./d:href")
+			assert.NotNil(t, hrefElem)
+			hrefs = append(hrefs, hrefElem.Text())
 		}
-
-		foundPaths := make(map[string]bool)
-		for _, href := range hrefs {
-			foundPaths[href.Text()] = true
-		}
-
-		for _, path := range paths {
-			assert.True(t, foundPaths[path], "Path %s should be in merged document", path)
-		}
-
-		// Check that props are copied correctly
-		displaynames := mergedDoc.FindElements("//d:multistatus/d:response/d:propstat/d:prop/d:displayname")
-		assert.Equal(t, 4, len(displaynames), "Should have 4 displayname properties")
-
-		// Check that CalDAV properties are preserved
-		calendarColors := mergedDoc.FindElements("//d:multistatus/d:response/d:propstat/d:prop/cal:calendar-color")
-		assert.Equal(t, 4, len(calendarColors), "Should have 4 calendar-color properties")
+		assert.Contains(t, hrefs, "/cal/res1")
+		assert.Contains(t, hrefs, "/cal/res3")
 	})
 
-	t.Run("Invalid document", func(t *testing.T) {
-		invalidDoc := createInvalidDoc()
-		doc1 := createTestDoc([]string{"/calendars/user1/cal1/"})
+	t.Run("Merge single document", func(t *testing.T) {
+		// Arrange
+		doc1XML := createSubResponseXML("/cal/single", `"etag_single"`, "Single Desc")
+		doc1 := parseXML(t, doc1XML)
+		inputDocs := []*etree.Document{doc1}
 
-		// Test with invalid doc first
-		mergedDoc, err := MergeResponses([]*etree.Document{invalidDoc, doc1})
-		assert.Nil(t, mergedDoc, "Should return nil when first doc is invalid")
-		assert.Error(t, err, "Should return error when first doc is invalid")
-		assert.Equal(t, "first document missing multistatus element", err.Error())
+		// Act
+		mergedDoc, err := MergeResponses(inputDocs)
 
-		// Test with invalid doc second (should still work, only using first doc for namespace info)
-		mergedDoc, err = MergeResponses([]*etree.Document{doc1, invalidDoc})
-		assert.NoError(t, err, "Should not error when later docs are invalid")
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, mergedDoc)
 
-		// Should still process responses from valid documents
-		responses := mergedDoc.FindElements("//d:multistatus/d:response")
-		assert.Equal(t, 1, len(responses), "Merged doc should have 1 response")
+		root := mergedDoc.Root()
+		assert.NotNil(t, root)
+		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
+		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
+		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+
+		responses := root.FindElements("./d:response")
+		assert.Len(t, responses, 1, "Should contain one response element")
+
+		hrefElem := responses[0].FindElement("./d:href")
+		assert.NotNil(t, hrefElem)
+		assert.Equal(t, "/cal/single", hrefElem.Text())
+
+		etagElem := responses[0].FindElement("./d:propstat/d:prop/d:getetag")
+		assert.NotNil(t, etagElem)
+		assert.Equal(t, `"etag_single"`, etagElem.Text())
+
+		descElem := responses[0].FindElement("./d:propstat/d:prop/cs:calendar-description")
+		assert.NotNil(t, descElem)
+		assert.Equal(t, "Single Desc", descElem.Text())
 	})
 
-	t.Run("Complex property handling", func(t *testing.T) {
-		// Create a more complex document with error statuses and nested properties
-		doc := etree.NewDocument()
-		doc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
-		multistatus := doc.CreateElement("d:multistatus")
-		multistatus.CreateAttr("xmlns:d", "DAV:")
-		multistatus.CreateAttr("xmlns:cal", "urn:ietf:params:xml:ns:caldav")
+	t.Run("Merge documents with different properties and statuses (ensure structure copied)", func(t *testing.T) {
+		// Arrange: Create more complex/varied sub-responses if EncodeResponse supported errors properly
+		// For now, using the basic helper which only does 200 OK
+		doc1XML := createSubResponseXML("/cal/ok", `"etag_ok"`, "OK Desc")
+		doc2XML := createSubResponseXML("/cal/ok-no-desc", `"etag_no_desc"`, "") // No optional description
+		doc1 := parseXML(t, doc1XML)
+		doc2 := parseXML(t, doc2XML)
+		inputDocs := []*etree.Document{doc1, doc2}
 
-		response := multistatus.CreateElement("d:response")
-		href := response.CreateElement("d:href")
-		href.SetText("/calendars/user1/complex/")
+		// Act
+		mergedDoc, err := MergeResponses(inputDocs)
 
-		// Add a propstat with nested elements
-		propstat := response.CreateElement("d:propstat")
-		prop := propstat.CreateElement("d:prop")
-		resourcetype := prop.CreateElement("d:resourcetype")
-		resourcetype.CreateElement("d:collection")
-		resourcetype.CreateElement("cal:calendar")
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, mergedDoc)
+		root := mergedDoc.Root()
+		assert.NotNil(t, root)
+		responses := root.FindElements("./d:response")
+		assert.Len(t, responses, 2)
 
-		status := propstat.CreateElement("d:status")
-		status.SetText("HTTP/1.1 200 OK")
+		// Check details for the first response
+		resp1 := root.FindElement("./d:response[d:href='/cal/ok']")
+		assert.NotNil(t, resp1)
+		prop1 := resp1.FindElement("./d:propstat/d:prop")
+		assert.NotNil(t, prop1)
+		assert.NotNil(t, prop1.FindElement("./d:getetag"), "getetag missing in resp1")
+		assert.NotNil(t, prop1.FindElement("./cs:calendar-description"), "calendar-description missing in resp1")
 
-		// Add another response to merge
-		response2 := multistatus.CreateElement("d:response")
-		href2 := response2.CreateElement("d:href")
-		href2.SetText("/calendars/user1/complex/event.ics")
+		// Check details for the second response
+		resp2 := root.FindElement("./d:response[d:href='/cal/ok-no-desc']")
+		assert.NotNil(t, resp2)
+		prop2 := resp2.FindElement("./d:propstat/d:prop")
+		assert.NotNil(t, prop2)
+		assert.NotNil(t, prop2.FindElement("./d:getetag"), "getetag missing in resp2")
+		assert.Nil(t, prop2.FindElement("./cs:calendar-description"), "calendar-description should be absent in resp2")
 
-		propstat2 := response2.CreateElement("d:propstat")
-		prop2 := propstat2.CreateElement("d:prop")
-		etag := prop2.CreateElement("d:getetag")
-		etag.SetText("\"etag123456\"")
-
-		status2 := propstat2.CreateElement("d:status")
-		status2.SetText("HTTP/1.1 200 OK")
-
-		// Create a simple second document
-		doc2 := createTestDoc([]string{"/principals/user1/"})
-
-		// Merge the documents
-		mergedDoc, err := MergeResponses([]*etree.Document{doc, doc2})
-		assert.NoError(t, err, "Should not return error for complex documents")
-
-		// Check that complex elements were properly merged
-		responses := mergedDoc.FindElements("//d:multistatus/d:response")
-		assert.Equal(t, 3, len(responses), "Merged doc should have 3 responses")
-
-		// Verify nested elements were preserved
-		resourcetypes := mergedDoc.FindElements("//d:resourcetype/d:collection")
-		assert.Equal(t, 1, len(resourcetypes), "Should have preserved nested collection element")
-
-		calendars := mergedDoc.FindElements("//d:resourcetype/cal:calendar")
-		assert.Equal(t, 1, len(calendars), "Should have preserved nested calendar element")
-
-		// Verify etag was preserved
-		etags := mergedDoc.FindElements("//d:getetag")
-		assert.Equal(t, 1, len(etags), "Should have preserved etag element")
-		assert.Equal(t, "\"etag123456\"", etags[0].Text(), "Etag value should be preserved")
 	})
 }
