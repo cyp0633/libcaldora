@@ -29,38 +29,10 @@ func (m *MockURLConverter) ParsePath(path string) (Resource, error) {
 	return args.Get(0).(Resource), args.Error(1)
 }
 
-// Mock Storage
-type MockStorage struct {
-	mock.Mock
-}
-
-func (m *MockStorage) GetObjectsInCollection(calID string) ([]CalendarObject, error) {
-	args := m.Called(calID)
-	return args.Get(0).([]CalendarObject), args.Error(1)
-}
-
-func (m *MockStorage) GetObjectPathsInCollection(calID string) ([]string, error) {
-	args := m.Called(calID)
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (m *MockStorage) GetUserCalendars(userID string) ([]Calendar, error) {
-	args := m.Called(userID)
-	return args.Get(0).([]Calendar), args.Error(1)
-}
-
-func (m *MockStorage) GetUser(userID string) (*storage.User, error) {
-	args := m.Called(userID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*storage.User), args.Error(1)
-}
-
 func TestHandlePropfindHomeSet(t *testing.T) {
 	// Setup
 	mockURLConverter := new(MockURLConverter)
-	mockStorage := new(MockStorage)
+	mockStorage := new(storage.MockStorage)
 
 	h := &CaldavHandler{
 		URLConverter: mockURLConverter,
@@ -242,7 +214,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 func TestFetchChildren(t *testing.T) {
 	// Setup
 	mockURLConverter := new(MockURLConverter)
-	mockStorage := new(MockStorage)
+	mockStorage := new(storage.MockStorage)
 
 	h := &CaldavHandler{
 		URLConverter: mockURLConverter,
@@ -340,7 +312,7 @@ func TestFetchChildren(t *testing.T) {
 			ResourceType: ResourceHomeSet,
 		}
 
-		// Mock storage response - modify to use proper Calendar struct
+		// Mock storage response - using proper Calendar struct
 		mockStorage.On("GetUserCalendars", "user1").Return([]Calendar{
 			{Path: "/calendars/user1/cal1/"},
 			{Path: "/calendars/user1/cal2/"},
@@ -377,7 +349,7 @@ func TestFetchChildren(t *testing.T) {
 	t.Run("Recursive fetching", func(t *testing.T) {
 		// Setup fresh mocks for this specific test
 		mockURLConverter := new(MockURLConverter)
-		mockStorage := new(MockStorage)
+		mockStorage := new(storage.MockStorage)
 
 		h := &CaldavHandler{
 			URLConverter: mockURLConverter,
@@ -389,7 +361,7 @@ func TestFetchChildren(t *testing.T) {
 			ResourceType: ResourceHomeSet,
 		}
 
-		// Mock HomeSet -> Calendar responses - fix Calendar structure
+		// Mock HomeSet -> Calendar responses
 		mockStorage.On("GetUserCalendars", "user1").Return([]Calendar{
 			{Path: "/calendars/user1/cal1/"},
 		}, nil)
