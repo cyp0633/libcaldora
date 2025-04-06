@@ -155,19 +155,6 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 	http.Error(w, "Not Implemented: PUT", http.StatusNotImplemented)
 }
 
-func (h *CaldavHandler) handleGet(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
-	log.Printf("GET received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement GET logic (retrieving calendar objects) - typically only valid for storage.ResourceObject
-	if ctx.Resource.ResourceType != storage.ResourceObject {
-		// Technically GET might be allowed on collections by some servers (listing?), but often not.
-		// GET on Principal/HomeSet is unusual in CalDAV.
-		http.Error(w, "Method Not Allowed on this resource type (or GET not implemented)", http.StatusMethodNotAllowed)
-		return
-	}
-	http.Error(w, "Not Implemented: GET", http.StatusNotImplemented)
-}
-
 func (h *CaldavHandler) handleDelete(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("DELETE received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
