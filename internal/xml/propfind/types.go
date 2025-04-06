@@ -281,17 +281,22 @@ type Owner struct {
 
 func (p Owner) Encode() *etree.Element {
 	elem := createElement("owner")
-	elem.SetText(p.Value)
+	href := createElement("href")
+	href.SetText(p.Value)
+	elem.AddChild(href)
 	return elem
 }
 
+// Use URL like <D:owner><D:href>http://www.example.com/acl/users/gstein</D:href></D:owner>
 type CurrentUserPrincipal struct {
 	Value string
 }
 
 func (p CurrentUserPrincipal) Encode() *etree.Element {
 	elem := createElement("current-user-principal")
-	elem.SetText(p.Value)
+	href := createElement("href")
+	href.SetText(p.Value)
+	elem.AddChild(href)
 	return elem
 }
 
