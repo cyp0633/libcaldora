@@ -1,4 +1,4 @@
-package caldav
+package server
 
 import (
 	"encoding/base64"
