@@ -87,16 +87,6 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedContent: "<d:schedule-interaction/>",
 		},
 		{
-			name: "resourcetype-with-additional",
-			property: &Resourcetype{
-				Type:            storage.ResourceCollection,
-				AdditionalTypes: []string{"custom-type", "cal:special-calendar"},
-			},
-			expectedPrefix:  "d",
-			expectedTag:     "resourcetype",
-			expectedContent: "<d:collection/><cal:calendar/><d:custom-type/><cal:special-calendar/>",
-		},
-		{
 			name:            "getEtag",
 			property:        &GetEtag{Value: "\"2a6b327d6f32a599eb457bedb8c25c1c\""},
 			expectedPrefix:  "d",

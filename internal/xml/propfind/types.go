@@ -3,7 +3,6 @@ package propfind
 import (
 	"errors"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/beevik/etree"
@@ -191,8 +190,6 @@ type Resourcetype struct {
 	Type storage.ResourceType
 	// Optional sub-type for calendar objects (vevent, vtodo, etc)
 	ObjectType string
-	// Additional types that might be needed
-	AdditionalTypes []string
 }
 
 func (p Resourcetype) Encode() *etree.Element {
@@ -244,20 +241,6 @@ func (p Resourcetype) Encode() *etree.Element {
 	default:
 		// Unknown or unspecified resource type
 	}
-
-	// Add any additional resource types
-	for _, typeName := range p.AdditionalTypes {
-		parts := strings.Split(typeName, ":")
-		if len(parts) > 1 {
-			// Use the provided prefix and element name
-			child := createElementWithPrefix(parts[1], parts[0])
-			elem.AddChild(child)
-		} else {
-			child := createElement(typeName)
-			elem.AddChild(child)
-		}
-	}
-
 	return elem
 }
 

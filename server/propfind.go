@@ -99,8 +99,7 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 		case "displayname":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: "Calendar Home"})
 		case "resourcetype":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Resourcetype{Type: storage.ResourceHomeSet})
 		case "getetag":
 			// TODO
 			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
@@ -216,8 +215,7 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *R
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: ctx.Resource.UserID}) // fallback to UserID if DisplayName is empty
 			}
 		case "resourcetype":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Resourcetype{Type: storage.ResourcePrincipal})
 		case "getetag":
 			// TODO
 			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
@@ -336,8 +334,7 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *Requ
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: name})
 			}
 		case "resourcetype":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Resourcetype{Type: storage.ResourceObject, ObjectType: object.Component.Name})
 		case "getetag":
 			if object.ETag != "" {
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetEtag{Value: object.ETag})
@@ -548,7 +545,7 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: name})
 			}
 		case "resourcetype":
-			// TODO
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Resourcetype{Type: storage.ResourceCollection})
 		case "getetag":
 			if calendar.ETag != "" {
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.GetEtag{Value: calendar.ETag})
