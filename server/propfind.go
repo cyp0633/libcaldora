@@ -119,12 +119,6 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.DisplayName{Value: "Calendar Home"})
 		case "resourcetype":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Resourcetype{Type: storage.ResourceHomeSet})
-		case "getetag":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-		case "getlastmodified":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
 		case "owner":
 			if err != nil {
 				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
@@ -170,8 +164,7 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 			}
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: encodedPath})
 		case "supported-report-set":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedReportSet{Reports: []propfind.ReportType{}})
 		case "acl":
 			res := Resource{
 				UserID:       ctx.Resource.UserID,
@@ -192,8 +185,6 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 			req[key] = mo.Ok[propfind.PropertyEncoder](acl)
 		case "current-user-privilege-set":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
-		case "supported-calendar-component-set":
-			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarComponentSet{Components: []string{"VEVENT", "VTODO", "VJOURNAL", "VFREEBUSY"}})
 		case "supported-calendar-data":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarData{
 				ContentType: "icalendar",
@@ -256,12 +247,6 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *R
 			}
 		case "resourcetype":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Resourcetype{Type: storage.ResourcePrincipal})
-		case "getetag":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-		case "getlastmodified":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
 		case "getcontenttype":
 			// No file, on purpose
 			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
@@ -300,8 +285,7 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *R
 		case "principal-url":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: path})
 		case "supported-report-set":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedReportSet{Reports: []propfind.ReportType{}})
 		case "acl":
 			// For now, return a simple ACL with read/write for the principal itself
 			ace := propfind.ACE{
@@ -463,8 +447,7 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *Requ
 			}
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: encodedPath})
 		case "supported-report-set":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedReportSet{Reports: []propfind.ReportType{}})
 		case "acl":
 			// For now, return a simple ACL with read/write for the principal itself
 			ace := propfind.ACE{
@@ -519,9 +502,6 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *Requ
 			} else {
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarTimezone{Value: timezone})
 			}
-		case "supported-calendar-component-set":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
 		case "supported-calendar-data":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarData{
 				ContentType: "text/calendar",
@@ -701,7 +681,7 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 			}
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: encodedPath})
 		case "supported-report-set":
-			// TODO
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedReportSet{Reports: []propfind.ReportType{}})
 		case "acl":
 			// For now, return a simple ACL with read/write for the principal itself
 			ace := propfind.ACE{
@@ -730,8 +710,7 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarTimezone{Value: timezone})
 			}
 		case "supported-calendar-component-set":
-			// TODO
-			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarComponentSet{Components: []string{"VEVENT"}})
 		case "supported-calendar-data":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarData{
 				ContentType: "icalendar",

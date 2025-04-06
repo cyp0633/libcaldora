@@ -84,13 +84,15 @@ var propPrefixMap = map[string]string{
 	"quota-available-bytes":      "d",
 	"quota-used-bytes":           "d",
 	// Additional child elements for WebDAV
-	"collection": "d",
-	"report":     "d",
-	"ace":        "d",
-	"principal":  "d",
-	"href":       "d",
-	"grant":      "d",
-	"privilege":  "d",
+	"collection":       "d",
+	"report":           "d",
+	"ace":              "d",
+	"principal":        "d",
+	"href":             "d",
+	"grant":            "d",
+	"privilege":        "d",
+	"supported-report": "d",
+	"search":           "d",
 
 	// CalDAV properties (cal: prefix)
 	"calendar-description":             "cal",
@@ -110,6 +112,11 @@ var propPrefixMap = map[string]string{
 	"calendar-user-type":               "cal",
 	"calendar":                         "cal",
 	"comp":                             "cal",
+	"calendar-query":                   "cal",
+	"calendar-multiget":                "cal",
+	"free-busy-query":                  "cal",
+	"schedule-query":                   "cal",
+	"schedule-multiget":                "cal",
 
 	// Apple CalendarServer Extensions (cs: prefix)
 	"getctag":                  "cs",
@@ -313,16 +320,57 @@ func (p PrincipalURL) Encode() *etree.Element {
 }
 
 type SupportedReportSet struct {
-	Reports []string
+	Reports []ReportType
 }
+
+type ReportType int
+
+const (
+	ReportTypePropfind ReportType = iota
+	ReportTypeCalendarQuery
+	ReportTypeCalendarMultiget
+	ReportTypeFreebusyQuery
+	ReportTypeScheduleQuery
+	ReportTypeScheduleMultiget
+	ReportTypeSearch
+)
 
 func (p SupportedReportSet) Encode() *etree.Element {
 	elem := createElement("supported-report-set")
+
 	for _, report := range p.Reports {
+		// Create the supported-report element
+		supportedReportElem := createElement("supported-report")
+		elem.AddChild(supportedReportElem)
+
+		// Create the report element
 		reportElem := createElement("report")
-		reportElem.SetText(report)
-		elem.AddChild(reportElem)
+		supportedReportElem.AddChild(reportElem)
+
+		// Add the specific report type
+		var reportTypeElem *etree.Element
+		switch report {
+		case ReportTypePropfind:
+			reportTypeElem = createElement("propfind")
+		case ReportTypeCalendarQuery:
+			reportTypeElem = createElement("calendar-query")
+		case ReportTypeCalendarMultiget:
+			reportTypeElem = createElement("calendar-multiget")
+		case ReportTypeFreebusyQuery:
+			reportTypeElem = createElement("free-busy-query")
+		case ReportTypeScheduleQuery:
+			reportTypeElem = createElement("schedule-query")
+		case ReportTypeScheduleMultiget:
+			reportTypeElem = createElement("schedule-multiget")
+		case ReportTypeSearch:
+			reportTypeElem = createElement("search")
+		}
+
+		if reportTypeElem != nil {
+			reportElem.AddChild(reportTypeElem)
+		}
 	}
+
 	return elem
 }
 

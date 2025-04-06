@@ -113,6 +113,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "d",
 			expectedTag:     "owner",
 			expectedContent: "mailto:alice@example.com",
+			hasHrefChild:    true, // Add this flag to fix the test
 		},
 		{
 			name:            "currentUserPrincipal",
@@ -120,6 +121,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "d",
 			expectedTag:     "current-user-principal",
 			expectedContent: "mailto:alice@example.com",
+			hasHrefChild:    true, // Add this flag to fix the test
 		},
 		{
 			name:            "principalURL",
@@ -132,11 +134,21 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "supportedReportSet",
 			property: &SupportedReportSet{
-				Reports: []string{"calendar-query", "sync-collection"},
+				Reports: []ReportType{
+					ReportTypePropfind,
+					ReportTypeCalendarQuery,
+					ReportTypeCalendarMultiget,
+					ReportTypeFreebusyQuery,
+					ReportTypeSearch,
+				},
 			},
-			expectedPrefix:  "d",
-			expectedTag:     "supported-report-set",
-			expectedContent: "<d:report>calendar-query</d:report><d:report>sync-collection</d:report>",
+			expectedPrefix: "d",
+			expectedTag:    "supported-report-set",
+			expectedContent: "<d:supported-report><d:report><d:propfind/></d:report></d:supported-report>" +
+				"<d:supported-report><d:report><cal:calendar-query/></d:report></d:supported-report>" +
+				"<d:supported-report><d:report><cal:calendar-multiget/></d:report></d:supported-report>" +
+				"<d:supported-report><d:report><cal:free-busy-query/></d:report></d:supported-report>" +
+				"<d:supported-report><d:report><d:search/></d:report></d:supported-report>",
 		},
 		{
 			name: "acl",
@@ -510,5 +522,90 @@ func TestAllPropertiesEncode(t *testing.T) {
 			xmlStr := elementToString(elem)
 			assert.NotEmpty(t, xmlStr, "XML string for %s should not be empty", propName)
 		})
+	}
+}
+
+// Add this new test function after the existing tests
+
+// TestSupportedReportSetNamespaces verifies that all report types are encoded with correct namespaces
+func TestSupportedReportSetNamespaces(t *testing.T) {
+	// Create a SupportedReportSet with all report types
+	srs := SupportedReportSet{
+		Reports: []ReportType{
+			ReportTypePropfind,
+			ReportTypeCalendarQuery,
+			ReportTypeCalendarMultiget,
+			ReportTypeFreebusyQuery,
+			ReportTypeScheduleQuery,
+			ReportTypeScheduleMultiget,
+			ReportTypeSearch,
+		},
+	}
+
+	// Encode to XML
+	elem := srs.Encode()
+
+	// Basic validation
+	assert.Equal(t, "d", elem.Space, "Root element should have DAV namespace")
+	assert.Equal(t, "supported-report-set", elem.Tag, "Root element should be supported-report-set")
+
+	// Find all the supported-report elements
+	supportedReports := elem.ChildElements()
+	assert.Equal(t, 7, len(supportedReports), "Should have 7 supported-report elements")
+
+	// Expected namespace prefixes for each report type
+	expectedPrefixes := map[ReportType]string{
+		ReportTypePropfind:         "d",
+		ReportTypeCalendarQuery:    "cal",
+		ReportTypeCalendarMultiget: "cal",
+		ReportTypeFreebusyQuery:    "cal",
+		ReportTypeScheduleQuery:    "cal",
+		ReportTypeScheduleMultiget: "cal",
+		ReportTypeSearch:           "d",
+	}
+
+	// Expected tag names for each report type
+	expectedTags := map[ReportType]string{
+		ReportTypePropfind:         "propfind",
+		ReportTypeCalendarQuery:    "calendar-query",
+		ReportTypeCalendarMultiget: "calendar-multiget",
+		ReportTypeFreebusyQuery:    "free-busy-query",
+		ReportTypeScheduleQuery:    "schedule-query",
+		ReportTypeScheduleMultiget: "schedule-multiget",
+		ReportTypeSearch:           "search",
+	}
+
+	// Verify each report type has the correct structure and namespace
+	reportCount := make(map[string]int)
+
+	for _, supportedReport := range supportedReports {
+		// Check structure: supported-report -> report -> specific report type
+		assert.Equal(t, "supported-report", supportedReport.Tag)
+		assert.Equal(t, "d", supportedReport.Space)
+
+		// Check report element
+		report := supportedReport.SelectElement("d:report")
+		assert.NotNil(t, report, "Each supported-report should contain a report element")
+
+		// Get the specific report type (e.g. propfind, calendar-query)
+		reportTypes := report.ChildElements()
+		assert.Equal(t, 1, len(reportTypes), "Each report should have exactly one report type child")
+
+		reportType := reportTypes[0]
+		reportCount[reportType.Tag]++
+
+		// Verify the namespace for this report type
+		for rt, expectedTag := range expectedTags {
+			if reportType.Tag == expectedTag {
+				expectedPrefix := expectedPrefixes[rt]
+				assert.Equal(t, expectedPrefix, reportType.Space,
+					"Report type %s should have namespace prefix %s", reportType.Tag, expectedPrefix)
+			}
+		}
+	}
+
+	// Verify we have one of each report type
+	for _, tag := range expectedTags {
+		assert.Equal(t, 1, reportCount[tag], "Should have exactly one %s report type", tag)
 	}
 }
