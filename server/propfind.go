@@ -251,37 +251,29 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *R
 			// No file, on purpose
 			req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
 		case "owner":
-			if err != nil {
-				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-			} else {
-				resource := Resource{
-					UserID:       ctx.Resource.UserID,
-					ResourceType: storage.ResourcePrincipal,
-				}
-				encodedPath, err := h.URLConverter.EncodePath(resource)
-				if err != nil {
-					log.Printf("Failed to encode owner URL for resource %s: %v", ctx.Resource, err)
-					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-					continue
-				}
-				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Owner{Value: encodedPath})
+			resource := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: storage.ResourcePrincipal,
 			}
+			encodedPath, err := h.URLConverter.EncodePath(resource)
+			if err != nil {
+				log.Printf("Failed to encode owner URL for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+				continue
+			}
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.Owner{Value: encodedPath})
 		case "current-user-principal":
-			if err != nil {
-				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-			} else {
-				resource := Resource{
-					UserID:       ctx.Resource.UserID,
-					ResourceType: storage.ResourcePrincipal,
-				}
-				encodedPath, err := h.URLConverter.EncodePath(resource)
-				if err != nil {
-					log.Printf("Failed to encode principal URL for resource %s: %v", ctx.Resource, err)
-					req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
-					continue
-				}
-				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrincipal{Value: encodedPath})
+			resource := Resource{
+				UserID:       ctx.Resource.UserID,
+				ResourceType: storage.ResourcePrincipal,
 			}
+			encodedPath, err := h.URLConverter.EncodePath(resource)
+			if err != nil {
+				log.Printf("Failed to encode principal URL for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+				continue
+			}
+			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CurrentUserPrincipal{Value: encodedPath})
 		case "principal-url":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.PrincipalURL{Value: path})
 		case "supported-report-set":
