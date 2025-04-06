@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
+	"github.com/cyp0633/libcaldora/server/storage"
 	"github.com/samber/mo"
 )
 
@@ -186,31 +187,77 @@ func (p DisplayName) Encode() *etree.Element {
 }
 
 type Resourcetype struct {
-	Types []string
+	// Primary resource type from storage package
+	Type storage.ResourceType
+	// Optional sub-type for calendar objects (vevent, vtodo, etc)
+	ObjectType string
+	// Additional types that might be needed
+	AdditionalTypes []string
 }
 
 func (p Resourcetype) Encode() *etree.Element {
 	elem := createElement("resourcetype")
 
-	for _, typeName := range p.Types {
-		if typeName == "collection" {
-			collElem := createElement("collection")
-			elem.AddChild(collElem)
-		} else if typeName == "calendar" {
-			calElem := createElement("calendar")
-			elem.AddChild(calElem)
+	// Handle the primary resource type based on storage.ResourceType
+	switch p.Type {
+	case storage.ResourcePrincipal:
+		// User Principal: <d:resourcetype><d:principal/></d:resourcetype>
+		principalElem := createElement("principal")
+		elem.AddChild(principalElem)
+
+	case storage.ResourceHomeSet:
+		// Calendar Home Set: <d:resourcetype><d:collection/><cal:calendar-home-set/></d:resourcetype>
+		collElem := createElement("collection")
+		elem.AddChild(collElem)
+
+		homeSetElem := createElementWithPrefix("calendar-home-set", "cal")
+		elem.AddChild(homeSetElem)
+
+	case storage.ResourceCollection:
+		// Calendar Collection: <d:resourcetype><d:collection/><cal:calendar/></d:resourcetype>
+		collElem := createElement("collection")
+		elem.AddChild(collElem)
+
+		calElem := createElement("calendar")
+		elem.AddChild(calElem)
+
+	case storage.ResourceObject:
+		// Calendar Object: <d:resourcetype><d:vevent/></d:resourcetype> or other types
+		if p.ObjectType != "" {
+			// For specific object types like vevent, vtodo, etc.
+			objTypeElem := createElement(p.ObjectType)
+			elem.AddChild(objTypeElem)
+		}
+
+		// Handle freebusy case
+		if p.ObjectType == "freebusy" {
+			freebusy := createElement("freebusy")
+			elem.AddChild(freebusy)
+		}
+
+		// Handle scheduling case
+		if p.ObjectType == "schedule-interaction" {
+			scheduleElem := createElement("schedule-interaction")
+			elem.AddChild(scheduleElem)
+		}
+
+	default:
+		// Unknown or unspecified resource type
+	}
+
+	// Add any additional resource types
+	for _, typeName := range p.AdditionalTypes {
+		parts := strings.Split(typeName, ":")
+		if len(parts) > 1 {
+			// Use the provided prefix and element name
+			child := createElementWithPrefix(parts[1], parts[0])
+			elem.AddChild(child)
 		} else {
-			parts := strings.Split(typeName, ":")
-			if len(parts) > 1 {
-				// Use the provided prefix and element name
-				child := createElementWithPrefix(parts[1], parts[0])
-				elem.AddChild(child)
-			} else {
-				child := createElement(typeName)
-				elem.AddChild(child)
-			}
+			child := createElement(typeName)
+			elem.AddChild(child)
 		}
 	}
+
 	return elem
 }
 

@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"log"
 	"strings"
-)
 
-// ResourceType indicates the type of CalDAV resource identified by the URL path.
-// This is distinct from CalDAV prop "resourcetype".
-type ResourceType int
+	"github.com/cyp0633/libcaldora/server/storage"
+)
 
 // URLConverter helps you define URL path convention. Leave this blank when creating handler defaults to defaultURLConverter.
 //
@@ -24,27 +22,19 @@ type URLConverter interface {
 	EncodePath(resource Resource) (string, error)
 }
 
-const (
-	ResourceUnknown ResourceType = iota
-	ResourcePrincipal
-	ResourceHomeSet
-	ResourceCollection
-	ResourceObject
-)
-
 type Resource struct {
 	UserID       string
 	CalendarID   string
 	ObjectID     string
 	URI          string // may save encode/parsing overhead
-	ResourceType ResourceType
+	ResourceType storage.ResourceType
 }
 
 type defaultURLConverter struct {
 }
 
 func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
-	resource := Resource{ResourceType: ResourceUnknown}
+	resource := Resource{ResourceType: storage.ResourceUnknown}
 	parts := strings.Split(path, "/")
 
 	// Filter out empty segments caused by leading/trailing/double slashes
@@ -63,14 +53,14 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 
 	case 1: // /<userid>
 		resource.UserID = segments[0]
-		resource.ResourceType = ResourcePrincipal
+		resource.ResourceType = storage.ResourcePrincipal
 		// TODO: Check if resource.UserID is a valid user identifier format/exists
 		log.Printf("TODO: Validate principal UserID: %s", resource.UserID)
 
 	case 2: // /<userid>/cal
 		if segments[1] == "cal" {
 			resource.UserID = segments[0]
-			resource.ResourceType = ResourceHomeSet
+			resource.ResourceType = storage.ResourceHomeSet
 			// TODO: Check if resource.UserID is valid and has a calendar home set
 			log.Printf("TODO: Validate homeset UserID: %s", resource.UserID)
 		} else {
@@ -81,7 +71,7 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 		if segments[1] == "cal" {
 			resource.UserID = segments[0]
 			resource.CalendarID = segments[2]
-			resource.ResourceType = ResourceCollection
+			resource.ResourceType = storage.ResourceCollection
 			// TODO: Check if UserID and CalendarID are valid/exist
 			log.Printf("TODO: Validate collection UserID: %s, CalendarID: %s", resource.UserID, resource.CalendarID)
 		} else {
@@ -93,7 +83,7 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 			resource.UserID = segments[0]
 			resource.CalendarID = segments[2]
 			resource.ObjectID = segments[3] // Object ID might contain ".ics"
-			resource.ResourceType = ResourceObject
+			resource.ResourceType = storage.ResourceObject
 			// TODO: Check if UserID, CalendarID, and ObjectID are valid/exist
 			log.Printf("TODO: Validate object UserID: %s, CalendarID: %s, ObjectID: %s", resource.UserID, resource.CalendarID, resource.ObjectID)
 		} else {
@@ -111,25 +101,25 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 // EncodePath encodes a Resource into URI, regardless of whether URI field is filled
 func (c defaultURLConverter) EncodePath(resource Resource) (string, error) {
 	switch resource.ResourceType {
-	case ResourcePrincipal:
+	case storage.ResourcePrincipal:
 		if resource.UserID == "" {
 			return "", fmt.Errorf("invalid resource: principal must have a UserID")
 		}
 		return "/" + resource.UserID, nil
 
-	case ResourceHomeSet:
+	case storage.ResourceHomeSet:
 		if resource.UserID == "" {
 			return "", fmt.Errorf("invalid resource: home set must have a UserID")
 		}
 		return "/" + resource.UserID + "/cal", nil
 
-	case ResourceCollection:
+	case storage.ResourceCollection:
 		if resource.UserID == "" || resource.CalendarID == "" {
 			return "", fmt.Errorf("invalid resource: collection must have both UserID and CalendarID")
 		}
 		return "/" + resource.UserID + "/cal/" + resource.CalendarID, nil
 
-	case ResourceObject:
+	case storage.ResourceObject:
 		if resource.UserID == "" || resource.CalendarID == "" || resource.ObjectID == "" {
 			return "", fmt.Errorf("invalid resource: object must have UserID, CalendarID, and ObjectID")
 		}
@@ -137,21 +127,5 @@ func (c defaultURLConverter) EncodePath(resource Resource) (string, error) {
 
 	default:
 		return "", fmt.Errorf("invalid resource type: %s", resource.ResourceType.String())
-	}
-}
-
-// String provides a human-readable representation of the ResourceType.
-func (rt ResourceType) String() string {
-	switch rt {
-	case ResourcePrincipal:
-		return "Principal"
-	case ResourceHomeSet:
-		return "HomeSet"
-	case ResourceCollection:
-		return "Collection"
-	case ResourceObject:
-		return "Object"
-	default:
-		return "Unknown"
 	}
 }

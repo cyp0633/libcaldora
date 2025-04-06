@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/beevik/etree"
+	"github.com/cyp0633/libcaldora/server/storage"
 	"github.com/samber/mo"
 	"github.com/stretchr/testify/assert"
 )
@@ -234,7 +235,7 @@ func TestEncodeResponse(t *testing.T) {
 			props: map[string]mo.Result[PropertyEncoder]{
 				"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
 				"resourcetype": mo.Ok[PropertyEncoder](&Resourcetype{
-					Types: []string{"collection", "calendar"},
+					Type: storage.ResourceCollection, // Updated to use new struct format
 				}),
 				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
 				"calendar-color":         mo.Err[PropertyEncoder](ErrNotFound),

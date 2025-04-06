@@ -75,3 +75,31 @@ type User struct {
 	// ISO 8601 timezone, e.g. Asia/Shanghai, used for g:timezone
 	PreferredTimezone string
 }
+
+// ResourceType indicates the type of CalDAV resource identified by the URL path.
+// This is distinct from CalDAV prop "resourcetype".
+type ResourceType int
+
+const (
+	ResourceUnknown ResourceType = iota
+	ResourcePrincipal
+	ResourceHomeSet
+	ResourceCollection
+	ResourceObject
+)
+
+// String provides a human-readable representation of the ResourceType.
+func (rt ResourceType) String() string {
+	switch rt {
+	case ResourcePrincipal:
+		return "Principal"
+	case ResourceHomeSet:
+		return "HomeSet"
+	case ResourceCollection:
+		return "Collection"
+	case ResourceObject:
+		return "Object"
+	default:
+		return "Unknown"
+	}
+}

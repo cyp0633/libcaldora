@@ -41,7 +41,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 	resource := Resource{
 		UserID:       "user1",
-		ResourceType: ResourceHomeSet,
+		ResourceType: storage.ResourceHomeSet,
 	}
 
 	ctx := &RequestContext{
@@ -101,7 +101,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		principalResource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourcePrincipal,
+			ResourceType: storage.ResourcePrincipal,
 		}
 		mockURLConverter.On("EncodePath", principalResource).Return("/principals/user1/", nil)
 
@@ -133,7 +133,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		principalResource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourcePrincipal,
+			ResourceType: storage.ResourcePrincipal,
 		}
 		mockURLConverter.On("EncodePath", principalResource).Return("/principals/user1/", nil)
 
@@ -225,7 +225,7 @@ func TestFetchChildren(t *testing.T) {
 	t.Run("Depth 0", func(t *testing.T) {
 		parent := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceHomeSet,
+			ResourceType: storage.ResourceHomeSet,
 		}
 
 		resources, err := h.fetchChildren(0, parent)
@@ -234,11 +234,11 @@ func TestFetchChildren(t *testing.T) {
 		assert.Empty(t, resources)
 	})
 
-	// Test case 2: ResourceObject has no children
+	// Test case 2: storage.ResourceObject has no children
 	t.Run("Resource Object", func(t *testing.T) {
 		parent := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceObject,
+			ResourceType: storage.ResourceObject,
 			CalendarID:   "cal1",
 			ObjectID:     "event1",
 		}
@@ -249,11 +249,11 @@ func TestFetchChildren(t *testing.T) {
 		assert.Empty(t, resources)
 	})
 
-	// Test case 3: ResourcePrincipal has no children
+	// Test case 3: storage.ResourcePrincipal has no children
 	t.Run("Resource Principal", func(t *testing.T) {
 		parent := Resource{
 			UserID:       "user1",
-			ResourceType: ResourcePrincipal,
+			ResourceType: storage.ResourcePrincipal,
 		}
 
 		resources, err := h.fetchChildren(1, parent)
@@ -262,11 +262,11 @@ func TestFetchChildren(t *testing.T) {
 		assert.Empty(t, resources)
 	})
 
-	// Test case 4: ResourceCollection with children
+	// Test case 4: storage.ResourceCollection with children
 	t.Run("Resource Collection", func(t *testing.T) {
 		parent := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceCollection,
+			ResourceType: storage.ResourceCollection,
 			CalendarID:   "cal1",
 		}
 
@@ -279,14 +279,14 @@ func TestFetchChildren(t *testing.T) {
 		// Mock URL converter for each path
 		event1Resource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceObject,
+			ResourceType: storage.ResourceObject,
 			CalendarID:   "cal1",
 			ObjectID:     "event1",
 		}
 
 		event2Resource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceObject,
+			ResourceType: storage.ResourceObject,
 			CalendarID:   "cal1",
 			ObjectID:     "event2",
 		}
@@ -305,11 +305,11 @@ func TestFetchChildren(t *testing.T) {
 		mockURLConverter.AssertExpectations(t)
 	})
 
-	// Test case 5: ResourceHomeSet with children
+	// Test case 5: storage.ResourceHomeSet with children
 	t.Run("Resource HomeSet", func(t *testing.T) {
 		parent := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceHomeSet,
+			ResourceType: storage.ResourceHomeSet,
 		}
 
 		// Mock storage response - using proper Calendar struct
@@ -321,13 +321,13 @@ func TestFetchChildren(t *testing.T) {
 		// Mock URL converter for each path
 		cal1Resource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceCollection,
+			ResourceType: storage.ResourceCollection,
 			CalendarID:   "cal1",
 		}
 
 		cal2Resource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceCollection,
+			ResourceType: storage.ResourceCollection,
 			CalendarID:   "cal2",
 		}
 
@@ -358,7 +358,7 @@ func TestFetchChildren(t *testing.T) {
 
 		parent := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceHomeSet,
+			ResourceType: storage.ResourceHomeSet,
 		}
 
 		// Mock HomeSet -> Calendar responses
@@ -368,7 +368,7 @@ func TestFetchChildren(t *testing.T) {
 
 		cal1Resource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceCollection,
+			ResourceType: storage.ResourceCollection,
 			CalendarID:   "cal1",
 		}
 
@@ -381,7 +381,7 @@ func TestFetchChildren(t *testing.T) {
 
 		event1Resource := Resource{
 			UserID:       "user1",
-			ResourceType: ResourceObject,
+			ResourceType: storage.ResourceObject,
 			CalendarID:   "cal1",
 			ObjectID:     "event1",
 		}

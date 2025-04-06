@@ -147,8 +147,8 @@ func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx
 func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("PUT received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement PUT logic (creating/updating calendar objects) - only valid for ResourceObject
-	if ctx.Resource.ResourceType != ResourceObject {
+	// TODO: Implement PUT logic (creating/updating calendar objects) - only valid for storage.ResourceObject
+	if ctx.Resource.ResourceType != storage.ResourceObject {
 		http.Error(w, "Method Not Allowed on this resource type", http.StatusMethodNotAllowed)
 		return
 	}
@@ -158,8 +158,8 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 func (h *CaldavHandler) handleGet(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("GET received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement GET logic (retrieving calendar objects) - typically only valid for ResourceObject
-	if ctx.Resource.ResourceType != ResourceObject {
+	// TODO: Implement GET logic (retrieving calendar objects) - typically only valid for storage.ResourceObject
+	if ctx.Resource.ResourceType != storage.ResourceObject {
 		// Technically GET might be allowed on collections by some servers (listing?), but often not.
 		// GET on Principal/HomeSet is unusual in CalDAV.
 		http.Error(w, "Method Not Allowed on this resource type (or GET not implemented)", http.StatusMethodNotAllowed)
@@ -171,8 +171,8 @@ func (h *CaldavHandler) handleGet(w http.ResponseWriter, r *http.Request, ctx *R
 func (h *CaldavHandler) handleDelete(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("DELETE received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement DELETE logic (deleting calendars or objects) - valid for ResourceCollection and ResourceObject
-	if ctx.Resource.ResourceType != ResourceCollection && ctx.Resource.ResourceType != ResourceObject {
+	// TODO: Implement DELETE logic (deleting calendars or objects) - valid for storage.ResourceCollection and storage.ResourceObject
+	if ctx.Resource.ResourceType != storage.ResourceCollection && ctx.Resource.ResourceType != storage.ResourceObject {
 		http.Error(w, "Method Not Allowed on this resource type", http.StatusMethodNotAllowed)
 		return
 	}
@@ -182,8 +182,8 @@ func (h *CaldavHandler) handleDelete(w http.ResponseWriter, r *http.Request, ctx
 func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("MKCALENDAR/MKCOL received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement MKCALENDAR logic (creating new calendars) - only valid for ResourceCollection path structure
-	if ctx.Resource.ResourceType != ResourceCollection {
+	// TODO: Implement MKCALENDAR logic (creating new calendars) - only valid for storage.ResourceCollection path structure
+	if ctx.Resource.ResourceType != storage.ResourceCollection {
 		http.Error(w, "Method Not Allowed: MKCALENDAR can only be used to create a calendar collection", http.StatusMethodNotAllowed)
 		return
 	}

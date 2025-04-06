@@ -22,15 +22,15 @@ func TestParsePath(t *testing.T) {
 		wantUserID     string
 		wantCalendarID string
 		wantObjectID   string
-		wantResType    ResourceType
+		wantResType    storage.ResourceType
 	}{
-		{"empty path", "", true, "", "", "", ResourceUnknown},
-		{"principal", "user1", false, "user1", "", "", ResourcePrincipal},
-		{"home set", "user1/cal", false, "user1", "", "", ResourceHomeSet},
-		{"invalid home set", "user1/calendar", true, "", "", "", ResourceUnknown},
-		{"collection", "user1/cal/personal", false, "user1", "personal", "", ResourceCollection},
-		{"object", "user1/cal/personal/event123.ics", false, "user1", "personal", "event123.ics", ResourceObject},
-		{"too many segments", "user1/cal/personal/event123/extra", true, "", "", "", ResourceUnknown},
+		{"empty path", "", true, "", "", "", storage.ResourceUnknown},
+		{"principal", "user1", false, "user1", "", "", storage.ResourcePrincipal},
+		{"home set", "user1/cal", false, "user1", "", "", storage.ResourceHomeSet},
+		{"invalid home set", "user1/calendar", true, "", "", "", storage.ResourceUnknown},
+		{"collection", "user1/cal/personal", false, "user1", "personal", "", storage.ResourceCollection},
+		{"object", "user1/cal/personal/event123.ics", false, "user1", "personal", "event123.ics", storage.ResourceObject},
+		{"too many segments", "user1/cal/personal/event123/extra", true, "", "", "", storage.ResourceUnknown},
 	}
 
 	for _, tc := range testCases {
@@ -68,15 +68,15 @@ func TestParsePath(t *testing.T) {
 
 func TestResourceTypeString(t *testing.T) {
 	tests := []struct {
-		rt   ResourceType
+		rt   storage.ResourceType
 		want string
 	}{
-		{ResourceUnknown, "Unknown"},
-		{ResourcePrincipal, "Principal"},
-		{ResourceHomeSet, "HomeSet"},
-		{ResourceCollection, "Collection"},
-		{ResourceObject, "Object"},
-		{ResourceType(99), "Unknown"}, // Test invalid value
+		{storage.ResourceUnknown, "Unknown"},
+		{storage.ResourcePrincipal, "Principal"},
+		{storage.ResourceHomeSet, "HomeSet"},
+		{storage.ResourceCollection, "Collection"},
+		{storage.ResourceObject, "Object"},
+		{storage.ResourceType(99), "Unknown"}, // Test invalid value
 	}
 
 	for _, tt := range tests {

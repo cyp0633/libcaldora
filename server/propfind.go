@@ -44,13 +44,13 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 		var err error
 
 		switch resource.ResourceType {
-		case ResourcePrincipal:
+		case storage.ResourcePrincipal:
 			doc, err = h.handlePropfindPrincipal(req, &ctx1)
-		case ResourceHomeSet:
+		case storage.ResourceHomeSet:
 			doc, err = h.handlePropfindHomeSet(req, &ctx1)
-		case ResourceCollection:
+		case storage.ResourceCollection:
 			doc, err = h.handlePropfindCollection(req, &ctx1)
-		case ResourceObject:
+		case storage.ResourceObject:
 			doc, err = h.handlePropfindObject(req, &ctx1)
 		}
 
@@ -116,7 +116,7 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 		case "principal-url":
 			res := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourcePrincipal,
+				ResourceType: storage.ResourcePrincipal,
 			}
 			encodedPath, err := h.URLConverter.EncodePath(res)
 			if err != nil {
@@ -131,7 +131,7 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, ctx *Req
 		case "acl":
 			res := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourcePrincipal,
+				ResourceType: storage.ResourcePrincipal,
 			}
 			principalPath, err := h.URLConverter.EncodePath(res)
 			if err != nil {
@@ -252,7 +252,7 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, ctx *R
 		case "calendar-home-set":
 			resource := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourceHomeSet,
+				ResourceType: storage.ResourceHomeSet,
 			}
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
@@ -363,7 +363,7 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *Requ
 		case "principal-url":
 			resource := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourcePrincipal,
+				ResourceType: storage.ResourcePrincipal,
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
@@ -450,7 +450,7 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *Requ
 		case "calendar-home-set":
 			resource := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourceHomeSet,
+				ResourceType: storage.ResourceHomeSet,
 			}
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
@@ -575,7 +575,7 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 		case "principal-url":
 			resource := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourcePrincipal,
+				ResourceType: storage.ResourcePrincipal,
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
@@ -634,7 +634,7 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, ctx *
 		case "calendar-home-set":
 			resource := Resource{
 				UserID:       ctx.Resource.UserID,
-				ResourceType: ResourceHomeSet,
+				ResourceType: storage.ResourceHomeSet,
 			}
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
@@ -696,11 +696,11 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 	}
 
 	switch parent.ResourceType {
-	case ResourceObject, ResourcePrincipal:
+	case storage.ResourceObject, storage.ResourcePrincipal:
 		// These types don't have children, return empty slice
 		return []Resource{}, nil
 
-	case ResourceCollection:
+	case storage.ResourceCollection:
 		// find object (event) paths in the collection
 		paths, err := h.Storage.GetObjectPathsInCollection(parent.CalendarID)
 		if err != nil {
@@ -721,7 +721,7 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 			}
 			resources = append(resources, children...)
 		}
-	case ResourceHomeSet:
+	case storage.ResourceHomeSet:
 		// find collections in the home set
 		calendars, err := h.Storage.GetUserCalendars(parent.UserID)
 		if err != nil {

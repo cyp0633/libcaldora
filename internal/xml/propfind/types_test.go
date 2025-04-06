@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
+	"github.com/cyp0633/libcaldora/server/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,14 +28,73 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedTag:     "displayname",
 			expectedContent: "Test Calendar",
 		},
+		// ResourceType test cases for different resource types
 		{
-			name: "resourcetype",
+			name: "resourcetype-principal",
 			property: &Resourcetype{
-				Types: []string{"collection", "calendar"},
+				Type: storage.ResourcePrincipal,
+			},
+			expectedPrefix:  "d",
+			expectedTag:     "resourcetype",
+			expectedContent: "<d:principal/>",
+		},
+		{
+			name: "resourcetype-homeset",
+			property: &Resourcetype{
+				Type: storage.ResourceHomeSet,
+			},
+			expectedPrefix:  "d",
+			expectedTag:     "resourcetype",
+			expectedContent: "<d:collection/><cal:calendar-home-set/>",
+		},
+		{
+			name: "resourcetype-collection",
+			property: &Resourcetype{
+				Type: storage.ResourceCollection,
 			},
 			expectedPrefix:  "d",
 			expectedTag:     "resourcetype",
 			expectedContent: "<d:collection/><cal:calendar/>",
+		},
+		{
+			name: "resourcetype-object-vevent",
+			property: &Resourcetype{
+				Type:       storage.ResourceObject,
+				ObjectType: "vevent",
+			},
+			expectedPrefix:  "d",
+			expectedTag:     "resourcetype",
+			expectedContent: "<d:vevent/>",
+		},
+		{
+			name: "resourcetype-object-freebusy",
+			property: &Resourcetype{
+				Type:       storage.ResourceObject,
+				ObjectType: "freebusy",
+			},
+			expectedPrefix:  "d",
+			expectedTag:     "resourcetype",
+			expectedContent: "<d:freebusy/>",
+		},
+		{
+			name: "resourcetype-object-schedule",
+			property: &Resourcetype{
+				Type:       storage.ResourceObject,
+				ObjectType: "schedule-interaction",
+			},
+			expectedPrefix:  "d",
+			expectedTag:     "resourcetype",
+			expectedContent: "<d:schedule-interaction/>",
+		},
+		{
+			name: "resourcetype-with-additional",
+			property: &Resourcetype{
+				Type:            storage.ResourceCollection,
+				AdditionalTypes: []string{"custom-type", "cal:special-calendar"},
+			},
+			expectedPrefix:  "d",
+			expectedTag:     "resourcetype",
+			expectedContent: "<d:collection/><cal:calendar/><d:custom-type/><cal:special-calendar/>",
 		},
 		{
 			name:            "getEtag",
