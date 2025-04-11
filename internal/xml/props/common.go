@@ -85,6 +85,59 @@ var PropPrefixMap = map[string]string{
 	"selected": "g",
 }
 
+// Reuse the property mapping from propfind
+var PropNameToStruct = map[string]PropertyEncoder{
+	// WebDAV properties
+	"displayname":                new(DisplayName),
+	"resourcetype":               new(Resourcetype),
+	"getetag":                    new(GetEtag),
+	"getlastmodified":            new(GetLastModified),
+	"getcontenttype":             new(GetContentType),
+	"owner":                      new(Owner),
+	"current-user-principal":     new(CurrentUserPrincipal),
+	"principal-url":              new(PrincipalURL),
+	"supported-report-set":       new(SupportedReportSet),
+	"acl":                        new(ACL),
+	"current-user-privilege-set": new(CurrentUserPrivilegeSet),
+	"quota-available-bytes":      new(QuotaAvailableBytes),
+	"quota-used-bytes":           new(QuotaUsedBytes),
+
+	// CalDAV properties
+	"calendar-description":             new(CalendarDescription),
+	"calendar-timezone":                new(CalendarTimezone),
+	"calendar-data":                    new(CalendarData),
+	"supported-calendar-component-set": new(SupportedCalendarComponentSet),
+	"supported-calendar-data":          new(SupportedCalendarData),
+	"max-resource-size":                new(MaxResourceSize),
+	"min-date-time":                    new(MinDateTime),
+	"max-date-time":                    new(MaxDateTime),
+	"max-instances":                    new(MaxInstances),
+	"max-attendees-per-instance":       new(MaxAttendeesPerInstance),
+	"calendar-home-set":                new(CalendarHomeSet),
+	"schedule-inbox-url":               new(ScheduleInboxURL),
+	"schedule-outbox-url":              new(ScheduleOutboxURL),
+	"schedule-default-calendar-url":    new(ScheduleDefaultCalendarURL),
+	"calendar-user-address-set":        new(CalendarUserAddressSet),
+	"calendar-user-type":               new(CalendarUserType),
+
+	// Apple CalendarServer Extensions
+	"getctag":                  new(GetCTag),
+	"calendar-changes":         new(CalendarChanges),
+	"shared-url":               new(SharedURL),
+	"invite":                   new(Invite),
+	"notification-url":         new(NotificationURL),
+	"auto-schedule":            new(AutoSchedule),
+	"calendar-proxy-read-for":  new(CalendarProxyReadFor),
+	"calendar-proxy-write-for": new(CalendarProxyWriteFor),
+	"calendar-color":           new(CalendarColor),
+
+	// Google CalDAV Extensions
+	"color":    new(Color),
+	"timezone": new(Timezone),
+	"hidden":   new(Hidden),
+	"selected": new(Selected),
+}
+
 // createElement creates an element with the namespace prefix taken from the propPrefixMap.
 // If the name is not found in the map, it defaults to "d".
 func createElement(name string) *etree.Element {

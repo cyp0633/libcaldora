@@ -29,7 +29,7 @@ func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
 	if allprop := propfindElem.FindElement("allprop"); allprop != nil {
 		requestType = RequestTypeAllProp
 		// For allprop, add all known properties
-		for propName, structPtr := range propNameToStruct {
+		for propName, structPtr := range props.PropNameToStruct {
 			propsMap[propName] = mo.Ok[props.PropertyEncoder](structPtr)
 		}
 		return propsMap, requestType
@@ -38,7 +38,7 @@ func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
 	if propname := propfindElem.FindElement("propname"); propname != nil {
 		requestType = RequestTypePropName
 		// For propname, add all known properties but mark them with ErrNotFound
-		for propName := range propNameToStruct {
+		for propName := range props.PropNameToStruct {
 			propsMap[propName] = mo.Err[props.PropertyEncoder](ErrNotFound)
 		}
 		return propsMap, requestType
@@ -64,7 +64,7 @@ func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
 		localName = strings.ToLower(localName)
 
 		// Check if we have a struct for this property
-		if structPtr, exists := propNameToStruct[localName]; exists {
+		if structPtr, exists := props.PropNameToStruct[localName]; exists {
 			// Add the property to the response map
 			propsMap[localName] = mo.Ok(structPtr)
 		}

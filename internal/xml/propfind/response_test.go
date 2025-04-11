@@ -163,7 +163,7 @@ func TestParseRequest_AllProperties(t *testing.T) {
 	xmlMiddle := ""
 	expectedProps := make(map[string]reflect.Type)
 
-	for propName, structPtr := range propNameToStruct {
+	for propName, structPtr := range props.PropNameToStruct {
 		// Determine the correct namespace prefix based on the property
 		prefix := "d"
 		if strings.HasPrefix(propName, "calendar-") ||
