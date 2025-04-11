@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cyp0633/libcaldora/internal/xml/propfind"
+	"github.com/cyp0633/libcaldora/internal/xml/props"
 	"github.com/cyp0633/libcaldora/server/storage"
 	"github.com/samber/mo"
 	"github.com/stretchr/testify/assert"
@@ -55,10 +56,10 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with some basic properties using mo.Ok instead of mo.None
 		req := propfind.ResponseMap{
-			"displayname":                      mo.Ok[propfind.PropertyEncoder](nil),
-			"calendar-home-set":                mo.Ok[propfind.PropertyEncoder](nil),
-			"supported-calendar-component-set": mo.Ok[propfind.PropertyEncoder](nil),
-			"calendar-user-type":               mo.Ok[propfind.PropertyEncoder](nil),
+			"displayname":                      mo.Ok[props.PropertyEncoder](nil),
+			"calendar-home-set":                mo.Ok[props.PropertyEncoder](nil),
+			"supported-calendar-component-set": mo.Ok[props.PropertyEncoder](nil),
+			"calendar-user-type":               mo.Ok[props.PropertyEncoder](nil),
 		}
 
 		// Call function
@@ -107,7 +108,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with principal-url property
 		req := propfind.ResponseMap{
-			"principal-url": mo.Ok[propfind.PropertyEncoder](nil),
+			"principal-url": mo.Ok[props.PropertyEncoder](nil),
 		}
 
 		// Call function
@@ -139,7 +140,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with acl property
 		req := propfind.ResponseMap{
-			"acl": mo.Ok[propfind.PropertyEncoder](nil),
+			"acl": mo.Ok[props.PropertyEncoder](nil),
 		}
 
 		// Call function
@@ -178,11 +179,11 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with calendar limits properties
 		req := propfind.ResponseMap{
-			"max-resource-size":          mo.Ok[propfind.PropertyEncoder](nil),
-			"min-date-time":              mo.Ok[propfind.PropertyEncoder](nil),
-			"max-date-time":              mo.Ok[propfind.PropertyEncoder](nil),
-			"max-instances":              mo.Ok[propfind.PropertyEncoder](nil),
-			"max-attendees-per-instance": mo.Ok[propfind.PropertyEncoder](nil),
+			"max-resource-size":          mo.Ok[props.PropertyEncoder](nil),
+			"min-date-time":              mo.Ok[props.PropertyEncoder](nil),
+			"max-date-time":              mo.Ok[props.PropertyEncoder](nil),
+			"max-instances":              mo.Ok[props.PropertyEncoder](nil),
+			"max-attendees-per-instance": mo.Ok[props.PropertyEncoder](nil),
 		}
 
 		// Call function

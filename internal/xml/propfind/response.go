@@ -4,24 +4,25 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
+	"github.com/cyp0633/libcaldora/internal/xml/props"
 	"github.com/samber/mo"
 )
 
 // Extend ParseRequest to handle different request types
 func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
-	props := make(ResponseMap)
+	propsMap := make(ResponseMap)
 	requestType := RequestTypeProp // Default
 
 	// Parse XML using etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
-		return props, requestType
+		return propsMap, requestType
 	}
 
 	// Find all property elements under propfind/prop
 	propfindElem := doc.FindElement("//propfind")
 	if propfindElem == nil {
-		return props, requestType
+		return propsMap, requestType
 	}
 
 	// Check for allprop or propname
@@ -29,24 +30,24 @@ func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
 		requestType = RequestTypeAllProp
 		// For allprop, add all known properties
 		for propName, structPtr := range propNameToStruct {
-			props[propName] = mo.Ok(structPtr)
+			propsMap[propName] = mo.Ok[props.PropertyEncoder](structPtr)
 		}
-		return props, requestType
+		return propsMap, requestType
 	}
 
 	if propname := propfindElem.FindElement("propname"); propname != nil {
 		requestType = RequestTypePropName
 		// For propname, add all known properties but mark them with ErrNotFound
 		for propName := range propNameToStruct {
-			props[propName] = mo.Err[PropertyEncoder](ErrNotFound)
+			propsMap[propName] = mo.Err[props.PropertyEncoder](ErrNotFound)
 		}
-		return props, requestType
+		return propsMap, requestType
 	}
 
 	// Handle standard prop requests
 	propElem := propfindElem.FindElement("prop")
 	if propElem == nil {
-		return props, requestType
+		return propsMap, requestType
 	}
 
 	// Iterate through all child elements of prop
@@ -65,15 +66,15 @@ func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
 		// Check if we have a struct for this property
 		if structPtr, exists := propNameToStruct[localName]; exists {
 			// Add the property to the response map
-			props[localName] = mo.Ok(structPtr)
+			propsMap[localName] = mo.Ok(structPtr)
 		}
 		// Skip unknown properties
 	}
 
-	return props, requestType
+	return propsMap, requestType
 }
 
-func EncodeResponse(props ResponseMap, href string) *etree.Document {
+func EncodeResponse(propsMap ResponseMap, href string) *etree.Document {
 	doc := etree.NewDocument()
 	doc.CreateProcInst("xml", `version="1.0" encoding="utf-8"`)
 
@@ -81,7 +82,7 @@ func EncodeResponse(props ResponseMap, href string) *etree.Document {
 	multistatus := doc.CreateElement("d:multistatus")
 
 	// Add all required namespaces
-	for prefix, uri := range namespaceMap {
+	for prefix, uri := range props.NamespaceMap {
 		multistatus.CreateAttr("xmlns:"+prefix, uri)
 	}
 
@@ -96,7 +97,7 @@ func EncodeResponse(props ResponseMap, href string) *etree.Document {
 	statusToProp := make(map[string]*etree.Element)
 
 	// Process each property
-	for propName, propResult := range props {
+	for propName, propResult := range propsMap {
 		var statusCode string
 		var propElem *etree.Element
 
@@ -122,9 +123,10 @@ func EncodeResponse(props ResponseMap, href string) *etree.Document {
 			}
 
 			// Create an empty element for the property
-			prefix, exists := propPrefixMap[propName]
+			// Use PropPrefixMap to determine the correct namespace prefix
+			prefix, exists := props.PropPrefixMap[propName]
 			if !exists {
-				prefix = "d" // Default to WebDAV namespace
+				prefix = "d" // Default to WebDAV namespace if not found
 			}
 
 			propElem = etree.NewElement(propName)
@@ -164,7 +166,7 @@ func MergeResponses(docs []*etree.Document) (*etree.Document, error) {
 
 	// 2. Add necessary namespace declarations (xmlns attributes) to the root element.
 	// Using the same namespaceMap as EncodeResponse ensures consistency.
-	for prefix, uri := range namespaceMap {
+	for prefix, uri := range props.NamespaceMap {
 		mergedMultistatus.CreateAttr("xmlns:"+prefix, uri)
 	}
 
@@ -194,7 +196,7 @@ func MergeResponses(docs []*etree.Document) (*etree.Document, error) {
 		}
 	}
 
-	// 5. Return the completed merged document. No errors are expected in this aggregation logic
-	//    assuming input docs are valid, so return nil error.
+	//  5. Return the completed merged document. No errors are expected in this aggregation logic
+	//     assuming input docs are valid, so return nil error.
 	return mergedDoc, nil
 }

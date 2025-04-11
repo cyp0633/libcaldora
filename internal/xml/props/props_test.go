@@ -1,4 +1,4 @@
-package propfind
+package props
 
 import (
 	"strings"
@@ -6,9 +6,37 @@ import (
 	"time"
 
 	"github.com/beevik/etree"
-	"github.com/cyp0633/libcaldora/server/storage"
 	"github.com/stretchr/testify/assert"
 )
+
+// Helper function to convert element to string
+func elementToString(elem *etree.Element) string {
+	doc := etree.NewDocument()
+	doc.AddChild(elem)
+	str, _ := doc.WriteToString()
+	return str
+}
+
+// Helper function to clean XML string for comparison
+func cleanXMLString(s string) string {
+	// Remove XML declaration if present
+	if strings.HasPrefix(s, "<?xml") {
+		endIndex := strings.Index(s, "?>")
+		if endIndex != -1 {
+			s = s[endIndex+2:]
+		}
+	}
+
+	// Remove whitespace between tags
+	s = strings.ReplaceAll(s, "> <", "><")
+
+	// Remove all spaces and newlines
+	s = strings.ReplaceAll(s, " ", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\t", "")
+
+	return s
+}
 
 func TestEncodeFunctions(t *testing.T) {
 	// Test cases for each property type
@@ -32,7 +60,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "resourcetype-principal",
 			property: &Resourcetype{
-				Type: storage.ResourcePrincipal,
+				Type: ResourcePrincipal,
 			},
 			expectedPrefix:  "d",
 			expectedTag:     "resourcetype",
@@ -41,7 +69,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "resourcetype-homeset",
 			property: &Resourcetype{
-				Type: storage.ResourceHomeSet,
+				Type: ResourceHomeSet,
 			},
 			expectedPrefix:  "d",
 			expectedTag:     "resourcetype",
@@ -50,7 +78,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "resourcetype-collection",
 			property: &Resourcetype{
-				Type: storage.ResourceCollection,
+				Type: ResourceCollection,
 			},
 			expectedPrefix:  "d",
 			expectedTag:     "resourcetype",
@@ -59,7 +87,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "resourcetype-object-vevent",
 			property: &Resourcetype{
-				Type:       storage.ResourceObject,
+				Type:       ResourceObject,
 				ObjectType: "vevent",
 			},
 			expectedPrefix:  "d",
@@ -69,7 +97,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "resourcetype-object-freebusy",
 			property: &Resourcetype{
-				Type:       storage.ResourceObject,
+				Type:       ResourceObject,
 				ObjectType: "freebusy",
 			},
 			expectedPrefix:  "d",
@@ -79,7 +107,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name: "resourcetype-object-schedule",
 			property: &Resourcetype{
-				Type:       storage.ResourceObject,
+				Type:       ResourceObject,
 				ObjectType: "schedule-interaction",
 			},
 			expectedPrefix:  "d",
@@ -113,7 +141,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "d",
 			expectedTag:     "owner",
 			expectedContent: "mailto:alice@example.com",
-			hasHrefChild:    true, // Add this flag to fix the test
+			hasHrefChild:    true,
 		},
 		{
 			name:            "currentUserPrincipal",
@@ -121,7 +149,7 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedPrefix:  "d",
 			expectedTag:     "current-user-principal",
 			expectedContent: "mailto:alice@example.com",
-			hasHrefChild:    true, // Add this flag to fix the test
+			hasHrefChild:    true,
 		},
 		{
 			name:            "principalURL",
@@ -497,59 +525,6 @@ func TestEncodeDecodeCycle(t *testing.T) {
 	assert.Contains(t, xmlStr, "<d:deny>")
 }
 
-// Helper function to convert element to string
-func elementToString(elem *etree.Element) string {
-	doc := etree.NewDocument()
-	doc.AddChild(elem)
-	str, _ := doc.WriteToString()
-	return str
-}
-
-// Helper function to clean XML string for comparison
-func cleanXMLString(s string) string {
-	// Remove XML declaration if present
-	if strings.HasPrefix(s, "<?xml") {
-		endIndex := strings.Index(s, "?>")
-		if endIndex != -1 {
-			s = s[endIndex+2:]
-		}
-	}
-
-	// Remove whitespace between tags
-	s = strings.ReplaceAll(s, "> <", "><")
-
-	// Remove all spaces and newlines
-	s = strings.ReplaceAll(s, " ", "")
-	s = strings.ReplaceAll(s, "\n", "")
-	s = strings.ReplaceAll(s, "\t", "")
-
-	return s
-}
-
-// Test that all properties in propNameToStruct map have a working Encode method
-func TestAllPropertiesEncode(t *testing.T) {
-	for propName, propValue := range propNameToStruct {
-		t.Run(propName, func(t *testing.T) {
-			// Call Encode method
-			elem := propValue.Encode()
-
-			// Basic validation
-			assert.NotNil(t, elem, "Encoded element for %s should not be nil", propName)
-
-			// Check that tag has correct prefix
-			prefix := propPrefixMap[propName]
-			assert.Equal(t, prefix, elem.Space, "Element prefix should be %s, got %s", prefix, elem.Space)
-			assert.Equal(t, propName, elem.Tag, "Element tag should be %s, got %s", propName, elem.Tag)
-
-			// Convert to string to ensure it's valid XML
-			xmlStr := elementToString(elem)
-			assert.NotEmpty(t, xmlStr, "XML string for %s should not be empty", propName)
-		})
-	}
-}
-
-// Add this new test function after the existing tests
-
 // TestSupportedReportSetNamespaces verifies that all report types are encoded with correct namespaces
 func TestSupportedReportSetNamespaces(t *testing.T) {
 	// Create a SupportedReportSet with all report types
@@ -630,5 +605,80 @@ func TestSupportedReportSetNamespaces(t *testing.T) {
 	// Verify we have one of each report type
 	for _, tag := range expectedTags {
 		assert.Equal(t, 1, reportCount[tag], "Should have exactly one %s report type", tag)
+	}
+}
+
+// Create a map of property name to struct for testing
+var propNameToStruct = map[string]PropertyEncoder{
+	// WebDAV properties
+	"displayname":                &DisplayName{Value: "Test Calendar"},
+	"resourcetype":               &Resourcetype{Type: ResourceCollection},
+	"getetag":                    &GetEtag{Value: "abc123"},
+	"getlastmodified":            &GetLastModified{Value: time.Now()},
+	"getcontenttype":             &GetContentType{Value: "text/calendar"},
+	"owner":                      &Owner{Value: "mailto:user@example.com"},
+	"current-user-principal":     &CurrentUserPrincipal{Value: "/principals/users/johndoe/"},
+	"principal-url":              &PrincipalURL{Value: "/principals/users/johndoe/"},
+	"supported-report-set":       &SupportedReportSet{Reports: []ReportType{ReportTypePropfind}},
+	"acl":                        &ACL{Aces: []ACE{{Principal: "/principals/users/johndoe/", Grant: []string{"read"}}}},
+	"current-user-privilege-set": &CurrentUserPrivilegeSet{Privileges: []string{"read"}},
+	"quota-available-bytes":      &QuotaAvailableBytes{Value: 1000000},
+	"quota-used-bytes":           &QuotaUsedBytes{Value: 5000},
+
+	// CalDAV properties
+	"calendar-description":             &CalendarDescription{Value: "My calendar"},
+	"calendar-timezone":                &CalendarTimezone{Value: "UTC"},
+	"calendar-data":                    &CalendarData{ICal: "BEGIN:VCALENDAR\r\nEND:VCALENDAR"},
+	"supported-calendar-component-set": &SupportedCalendarComponentSet{Components: []string{"VEVENT"}},
+	"supported-calendar-data":          &SupportedCalendarData{ContentType: "text/calendar", Version: "2.0"},
+	"max-resource-size":                &MaxResourceSize{Value: 10485760},
+	"min-date-time":                    &MinDateTime{Value: time.Now()},
+	"max-date-time":                    &MaxDateTime{Value: time.Now().AddDate(1, 0, 0)},
+	"max-instances":                    &MaxInstances{Value: 100},
+	"max-attendees-per-instance":       &MaxAttendeesPerInstance{Value: 50},
+	"calendar-home-set":                &CalendarHomeSet{Href: "/calendars/users/johndoe/"},
+	"schedule-inbox-url":               &ScheduleInboxURL{Href: "/calendars/users/johndoe/inbox/"},
+	"schedule-outbox-url":              &ScheduleOutboxURL{Href: "/calendars/users/johndoe/outbox/"},
+	"schedule-default-calendar-url":    &ScheduleDefaultCalendarURL{Href: "/calendars/users/johndoe/default/"},
+	"calendar-user-address-set":        &CalendarUserAddressSet{Addresses: []string{"mailto:johndoe@example.com"}},
+	"calendar-user-type":               &CalendarUserType{Value: "INDIVIDUAL"},
+
+	// Apple CalendarServer Extensions
+	"getctag":                  &GetCTag{Value: "abc123"},
+	"calendar-changes":         &CalendarChanges{Href: "/calendars/users/johndoe/changes/"},
+	"shared-url":               &SharedURL{Value: "https://example.com/shared"},
+	"invite":                   &Invite{Value: "https://example.com/invite"},
+	"notification-url":         &NotificationURL{Value: "https://example.com/notify"},
+	"auto-schedule":            &AutoSchedule{Value: true},
+	"calendar-proxy-read-for":  &CalendarProxyReadFor{Hrefs: []string{"mailto:manager@example.com"}},
+	"calendar-proxy-write-for": &CalendarProxyWriteFor{Hrefs: []string{"mailto:assistant@example.com"}},
+	"calendar-color":           &CalendarColor{Value: "#FF5733"},
+
+	// Google CalDAV Extensions
+	"color":    &Color{Value: "#3366CC"},
+	"timezone": &Timezone{Value: "America/New_York"},
+	"hidden":   &Hidden{Value: false},
+	"selected": &Selected{Value: true},
+}
+
+// Test that all properties in propNameToStruct map have a working Encode method
+func TestAllPropertiesEncode(t *testing.T) {
+	for propName, propValue := range propNameToStruct {
+		t.Run(propName, func(t *testing.T) {
+			// Call Encode method
+			elem := propValue.Encode()
+
+			// Basic validation
+			assert.NotNil(t, elem, "Encoded element for %s should not be nil", propName)
+
+			// Check that tag has correct prefix
+			prefix := PropPrefixMap[propName]
+			assert.Equal(t, prefix, elem.Space, "Element prefix should be %s, got %s", prefix, elem.Space)
+			assert.Equal(t, propName, elem.Tag, "Element tag should be %s, got %s", propName, elem.Tag)
+
+			// Convert to string to ensure it's valid XML
+			xmlStr := elementToString(elem)
+			assert.NotEmpty(t, xmlStr, "XML string for %s should not be empty", propName)
+		})
 	}
 }

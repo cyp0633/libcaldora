@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/beevik/etree"
-	"github.com/cyp0633/libcaldora/server/storage"
+	"github.com/cyp0633/libcaldora/internal/xml/props"
 	"github.com/samber/mo"
 	"github.com/stretchr/testify/assert"
 )
@@ -29,10 +29,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname":     reflect.TypeOf(new(DisplayName)),
-				"resourcetype":    reflect.TypeOf(new(Resourcetype)),
-				"getetag":         reflect.TypeOf(new(GetEtag)),
-				"getlastmodified": reflect.TypeOf(new(GetLastModified)),
+				"displayname":     reflect.TypeOf(new(props.DisplayName)),
+				"resourcetype":    reflect.TypeOf(new(props.Resourcetype)),
+				"getetag":         reflect.TypeOf(new(props.GetEtag)),
+				"getlastmodified": reflect.TypeOf(new(props.GetLastModified)),
 			},
 		},
 		{
@@ -47,10 +47,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname":                      reflect.TypeOf(new(DisplayName)),
-				"calendar-description":             reflect.TypeOf(new(CalendarDescription)),
-				"resourcetype":                     reflect.TypeOf(new(Resourcetype)),
-				"supported-calendar-component-set": reflect.TypeOf(new(SupportedCalendarComponentSet)),
+				"displayname":                      reflect.TypeOf(new(props.DisplayName)),
+				"calendar-description":             reflect.TypeOf(new(props.CalendarDescription)),
+				"resourcetype":                     reflect.TypeOf(new(props.Resourcetype)),
+				"supported-calendar-component-set": reflect.TypeOf(new(props.SupportedCalendarComponentSet)),
 			},
 		},
 		{
@@ -65,10 +65,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"getctag": reflect.TypeOf(new(GetCTag)),
-				"color":   reflect.TypeOf(new(Color)),
-				"invite":  reflect.TypeOf(new(Invite)),
-				"hidden":  reflect.TypeOf(new(Hidden)),
+				"getctag": reflect.TypeOf(new(props.GetCTag)),
+				"color":   reflect.TypeOf(new(props.Color)),
+				"invite":  reflect.TypeOf(new(props.Invite)),
+				"hidden":  reflect.TypeOf(new(props.Hidden)),
 			},
 		},
 		{
@@ -108,8 +108,8 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname": reflect.TypeOf(new(DisplayName)),
-				"getetag":     reflect.TypeOf(new(GetEtag)),
+				"displayname": reflect.TypeOf(new(props.DisplayName)),
+				"getetag":     reflect.TypeOf(new(props.GetEtag)),
 			},
 		},
 	}
@@ -226,21 +226,21 @@ func TestParseRequest_AllProperties(t *testing.T) {
 func TestEncodeResponse(t *testing.T) {
 	tests := []struct {
 		name     string
-		props    map[string]mo.Result[PropertyEncoder]
+		props    map[string]mo.Result[props.PropertyEncoder]
 		href     string
 		expected func(t *testing.T, doc *etree.Document)
 	}{
 		{
 			name: "Mix of found and not found properties",
-			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
-				"resourcetype": mo.Ok[PropertyEncoder](&Resourcetype{
-					Type: storage.ResourceCollection, // Updated to use new struct format
+			props: map[string]mo.Result[props.PropertyEncoder]{
+				"displayname": mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test Calendar"}),
+				"resourcetype": mo.Ok[props.PropertyEncoder](&props.Resourcetype{
+					Type: props.ResourceCollection, // Updated to use new struct format
 				}),
-				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
-				"calendar-color":         mo.Err[PropertyEncoder](ErrNotFound),
-				"getcontenttype":         mo.Ok[PropertyEncoder](&GetContentType{Value: "text/calendar"}),
-				"current-user-principal": mo.Err[PropertyEncoder](ErrNotFound),
+				"getetag":                mo.Err[props.PropertyEncoder](ErrNotFound),
+				"calendar-color":         mo.Err[props.PropertyEncoder](ErrNotFound),
+				"getcontenttype":         mo.Ok[props.PropertyEncoder](&props.GetContentType{Value: "text/calendar"}),
+				"current-user-principal": mo.Err[props.PropertyEncoder](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -249,7 +249,7 @@ func TestEncodeResponse(t *testing.T) {
 				assert.NotNil(t, multistatus, "Should have multistatus element")
 
 				// Check namespaces
-				for prefix, uri := range namespaceMap {
+				for prefix, uri := range props.NamespaceMap {
 					nsAttr := multistatus.SelectAttr("xmlns:" + prefix)
 					assert.NotNil(t, nsAttr, "Should declare namespace %s", prefix)
 					assert.Equal(t, uri, nsAttr.Value, "Namespace URI should match")
@@ -302,9 +302,9 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "All properties found",
-			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
-				"getetag":     mo.Ok[PropertyEncoder](&GetEtag{Value: "\"etag12345\""}),
+			props: map[string]mo.Result[props.PropertyEncoder]{
+				"displayname": mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test Calendar"}),
+				"getetag":     mo.Ok[props.PropertyEncoder](&props.GetEtag{Value: "\"etag12345\""}),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -326,9 +326,9 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "All properties not found",
-			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname": mo.Err[PropertyEncoder](ErrNotFound),
-				"getetag":     mo.Err[PropertyEncoder](ErrNotFound),
+			props: map[string]mo.Result[props.PropertyEncoder]{
+				"displayname": mo.Err[props.PropertyEncoder](ErrNotFound),
+				"getetag":     mo.Err[props.PropertyEncoder](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -347,7 +347,7 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name:  "Empty properties",
-			props: map[string]mo.Result[PropertyEncoder]{},
+			props: map[string]mo.Result[props.PropertyEncoder]{},
 			href:  "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
 				// Both propstat sections should be missing
@@ -368,14 +368,14 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "Complex CalDAV properties",
-			props: map[string]mo.Result[PropertyEncoder]{
-				"supported-calendar-component-set": mo.Ok[PropertyEncoder](&SupportedCalendarComponentSet{
+			props: map[string]mo.Result[props.PropertyEncoder]{
+				"supported-calendar-component-set": mo.Ok[props.PropertyEncoder](&props.SupportedCalendarComponentSet{
 					Components: []string{"VEVENT", "VTODO"},
 				}),
-				"calendar-user-address-set": mo.Ok[PropertyEncoder](&CalendarUserAddressSet{
+				"calendar-user-address-set": mo.Ok[props.PropertyEncoder](&props.CalendarUserAddressSet{
 					Addresses: []string{"mailto:user1@example.com", "mailto:user.one@example.org"},
 				}),
-				"current-user-privilege-set": mo.Ok[PropertyEncoder](&CurrentUserPrivilegeSet{
+				"current-user-privilege-set": mo.Ok[props.PropertyEncoder](&props.CurrentUserPrivilegeSet{
 					Privileges: []string{"read", "write", "read-acl"},
 				}),
 			},
@@ -412,12 +412,12 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "Mixed error types",
-			props: map[string]mo.Result[PropertyEncoder]{
-				"displayname":            mo.Ok[PropertyEncoder](&DisplayName{Value: "Test Calendar"}),
-				"getetag":                mo.Err[PropertyEncoder](ErrNotFound),
-				"current-user-principal": mo.Err[PropertyEncoder](ErrForbidden),
-				"resourcetype":           mo.Err[PropertyEncoder](ErrInternal),
-				"getcontenttype":         mo.Err[PropertyEncoder](ErrBadRequest),
+			props: map[string]mo.Result[props.PropertyEncoder]{
+				"displayname":            mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test Calendar"}),
+				"getetag":                mo.Err[props.PropertyEncoder](ErrNotFound),
+				"current-user-principal": mo.Err[props.PropertyEncoder](ErrForbidden),
+				"resourcetype":           mo.Err[props.PropertyEncoder](ErrInternal),
+				"getcontenttype":         mo.Err[props.PropertyEncoder](ErrBadRequest),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -469,8 +469,8 @@ func TestEncodeResponse(t *testing.T) {
 
 func TestEncodeResponseHref(t *testing.T) {
 	// Test that the href parameter is properly used
-	props := map[string]mo.Result[PropertyEncoder]{
-		"displayname": mo.Ok[PropertyEncoder](&DisplayName{Value: "Test"}),
+	props := map[string]mo.Result[props.PropertyEncoder]{
+		"displayname": mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test"}),
 	}
 
 	customHref := "/custom/path/to/resource/"
@@ -489,7 +489,7 @@ func createSubResponseXML(href, etag, description string) string {
 	multistatus := doc.CreateElement("d:multistatus")
 	multistatus.Space = "d"
 	// Add namespaces as EncodeResponse would
-	for prefix, uri := range namespaceMap { // Assumes namespaceMap is accessible
+	for prefix, uri := range props.NamespaceMap { // Assumes props.NamespaceMap is accessible
 		multistatus.CreateAttr("xmlns:"+prefix, uri)
 	}
 
@@ -512,7 +512,7 @@ func createSubResponseXML(href, etag, description string) string {
 
 	if description != "" {
 		descElem := prop.CreateElement("cs:calendar-description")
-		descElem.Space = "cs" // Assuming 'cs' is in namespaceMap
+		descElem.Space = "cs" // Assuming 'cs' is in props.NamespaceMap
 		descElem.SetText(description)
 	}
 
@@ -535,9 +535,9 @@ func parseXML(t *testing.T, xmlStr string) *etree.Document {
 // --- Test Suite ---
 
 func TestMergeResponses(t *testing.T) {
-	// Setup: Ensure namespaceMap is defined (copy from main code or define here)
-	// Assuming namespaceMap is accessible or redefined for test scope
-	// namespaceMap = map[string]string{
+	// Setup: Ensure props.NamespaceMap is defined (copy from main code or define here)
+	// Assuming props.NamespaceMap is accessible or redefined for test scope
+	// props.NamespaceMap = map[string]string{
 	// 	"d":  "DAV:",
 	// 	"cs": "urn:ietf:params:xml:ns:caldav",
 	// }
@@ -562,8 +562,8 @@ func TestMergeResponses(t *testing.T) {
 		assert.NotNil(t, root)
 		assert.Equal(t, "d", root.Space, "Root element should have 'd' namespace prefix")
 		assert.Equal(t, "multistatus", root.Tag, "Root element should be 'multistatus'")
-		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
-		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
 
 		// Verify correct number of response elements
 		responses := root.FindElements("./d:response") // Find direct children
@@ -603,8 +603,8 @@ func TestMergeResponses(t *testing.T) {
 		assert.NotNil(t, root)
 		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
 		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
-		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
-		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
 
 		responses := root.FindElements("./d:response")
 		assert.Len(t, responses, 0, "Should contain zero response elements")
@@ -625,8 +625,8 @@ func TestMergeResponses(t *testing.T) {
 		assert.NotNil(t, root)
 		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
 		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
-		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
-		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
 
 		responses := root.FindElements("./d:response")
 		assert.Len(t, responses, 0, "Should contain zero response elements")
@@ -682,8 +682,8 @@ func TestMergeResponses(t *testing.T) {
 		assert.NotNil(t, root)
 		assert.Equal(t, "multistatus", root.Tag, "Root element tag should be 'multistatus'")
 		assert.Equal(t, "d", root.Space, "Root element namespace prefix should be 'd'")
-		assert.Equal(t, namespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
-		assert.Equal(t, namespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["d"], root.SelectAttrValue("xmlns:d", ""), "DAV namespace declaration missing")
+		assert.Equal(t, props.NamespaceMap["cs"], root.SelectAttrValue("xmlns:cs", ""), "CalDAV namespace declaration missing")
 
 		responses := root.FindElements("./d:response")
 		assert.Len(t, responses, 1, "Should contain one response element")
