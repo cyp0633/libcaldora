@@ -494,6 +494,14 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, ctx *Requ
 			} else {
 				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarTimezone{Value: timezone})
 			}
+		case "calendar-data":
+			ics, err := storage.ICalCompToICS(*object.Component, false)
+			if err != nil {
+				log.Printf("Failed to convert calendar component to ICS for resource %s: %v", ctx.Resource, err)
+				req[key] = mo.Err[propfind.PropertyEncoder](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[propfind.PropertyEncoder](propfind.CalendarData{ICal: ics})
+			}
 		case "supported-calendar-data":
 			req[key] = mo.Ok[propfind.PropertyEncoder](propfind.SupportedCalendarData{
 				ContentType: "text/calendar",

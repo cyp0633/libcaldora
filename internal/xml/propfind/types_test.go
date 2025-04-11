@@ -188,6 +188,29 @@ func TestEncodeFunctions(t *testing.T) {
 			expectedContent: "214748364",
 		},
 
+		// Test cases for calendar-data property
+		{
+			name:            "calendarData-basic",
+			property:        &CalendarData{ICal: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:Test Event\r\nEND:VEVENT\r\nEND:VCALENDAR"},
+			expectedPrefix:  "cal",
+			expectedTag:     "calendar-data",
+			expectedContent: "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:Test Event\r\nEND:VEVENT\r\nEND:VCALENDAR",
+		},
+		{
+			name:            "calendarData-empty",
+			property:        &CalendarData{ICal: ""},
+			expectedPrefix:  "cal",
+			expectedTag:     "calendar-data",
+			expectedContent: "",
+		},
+		{
+			name:            "calendarData-with-special-chars",
+			property:        &CalendarData{ICal: "BEGIN:VCALENDAR\r\nDESCRIPTION:Test & Demo < > \" '\r\nEND:VCALENDAR"},
+			expectedPrefix:  "cal",
+			expectedTag:     "calendar-data",
+			expectedContent: "BEGIN:VCALENDAR\r\nDESCRIPTION:Test &amp; Demo &lt; &gt; &#34; &#39;\r\nEND:VCALENDAR",
+		},
+
 		// CalDAV properties
 		{
 			name:            "calendarDescription",

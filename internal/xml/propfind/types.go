@@ -2,6 +2,7 @@ package propfind
 
 import (
 	"errors"
+	"html"
 	"strconv"
 	"time"
 
@@ -35,6 +36,7 @@ var propNameToStruct = map[string]PropertyEncoder{
 	// CalDAV properties
 	"calendar-description":             new(CalendarDescription),
 	"calendar-timezone":                new(CalendarTimezone),
+	"calendar-data":                    new(CalendarData),
 	"supported-calendar-component-set": new(SupportedCalendarComponentSet),
 	"supported-calendar-data":          new(SupportedCalendarData),
 	"max-resource-size":                new(MaxResourceSize),
@@ -97,6 +99,7 @@ var propPrefixMap = map[string]string{
 	// CalDAV properties (cal: prefix)
 	"calendar-description":             "cal",
 	"calendar-timezone":                "cal",
+	"calendar-data":                    "cal",
 	"supported-calendar-component-set": "cal",
 	"supported-calendar-data":          "cal",
 	"max-resource-size":                "cal",
@@ -488,6 +491,17 @@ type CalendarTimezone struct {
 func (p CalendarTimezone) Encode() *etree.Element {
 	elem := createElement("calendar-timezone")
 	elem.SetText(p.Value)
+	return elem
+}
+
+type CalendarData struct {
+	// Note: the raw ICS data must contain BEGIN:VCALENDAR. It does not check for this.
+	ICal string
+}
+
+func (p CalendarData) Encode() *etree.Element {
+	elem := createElement("calendar-data")
+	elem.SetText(html.EscapeString(p.ICal))
 	return elem
 }
 
