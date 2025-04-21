@@ -63,7 +63,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 		}
 
 		// Call function
-		doc, err := h.handlePropfindHomeSet(req, ctx)
+		doc, err := h.handlePropfindHomeSet(req, ctx.Resource)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -112,7 +112,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 		}
 
 		// Call function
-		doc, err := h.handlePropfindHomeSet(req, ctx)
+		doc, err := h.handlePropfindHomeSet(req, ctx.Resource)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -144,7 +144,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 		}
 
 		// Call function
-		doc, err := h.handlePropfindHomeSet(req, ctx)
+		doc, err := h.handlePropfindHomeSet(req, ctx.Resource)
 
 		// Assertions
 		assert.NoError(t, err)
@@ -187,7 +187,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 		}
 
 		// Call function
-		doc, err := h.handlePropfindHomeSet(req, ctx)
+		doc, err := h.handlePropfindHomeSet(req, ctx.Resource)
 
 		// Assertions
 		assert.NoError(t, err)
