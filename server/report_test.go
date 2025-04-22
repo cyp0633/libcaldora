@@ -4,12 +4,14 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/cyp0633/libcaldora/server/storage"
-	"github.com/emersion/go-ical" // Import go-ical
+	"github.com/emersion/go-ical"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestHandleCalendarMultiget(t *testing.T) {
@@ -250,4 +252,229 @@ func TestHandleCalendarMultiget(t *testing.T) {
 		mockStorage.AssertExpectations(t) // No storage calls should have been made
 	})
 
+}
+
+func TestHandleCalendarQuery(t *testing.T) {
+	// Add log capturing
+	var logOutput strings.Builder
+	log.SetOutput(&logOutput)
+	defer log.SetOutput(os.Stdout)
+
+	// Setup
+	mockURL := new(MockURLConverter)
+	mockStorage := new(storage.MockStorage)
+
+	h := &CaldavHandler{
+		URLConverter: mockURL,
+		Storage:      mockStorage,
+	}
+
+	cases := []struct {
+		name                   string
+		ctxResource            Resource
+		requestBody            string
+		setupMocks             func()
+		expectStatus           int
+		expectResponseContains []string // strings that should be in the response
+	}{
+		{
+			name: "single object query",
+			ctxResource: Resource{
+				UserID:       "user1",
+				CalendarID:   "cal1",
+				ObjectID:     "event1",
+				ResourceType: storage.ResourceObject,
+				URI:          "/calendars/user1/cal1/event1.ics",
+			},
+			requestBody: `<?xml version="1.0" encoding="UTF-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT"/>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`,
+			setupMocks: func() {
+				// Create an object that will match the filter
+				// The component needs to be a VCALENDAR containing a VEVENT child
+				eventComp := ical.NewComponent(ical.CompEvent)
+				eventComp.Props.SetText("SUMMARY", "Test Event")
+
+				calComp := ical.NewComponent(ical.CompCalendar)
+				calComp.Children = append(calComp.Children, eventComp)
+
+				object := &storage.CalendarObject{
+					ETag:      "event1-etag",
+					Component: calComp,
+				}
+
+				mockStorage.On("GetObject", "user1", "cal1", "event1").Return(object, nil).Once()
+
+				// Make the EncodePath mock more flexible to match how handleCalendarQuery calls it
+				mockURL.On("EncodePath", mock.Anything).Return("/calendars/user1/cal1/event1.ics", nil).Maybe()
+			},
+			expectStatus: http.StatusMultiStatus,
+			expectResponseContains: []string{
+				"/calendars/user1/cal1/event1.ics",
+				"event1-etag",
+				"HTTP/1.1 200 OK",
+			},
+		},
+		{
+			name: "object doesn't match filter",
+			ctxResource: Resource{
+				UserID:       "user1",
+				CalendarID:   "cal1",
+				ObjectID:     "event2",
+				ResourceType: storage.ResourceObject,
+				URI:          "/calendars/user1/cal1/event2.ics",
+			},
+			requestBody: `<?xml version="1.0" encoding="UTF-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:prop-filter name="SUMMARY">
+          <C:text-match>DoesNotExist</C:text-match>
+        </C:prop-filter>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`,
+			setupMocks: func() {
+				// Create an object that won't match the filter
+				object := &storage.CalendarObject{
+					ETag: "event2-etag",
+					Component: &ical.Component{
+						Name: ical.CompEvent,
+						Props: ical.Props{
+							"SUMMARY": []ical.Prop{{Value: "DifferentSummary"}},
+						},
+					},
+				}
+				mockStorage.On("GetObject", "user1", "cal1", "event2").Return(object, nil).Once()
+			},
+			expectStatus: http.StatusNotFound,
+			expectResponseContains: []string{
+				"Object does not match filter",
+			},
+		},
+		{
+			name: "collection query with matching objects",
+			ctxResource: Resource{
+				UserID:       "user1",
+				CalendarID:   "cal1",
+				ResourceType: storage.ResourceCollection,
+				URI:          "/calendars/user1/cal1/",
+			},
+			requestBody: `<?xml version="1.0" encoding="UTF-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT"/>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`,
+			setupMocks: func() {
+				// Objects that match the filter
+				objects := []storage.CalendarObject{
+					{
+						ETag: "event1-etag",
+						Component: &ical.Component{
+							Name:  ical.CompEvent,
+							Props: make(ical.Props),
+						},
+					},
+				}
+				mockStorage.On("GetObjectByFilter", "user1", "cal1", mock.Anything).Return(objects, nil).Once()
+
+				// For collection header URLs
+				mockURL.On("EncodePath", mock.MatchedBy(func(res Resource) bool {
+					return res.ResourceType == storage.ResourceCollection
+				})).Return("/calendars/user1/cal1/", nil).Maybe()
+
+				// For object URLs in the collection
+				mockURL.On("EncodePath", mock.MatchedBy(func(res Resource) bool {
+					return res.ResourceType == storage.ResourceObject
+				})).Return("/calendars/user1/cal1/object.ics", nil).Maybe()
+			},
+			expectStatus: http.StatusMultiStatus,
+			expectResponseContains: []string{
+				"HTTP/1.1 200 OK",
+				"event1-etag",
+			},
+		},
+		{
+			name: "unsupported resource type",
+			ctxResource: Resource{
+				UserID:       "user1",
+				ResourceType: storage.ResourceHomeSet,
+				URI:          "/calendars/user1/",
+			},
+			requestBody: `<?xml version="1.0" encoding="UTF-8"?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT"/>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`,
+			setupMocks: func() {
+				// No mocks needed, should return error directly
+			},
+			expectStatus: http.StatusBadRequest,
+			expectResponseContains: []string{
+				"Unsupported resource type for calendar-query",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// reset mocks and logs
+			mockStorage.ExpectedCalls = nil
+			mockStorage.Calls = nil
+			mockURL.ExpectedCalls = nil
+			mockURL.Calls = nil
+			logOutput.Reset()
+
+			// Overwrite context
+			ctx := &RequestContext{Resource: tc.ctxResource}
+
+			tc.setupMocks()
+
+			req := httptest.NewRequest("REPORT", tc.ctxResource.URI, strings.NewReader(tc.requestBody))
+			req.Header.Set("Content-Type", "application/xml")
+			rr := httptest.NewRecorder()
+
+			h.handleCalendarQuery(rr, req, ctx)
+
+			// status code
+			assert.Equal(t, tc.expectStatus, rr.Code)
+
+			respBody := rr.Body.String()
+			t.Logf("Response for %s: %s", tc.name, respBody)
+
+			// Check all expected response content
+			for _, expected := range tc.expectResponseContains {
+				assert.Contains(t, respBody, expected, "Response should contain '%s'", expected)
+			}
+
+			// verify expectations
+			mockURL.AssertExpectations(t)
+			mockStorage.AssertExpectations(t)
+		})
+	}
 }
