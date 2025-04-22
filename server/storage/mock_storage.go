@@ -15,6 +15,12 @@ type MockStorage struct {
 // GetObjectsInCollection implements the Storage interface
 func (m *MockStorage) GetObjectsInCollection(calendarID string) ([]CalendarObject, error) {
 	args := m.Called(calendarID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]CalendarObject), args.Error(1)
 }
 
@@ -64,6 +70,11 @@ func (m *MockStorage) GetObject(userID, calendarID, objectID string) (*CalendarO
 		return nil, args.Error(1)
 	}
 	return obj, args.Error(1)
+}
+
+func (m *MockStorage) GetObjectByFilter(userID, calendarID string, filter *Filter) ([]CalendarObject, error) {
+	args := m.Called(userID, calendarID, filter)
+	return args.Get(0).([]CalendarObject), args.Error(1)
 }
 
 // --- Helper methods for creating test data ---

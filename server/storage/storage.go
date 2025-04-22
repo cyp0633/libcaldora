@@ -19,6 +19,8 @@ type Storage interface {
 	GetCalendar(userID, calendarID string) (*Calendar, error)
 	// GetObject finds a calendar object (VEVENT, VTODO, VJOURNAL, etc) by user id, calendar id and object id
 	GetObject(userID, calendarID, objectID string) (*CalendarObject, error)
+	// GetObjectByFilter finds calendar objects by user id, calendar id and filter
+	GetObjectByFilter(userID, calendarID string, filter *Filter) ([]CalendarObject, error)
 }
 
 // Calendar represents a CalDAV calendar collection.
