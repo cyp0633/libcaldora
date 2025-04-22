@@ -55,12 +55,15 @@ func ParseRequest(xmlStr string) (propfind.ResponseMap, []string) {
 		// Skip unknown properties
 	}
 
-	// Find all href elements
-	hrefElems := multigetElem.FindElements("href")
-	for _, hrefElem := range hrefElems {
-		// Extract the URI from the href element
-		href := hrefElem.Text()
-		hrefs = append(hrefs, href)
+	// Collect href elements directly under <calendar-multiget>
+	for _, elem := range multigetElem.ChildElements() {
+		tag := elem.Tag
+		if idx := strings.Index(tag, ":"); idx != -1 {
+			tag = tag[idx+1:]
+		}
+		if strings.ToLower(tag) == "href" {
+			hrefs = append(hrefs, elem.Text())
+		}
 	}
 
 	return propsMap, hrefs

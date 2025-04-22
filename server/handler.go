@@ -137,13 +137,6 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // These functions will be called by ServeHTTP based on the request method.
 // They currently just log and return a 501 Not Implemented status.
 
-func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
-	log.Printf("REPORT received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement REPORT logic (e.g., calendar-query, calendar-multiget) based on ctx.Resource.ResourceType and request body
-	http.Error(w, "Not Implemented: REPORT", http.StatusNotImplemented)
-}
-
 func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("PUT received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
