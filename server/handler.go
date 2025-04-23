@@ -137,18 +137,6 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // These functions will be called by ServeHTTP based on the request method.
 // They currently just log and return a 501 Not Implemented status.
 
-
-func (h *CaldavHandler) handleDelete(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
-	log.Printf("DELETE received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement DELETE logic (deleting calendars or objects) - valid for storage.ResourceCollection and storage.ResourceObject
-	if ctx.Resource.ResourceType != storage.ResourceCollection && ctx.Resource.ResourceType != storage.ResourceObject {
-		http.Error(w, "Method Not Allowed on this resource type", http.StatusMethodNotAllowed)
-		return
-	}
-	http.Error(w, "Not Implemented: DELETE", http.StatusNotImplemented)
-}
-
 func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("MKCALENDAR/MKCOL received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)

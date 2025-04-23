@@ -26,6 +26,8 @@ type Storage interface {
 	// UpdateObject updates a calendar object. If not existing, create one
 	// Should return the new ETag
 	UpdateObject(userID, calendarID string, object *CalendarObject) (etag string, err error)
+	// DeleteObject removes a calendar object.
+	DeleteObject(userID, calendarID, objectID string) error
 }
 
 // Calendar represents a CalDAV calendar collection.
