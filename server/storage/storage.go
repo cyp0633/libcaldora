@@ -36,21 +36,18 @@ type Calendar struct {
 	// Path is the unique URI path for this calendar resource.
 	// Example: "/alice/cal/work"
 	Path string
-
 	// CTag represents the calendar collection tag.
 	// It changes when the content (objects) of the calendar changes.
 	CTag string
-
 	// ETag represents the entity tag of the calendar properties.
 	// It changes when the calendar's own properties (like NAME, COLOR) change.
 	ETag string
-
 	// Component stores the underlying VCALENDAR data using go-ical.
 	// This holds properties like NAME, DESCRIPTION, COLOR etc.
 	CalendarData *ical.Calendar
-
-	// Add any other necessary metadata specific to your implementation,
-	// e.g., OwnerPrincipalPath string
+	// SupportedComponents lists the types of components supported by this calendar.
+	// e.g. "VEVENT", "VTODO", "VJOURNAL"
+	SupportedComponents []string
 }
 
 // CalendarObject represents an individual calendar resource like an event (VEVENT),

@@ -50,7 +50,7 @@ func ParseRequest(xmlStr string) (propfind.ResponseMap, []string) {
 		// Check if we have a struct for this property
 		if structPtr, exists := props.PropNameToStruct[localName]; exists {
 			// Add the property to the response map
-			propsMap[localName] = mo.Ok[props.PropertyEncoder](structPtr)
+			propsMap[localName] = mo.Ok(structPtr)
 		}
 		// Skip unknown properties
 	}
