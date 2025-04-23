@@ -18,6 +18,11 @@ func (p DisplayName) Encode() *etree.Element {
 	return elem
 }
 
+func (p *DisplayName) Decode(elem *etree.Element) error {
+	p.Value = elem.Text()
+	return nil
+}
+
 type Resourcetype struct {
 	// Primary resource type from storage package
 	Type ResourceType
@@ -83,6 +88,45 @@ func (p Resourcetype) Encode() *etree.Element {
 	return elem
 }
 
+func (p *Resourcetype) Decode(elem *etree.Element) error {
+	// Default to ResourceObject if not specified
+	p.Type = ResourceObject
+	p.ObjectType = ""
+
+	// Check for principal
+	if elem.FindElement("principal") != nil {
+		p.Type = ResourcePrincipal
+		return nil
+	}
+
+	// Check for collection
+	collElem := elem.FindElement("collection")
+	if collElem != nil {
+		// Check for calendar home set
+		if elem.FindElement("calendar-home-set") != nil {
+			p.Type = ResourceHomeSet
+			return nil
+		}
+
+		// Check for calendar collection
+		if elem.FindElement("calendar") != nil {
+			p.Type = ResourceCollection
+			return nil
+		}
+	}
+
+	// Handle object types (VEVENT, VTODO, etc.)
+	for _, child := range elem.ChildElements() {
+		if child.Tag == "vevent" || child.Tag == "vtodo" || child.Tag == "vjournal" ||
+			child.Tag == "freebusy" || child.Tag == "schedule-interaction" {
+			p.ObjectType = child.Tag
+			break
+		}
+	}
+
+	return nil
+}
+
 type GetEtag struct {
 	Value string
 }
@@ -91,6 +135,11 @@ func (p GetEtag) Encode() *etree.Element {
 	elem := createElement("getetag")
 	elem.SetText(p.Value)
 	return elem
+}
+
+func (p *GetEtag) Decode(elem *etree.Element) error {
+	p.Value = elem.Text()
+	return nil
 }
 
 type GetLastModified struct {
@@ -104,6 +153,19 @@ func (p GetLastModified) Encode() *etree.Element {
 	return elem
 }
 
+func (p *GetLastModified) Decode(elem *etree.Element) error {
+	t, err := time.Parse(time.RFC1123, elem.Text())
+	if err != nil {
+		// Try alternative formats if RFC1123 fails
+		t, err = time.Parse(time.RFC3339, elem.Text())
+		if err != nil {
+			return err
+		}
+	}
+	p.Value = t.UTC() // Convert to UTC to ensure consistent time zone
+	return nil
+}
+
 type GetContentType struct {
 	Value string
 }
@@ -112,6 +174,11 @@ func (p GetContentType) Encode() *etree.Element {
 	elem := createElement("getcontenttype")
 	elem.SetText(p.Value)
 	return elem
+}
+
+func (p *GetContentType) Decode(elem *etree.Element) error {
+	p.Value = elem.Text()
+	return nil
 }
 
 type Owner struct {
@@ -126,6 +193,14 @@ func (p Owner) Encode() *etree.Element {
 	return elem
 }
 
+func (p *Owner) Decode(elem *etree.Element) error {
+	href := elem.FindElement("href")
+	if href != nil {
+		p.Value = href.Text()
+	}
+	return nil
+}
+
 type CurrentUserPrincipal struct {
 	Value string
 }
@@ -138,6 +213,14 @@ func (p CurrentUserPrincipal) Encode() *etree.Element {
 	return elem
 }
 
+func (p *CurrentUserPrincipal) Decode(elem *etree.Element) error {
+	href := elem.FindElement("href")
+	if href != nil {
+		p.Value = href.Text()
+	}
+	return nil
+}
+
 type PrincipalURL struct {
 	Value string
 }
@@ -148,6 +231,14 @@ func (p PrincipalURL) Encode() *etree.Element {
 	elem.AddChild(hrefElem)
 	hrefElem.SetText(p.Value)
 	return elem
+}
+
+func (p *PrincipalURL) Decode(elem *etree.Element) error {
+	href := elem.FindElement("href")
+	if href != nil {
+		p.Value = href.Text()
+	}
+	return nil
 }
 
 type SupportedReportSet struct {
@@ -203,6 +294,44 @@ func (p SupportedReportSet) Encode() *etree.Element {
 	}
 
 	return elem
+}
+
+func (p *SupportedReportSet) Decode(elem *etree.Element) error {
+	p.Reports = []ReportType{}
+
+	// Find all supported-report elements
+	supportedReports := elem.FindElements("supported-report")
+	for _, sr := range supportedReports {
+		reportElem := sr.FindElement("report")
+		if reportElem == nil {
+			continue
+		}
+
+		// Check which report type is present
+		if reportElem.FindElement("propfind") != nil {
+			p.Reports = append(p.Reports, ReportTypePropfind)
+		}
+		if reportElem.FindElement("calendar-query") != nil {
+			p.Reports = append(p.Reports, ReportTypeCalendarQuery)
+		}
+		if reportElem.FindElement("calendar-multiget") != nil {
+			p.Reports = append(p.Reports, ReportTypeCalendarMultiget)
+		}
+		if reportElem.FindElement("free-busy-query") != nil {
+			p.Reports = append(p.Reports, ReportTypeFreebusyQuery)
+		}
+		if reportElem.FindElement("schedule-query") != nil {
+			p.Reports = append(p.Reports, ReportTypeScheduleQuery)
+		}
+		if reportElem.FindElement("schedule-multiget") != nil {
+			p.Reports = append(p.Reports, ReportTypeScheduleMultiget)
+		}
+		if reportElem.FindElement("search") != nil {
+			p.Reports = append(p.Reports, ReportTypeSearch)
+		}
+	}
+
+	return nil
 }
 
 type ACE struct {
@@ -262,6 +391,52 @@ func (p ACL) Encode() *etree.Element {
 	return elem
 }
 
+func (p *ACL) Decode(elem *etree.Element) error {
+	p.Aces = []ACE{}
+
+	aceElems := elem.FindElements("ace")
+	for _, aceElem := range aceElems {
+		ace := ACE{}
+
+		// Get principal
+		principalElem := aceElem.FindElement("principal")
+		if principalElem != nil {
+			hrefElem := principalElem.FindElement("href")
+			if hrefElem != nil {
+				ace.Principal = hrefElem.Text()
+			}
+		}
+
+		// Get grant privileges
+		grantElem := aceElem.FindElement("grant")
+		if grantElem != nil {
+			ace.Grant = []string{}
+			privElems := grantElem.FindElements("privilege")
+			for _, privElem := range privElems {
+				for _, child := range privElem.ChildElements() {
+					ace.Grant = append(ace.Grant, child.Tag)
+				}
+			}
+		}
+
+		// Get deny privileges
+		denyElem := aceElem.FindElement("deny")
+		if denyElem != nil {
+			ace.Deny = []string{}
+			privElems := denyElem.FindElements("privilege")
+			for _, privElem := range privElems {
+				for _, child := range privElem.ChildElements() {
+					ace.Deny = append(ace.Deny, child.Tag)
+				}
+			}
+		}
+
+		p.Aces = append(p.Aces, ace)
+	}
+
+	return nil
+}
+
 type CurrentUserPrivilegeSet struct {
 	Privileges []string
 }
@@ -280,6 +455,19 @@ func (p CurrentUserPrivilegeSet) Encode() *etree.Element {
 	return elem
 }
 
+func (p *CurrentUserPrivilegeSet) Decode(elem *etree.Element) error {
+	p.Privileges = []string{}
+
+	privElems := elem.FindElements("privilege")
+	for _, privElem := range privElems {
+		for _, child := range privElem.ChildElements() {
+			p.Privileges = append(p.Privileges, child.Tag)
+		}
+	}
+
+	return nil
+}
+
 type QuotaAvailableBytes struct {
 	Value int64
 }
@@ -290,6 +478,15 @@ func (p QuotaAvailableBytes) Encode() *etree.Element {
 	return elem
 }
 
+func (p *QuotaAvailableBytes) Decode(elem *etree.Element) error {
+	val, err := strconv.ParseInt(elem.Text(), 10, 64)
+	if err != nil {
+		return err
+	}
+	p.Value = val
+	return nil
+}
+
 type QuotaUsedBytes struct {
 	Value int64
 }
@@ -298,4 +495,13 @@ func (p QuotaUsedBytes) Encode() *etree.Element {
 	elem := createElement("quota-used-bytes")
 	elem.SetText(strconv.FormatInt(p.Value, 10))
 	return elem
+}
+
+func (p *QuotaUsedBytes) Decode(elem *etree.Element) error {
+	val, err := strconv.ParseInt(elem.Text(), 10, 64)
+	if err != nil {
+		return err
+	}
+	p.Value = val
+	return nil
 }

@@ -42,7 +42,7 @@ func TestEncodeFunctions(t *testing.T) {
 	// Test cases for each property type
 	tests := []struct {
 		name            string
-		property        PropertyEncoder
+		property        Property
 		expectedPrefix  string // Expected namespace prefix
 		expectedTag     string // Expected element tag (local name only)
 		expectedContent string // Expected content or specific element structure

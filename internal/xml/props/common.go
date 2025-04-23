@@ -2,9 +2,10 @@ package props
 
 import "github.com/beevik/etree"
 
-// PropertyEncoder interface for all property types
-type PropertyEncoder interface {
+// Property interface for all property types (use pointer!)
+type Property interface {
 	Encode() *etree.Element
+	Decode(element *etree.Element) error
 }
 
 // Namespace map for declaration (if needed by etree)
@@ -86,7 +87,7 @@ var PropPrefixMap = map[string]string{
 }
 
 // Reuse the property mapping from propfind
-var PropNameToStruct = map[string]PropertyEncoder{
+var PropNameToStruct = map[string]Property{
 	// WebDAV properties
 	"displayname":                new(DisplayName),
 	"resourcetype":               new(Resourcetype),
