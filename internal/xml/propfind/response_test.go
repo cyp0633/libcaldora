@@ -226,21 +226,21 @@ func TestParseRequest_AllProperties(t *testing.T) {
 func TestEncodeResponse(t *testing.T) {
 	tests := []struct {
 		name     string
-		props    map[string]mo.Result[props.PropertyEncoder]
+		props    map[string]mo.Result[props.Property]
 		href     string
 		expected func(t *testing.T, doc *etree.Document)
 	}{
 		{
 			name: "Mix of found and not found properties",
-			props: map[string]mo.Result[props.PropertyEncoder]{
-				"displayname": mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test Calendar"}),
-				"resourcetype": mo.Ok[props.PropertyEncoder](&props.Resourcetype{
+			props: map[string]mo.Result[props.Property]{
+				"displayname": mo.Ok[props.Property](&props.DisplayName{Value: "Test Calendar"}),
+				"resourcetype": mo.Ok[props.Property](&props.Resourcetype{
 					Type: props.ResourceCollection, // Updated to use new struct format
 				}),
-				"getetag":                mo.Err[props.PropertyEncoder](ErrNotFound),
-				"calendar-color":         mo.Err[props.PropertyEncoder](ErrNotFound),
-				"getcontenttype":         mo.Ok[props.PropertyEncoder](&props.GetContentType{Value: "text/calendar"}),
-				"current-user-principal": mo.Err[props.PropertyEncoder](ErrNotFound),
+				"getetag":                mo.Err[props.Property](ErrNotFound),
+				"calendar-color":         mo.Err[props.Property](ErrNotFound),
+				"getcontenttype":         mo.Ok[props.Property](&props.GetContentType{Value: "text/calendar"}),
+				"current-user-principal": mo.Err[props.Property](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -302,9 +302,9 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "All properties found",
-			props: map[string]mo.Result[props.PropertyEncoder]{
-				"displayname": mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test Calendar"}),
-				"getetag":     mo.Ok[props.PropertyEncoder](&props.GetEtag{Value: "\"etag12345\""}),
+			props: map[string]mo.Result[props.Property]{
+				"displayname": mo.Ok[props.Property](&props.DisplayName{Value: "Test Calendar"}),
+				"getetag":     mo.Ok[props.Property](&props.GetEtag{Value: "\"etag12345\""}),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -326,9 +326,9 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "All properties not found",
-			props: map[string]mo.Result[props.PropertyEncoder]{
-				"displayname": mo.Err[props.PropertyEncoder](ErrNotFound),
-				"getetag":     mo.Err[props.PropertyEncoder](ErrNotFound),
+			props: map[string]mo.Result[props.Property]{
+				"displayname": mo.Err[props.Property](ErrNotFound),
+				"getetag":     mo.Err[props.Property](ErrNotFound),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -347,7 +347,7 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name:  "Empty properties",
-			props: map[string]mo.Result[props.PropertyEncoder]{},
+			props: map[string]mo.Result[props.Property]{},
 			href:  "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
 				// Both propstat sections should be missing
@@ -368,14 +368,14 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "Complex CalDAV properties",
-			props: map[string]mo.Result[props.PropertyEncoder]{
-				"supported-calendar-component-set": mo.Ok[props.PropertyEncoder](&props.SupportedCalendarComponentSet{
+			props: map[string]mo.Result[props.Property]{
+				"supported-calendar-component-set": mo.Ok[props.Property](&props.SupportedCalendarComponentSet{
 					Components: []string{"VEVENT", "VTODO"},
 				}),
-				"calendar-user-address-set": mo.Ok[props.PropertyEncoder](&props.CalendarUserAddressSet{
+				"calendar-user-address-set": mo.Ok[props.Property](&props.CalendarUserAddressSet{
 					Addresses: []string{"mailto:user1@example.com", "mailto:user.one@example.org"},
 				}),
-				"current-user-privilege-set": mo.Ok[props.PropertyEncoder](&props.CurrentUserPrivilegeSet{
+				"current-user-privilege-set": mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{
 					Privileges: []string{"read", "write", "read-acl"},
 				}),
 			},
@@ -412,12 +412,12 @@ func TestEncodeResponse(t *testing.T) {
 		},
 		{
 			name: "Mixed error types",
-			props: map[string]mo.Result[props.PropertyEncoder]{
-				"displayname":            mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test Calendar"}),
-				"getetag":                mo.Err[props.PropertyEncoder](ErrNotFound),
-				"current-user-principal": mo.Err[props.PropertyEncoder](ErrForbidden),
-				"resourcetype":           mo.Err[props.PropertyEncoder](ErrInternal),
-				"getcontenttype":         mo.Err[props.PropertyEncoder](ErrBadRequest),
+			props: map[string]mo.Result[props.Property]{
+				"displayname":            mo.Ok[props.Property](&props.DisplayName{Value: "Test Calendar"}),
+				"getetag":                mo.Err[props.Property](ErrNotFound),
+				"current-user-principal": mo.Err[props.Property](ErrForbidden),
+				"resourcetype":           mo.Err[props.Property](ErrInternal),
+				"getcontenttype":         mo.Err[props.Property](ErrBadRequest),
 			},
 			href: "/calendars/user1/calendar1/",
 			expected: func(t *testing.T, doc *etree.Document) {
@@ -469,8 +469,8 @@ func TestEncodeResponse(t *testing.T) {
 
 func TestEncodeResponseHref(t *testing.T) {
 	// Test that the href parameter is properly used
-	props := map[string]mo.Result[props.PropertyEncoder]{
-		"displayname": mo.Ok[props.PropertyEncoder](&props.DisplayName{Value: "Test"}),
+	props := map[string]mo.Result[props.Property]{
+		"displayname": mo.Ok[props.Property](&props.DisplayName{Value: "Test"}),
 	}
 
 	customHref := "/custom/path/to/resource/"

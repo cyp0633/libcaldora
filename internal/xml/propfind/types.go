@@ -7,7 +7,7 @@ import (
 	"github.com/samber/mo"
 )
 
-type ResponseMap map[string]mo.Result[props.PropertyEncoder]
+type ResponseMap map[string]mo.Result[props.Property]
 
 type RequestType int
 

@@ -117,12 +117,12 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 	for key := range req {
 		switch key {
 		case "displayname":
-			req[key] = mo.Ok[props.PropertyEncoder](props.DisplayName{Value: "Calendar Home"})
+			req[key] = mo.Ok[props.Property](&props.DisplayName{Value: "Calendar Home"})
 		case "resourcetype":
-			req[key] = mo.Ok[props.PropertyEncoder](props.Resourcetype{Type: props.ResourceHomeSet})
+			req[key] = mo.Ok[props.Property](&props.Resourcetype{Type: props.ResourceHomeSet})
 		case "owner":
 			if err != nil {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				resource := Resource{
 					UserID:       res.UserID,
@@ -131,14 +131,14 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
 					log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
-				req[key] = mo.Ok[props.PropertyEncoder](props.Owner{Value: encodedPath})
+				req[key] = mo.Ok[props.Property](&props.Owner{Value: encodedPath})
 			}
 		case "current-user-principal":
 			if err != nil {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				resource := Resource{
 					UserID:       res.UserID,
@@ -147,10 +147,10 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
 					log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
-				req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrincipal{Value: encodedPath})
+				req[key] = mo.Ok[props.Property](&props.CurrentUserPrincipal{Value: encodedPath})
 			}
 		case "principal-url":
 			res := Resource{
@@ -160,12 +160,12 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 			encodedPath, err := h.URLConverter.EncodePath(res)
 			if err != nil {
 				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.PrincipalURL{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.PrincipalURL{Value: encodedPath})
 		case "supported-report-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedReportSet{Reports: []props.ReportType{}})
+			req[key] = mo.Ok[props.Property](&props.SupportedReportSet{Reports: []props.ReportType{}})
 		case "acl":
 			res := Resource{
 				UserID:       res.UserID,
@@ -174,7 +174,7 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 			principalPath, err := h.URLConverter.EncodePath(res)
 			if err != nil {
 				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
 			ace := props.ACE{
@@ -183,37 +183,37 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 				Deny:      []string{},
 			}
 			acl := props.ACL{Aces: []props.ACE{ace}}
-			req[key] = mo.Ok[props.PropertyEncoder](acl)
+			req[key] = mo.Ok[props.Property](&acl)
 		case "current-user-privilege-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
 		case "supported-calendar-data":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedCalendarData{
+			req[key] = mo.Ok[props.Property](&props.SupportedCalendarData{
 				ContentType: "icalendar",
 				Version:     "2.0",
 			})
 		case "max-resource-size":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxResourceSize{Value: 10485760})
+			req[key] = mo.Ok[props.Property](&props.MaxResourceSize{Value: 10485760})
 		case "min-date-time":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MinDateTime{Value: time.Unix(0, 0).UTC()})
+			req[key] = mo.Ok[props.Property](&props.MinDateTime{Value: time.Unix(0, 0).UTC()})
 		case "max-date-time":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)})
+			req[key] = mo.Ok[props.Property](&props.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)})
 		case "max-instances":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxInstances{Value: 100000})
+			req[key] = mo.Ok[props.Property](&props.MaxInstances{Value: 100000})
 		case "max-attendees-per-instance":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxAttendeesPerInstance{Value: 100})
+			req[key] = mo.Ok[props.Property](&props.MaxAttendeesPerInstance{Value: 100})
 		case "calendar-home-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarHomeSet{Href: path})
+			req[key] = mo.Ok[props.Property](&props.CalendarHomeSet{Href: path})
 		case "calendar-user-address-set":
 			user, err = getUser()
 			if err == nil && user != nil && user.UserAddress != "" {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
+				req[key] = mo.Ok[props.Property](&props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
 			} else {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound) // fallback to default if no user found
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound) // fallback to default if no user found
 			}
 		case "calendar-user-type":
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserType{Value: "individual"})
+			req[key] = mo.Ok[props.Property](&props.CalendarUserType{Value: "individual"})
 		default:
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		}
 	}
 	return propfind.EncodeResponse(req, path), nil
@@ -242,15 +242,15 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 		switch key {
 		case "displayname":
 			if user.DisplayName != "" {
-				req[key] = mo.Ok[props.PropertyEncoder](props.DisplayName{Value: user.DisplayName})
+				req[key] = mo.Ok[props.Property](&props.DisplayName{Value: user.DisplayName})
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.DisplayName{Value: res.UserID}) // fallback to UserID if DisplayName is empty
+				req[key] = mo.Ok[props.Property](&props.DisplayName{Value: res.UserID}) // fallback to UserID if DisplayName is empty
 			}
 		case "resourcetype":
-			req[key] = mo.Ok[props.PropertyEncoder](props.Resourcetype{Type: props.ResourcePrincipal})
+			req[key] = mo.Ok[props.Property](&props.Resourcetype{Type: props.ResourcePrincipal})
 		case "getcontenttype":
 			// No file, on purpose
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "owner":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -259,10 +259,10 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.Owner{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.Owner{Value: encodedPath})
 		case "current-user-principal":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -271,14 +271,14 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrincipal{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrincipal{Value: encodedPath})
 		case "principal-url":
-			req[key] = mo.Ok[props.PropertyEncoder](props.PrincipalURL{Value: path})
+			req[key] = mo.Ok[props.Property](&props.PrincipalURL{Value: path})
 		case "supported-report-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedReportSet{Reports: []props.ReportType{}})
+			req[key] = mo.Ok[props.Property](&props.SupportedReportSet{Reports: []props.ReportType{}})
 		case "acl":
 			// For now, return a simple ACL with read/write for the principal itself
 			ace := props.ACE{
@@ -287,10 +287,10 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 				Deny:      []string{},
 			}
 			acl := props.ACL{Aces: []props.ACE{ace}}
-			req[key] = mo.Ok[props.PropertyEncoder](acl)
+			req[key] = mo.Ok[props.Property](&acl)
 		case "current-user-privilege-set":
 			// Return a simple privilege set for the principal
-			req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
 		case "calendar-home-set":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -299,47 +299,47 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode calendar home set for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarHomeSet{Href: homeSetPath})
+			req[key] = mo.Ok[props.Property](&props.CalendarHomeSet{Href: homeSetPath})
 		case "schedule-inbox-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "schedule-outbox-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "schedule-default-calendar-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "calendar-user-address-set":
 			if user.UserAddress == "" {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
+				req[key] = mo.Ok[props.Property](&props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
 			}
 		case "calendar-user-type":
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserType{Value: "individual"})
+			req[key] = mo.Ok[props.Property](&props.CalendarUserType{Value: "individual"})
 		case "calendar-color", "color":
 			if user.PreferredColor == "" {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarColor{Value: user.PreferredColor})
+				req[key] = mo.Ok[props.Property](&props.CalendarColor{Value: user.PreferredColor})
 			}
 		case "timezone":
 			if user.PreferredTimezone == "" {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.Timezone{Value: user.PreferredTimezone})
+				req[key] = mo.Ok[props.Property](&props.Timezone{Value: user.PreferredTimezone})
 			}
 		case "hidden":
 			// default to false
-			req[key] = mo.Ok[props.PropertyEncoder](props.Hidden{Value: false})
+			req[key] = mo.Ok[props.Property](&props.Hidden{Value: false})
 		case "selected":
 			// default to true
-			req[key] = mo.Ok[props.PropertyEncoder](props.Selected{Value: true})
+			req[key] = mo.Ok[props.Property](&props.Selected{Value: true})
 		default:
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		}
 	}
 	return propfind.EncodeResponse(req, path), nil
@@ -382,28 +382,28 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			name, err := object.Component.Props.Text(ical.PropName)
 			if err != nil {
 				log.Printf("Failed to get display name for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.DisplayName{Value: name})
+				req[key] = mo.Ok[props.Property](&props.DisplayName{Value: name})
 			}
 		case "resourcetype":
-			req[key] = mo.Ok[props.PropertyEncoder](props.Resourcetype{Type: props.ResourceObject, ObjectType: object.Component.Name})
+			req[key] = mo.Ok[props.Property](&props.Resourcetype{Type: props.ResourceObject, ObjectType: object.Component.Name})
 		case "getetag":
 			if object.ETag != "" {
-				req[key] = mo.Ok[props.PropertyEncoder](props.GetEtag{Value: object.ETag})
+				req[key] = mo.Ok[props.Property](&props.GetEtag{Value: object.ETag})
 			} else {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			}
 		case "getlastmodified":
 			lastModified, err := object.Component.Props.DateTime(ical.PropLastModified, nil)
 			if err != nil {
 				log.Printf("Failed to get last modified date for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.GetLastModified{Value: lastModified})
+				req[key] = mo.Ok[props.Property](&props.GetLastModified{Value: lastModified})
 			}
 		case "getcontenttype":
-			req[key] = mo.Ok[props.PropertyEncoder](props.GetContentType{Value: "text/calendar"})
+			req[key] = mo.Ok[props.Property](&props.GetContentType{Value: "text/calendar"})
 		case "owner":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -412,10 +412,10 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.Owner{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.Owner{Value: encodedPath})
 		case "current-user-principal":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -424,10 +424,10 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrincipal{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrincipal{Value: encodedPath})
 		case "principal-url":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -436,12 +436,12 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.PrincipalURL{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.PrincipalURL{Value: encodedPath})
 		case "supported-report-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedReportSet{Reports: []props.ReportType{}})
+			req[key] = mo.Ok[props.Property](&props.SupportedReportSet{Reports: []props.ReportType{}})
 		case "acl":
 			// For now, return a simple ACL with read/write for the principal itself
 			ace := props.ACE{
@@ -450,29 +450,29 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 				Deny:      []string{},
 			}
 			acl := props.ACL{Aces: []props.ACE{ace}}
-			req[key] = mo.Ok[props.PropertyEncoder](acl)
+			req[key] = mo.Ok[props.Property](&acl)
 		case "current-user-privilege-set":
 			// Return a simple privilege set for the principal
-			req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
 		case "calendar-description":
 			if calendar == nil {
 				calendar, err = h.Storage.GetCalendar(res.UserID, res.CalendarID)
 				if err != nil {
 					log.Printf("Failed to get calendar for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if calendar == nil || calendar.CalendarData == nil {
 					log.Printf("No calendar found for resource %s", res)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
 				description, err := calendar.CalendarData.Props.Text(ical.PropDescription)
 				if err != nil {
 					log.Printf("Failed to get calendar description for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				} else {
-					req[key] = mo.Ok[props.PropertyEncoder](props.CalendarDescription{Value: description})
+					req[key] = mo.Ok[props.Property](&props.CalendarDescription{Value: description})
 				}
 			}
 		case "calendar-timezone", "timezone":
@@ -480,45 +480,45 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 				calendar, err = h.Storage.GetCalendar(res.UserID, res.CalendarID)
 				if err != nil {
 					log.Printf("Failed to get calendar for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if calendar == nil || calendar.CalendarData == nil {
 					log.Printf("No calendar found for resource %s", res)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
 				timezone, err := calendar.CalendarData.Component.Props.Text(ical.PropTimezoneID)
 				if err != nil {
 					log.Printf("Failed to get timezone from calendar data for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				} else {
-					req[key] = mo.Ok[props.PropertyEncoder](props.CalendarTimezone{Value: timezone})
+					req[key] = mo.Ok[props.Property](&props.CalendarTimezone{Value: timezone})
 				}
 			}
 		case "calendar-data":
 			ics, err := storage.ICalCompToICS(*object.Component, false)
 			if err != nil {
 				log.Printf("Failed to convert calendar component to ICS for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarData{ICal: ics})
+				req[key] = mo.Ok[props.Property](&props.CalendarData{ICal: ics})
 			}
 		case "supported-calendar-data":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedCalendarData{
+			req[key] = mo.Ok[props.Property](&props.SupportedCalendarData{
 				ContentType: "text/calendar",
 				Version:     "2.0",
 			})
 		case "max-resource-size":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxResourceSize{Value: 10485760})
+			req[key] = mo.Ok[props.Property](&props.MaxResourceSize{Value: 10485760})
 		case "min-date-time":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MinDateTime{Value: time.Unix(0, 0).UTC()})
+			req[key] = mo.Ok[props.Property](&props.MinDateTime{Value: time.Unix(0, 0).UTC()})
 		case "max-date-time":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)})
+			req[key] = mo.Ok[props.Property](&props.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)})
 		case "max-instances":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxInstances{Value: 100000})
+			req[key] = mo.Ok[props.Property](&props.MaxInstances{Value: 100000})
 		case "max-attendees-per-instance":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxAttendeesPerInstance{Value: 100})
+			req[key] = mo.Ok[props.Property](&props.MaxAttendeesPerInstance{Value: 100})
 		case "calendar-home-set":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -527,67 +527,67 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode calendar home set for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarHomeSet{Href: homeSetPath})
+			req[key] = mo.Ok[props.Property](&props.CalendarHomeSet{Href: homeSetPath})
 		case "schedule-inbox-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "schedule-outbox-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "schedule-default-calendar-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "calendar-user-address-set":
 			if user == nil {
 				user, err = h.Storage.GetUser(res.UserID)
 				if err != nil {
 					log.Printf("Failed to get user for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if user == nil || user.UserAddress == "" {
 					log.Printf("No user found for resource %s", res)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
 				if user.UserAddress == "" {
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				} else {
-					req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
+					req[key] = mo.Ok[props.Property](&props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
 				}
 			}
 		case "calendar-user-type":
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserType{Value: "individual"})
+			req[key] = mo.Ok[props.Property](&props.CalendarUserType{Value: "individual"})
 		case "calendar-color", "color":
 			if user == nil {
 				user, err = h.Storage.GetUser(res.UserID)
 				if err != nil {
 					log.Printf("Failed to get user for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if user == nil || user.PreferredColor == "" {
 					log.Printf("No user found for resource %s", res)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
 				if user.PreferredColor == "" {
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				} else {
-					req[key] = mo.Ok[props.PropertyEncoder](props.CalendarColor{Value: user.PreferredColor})
+					req[key] = mo.Ok[props.Property](&props.CalendarColor{Value: user.PreferredColor})
 				}
 			}
 		case "hidden":
 			// default to false
-			req[key] = mo.Ok[props.PropertyEncoder](props.Hidden{Value: false})
+			req[key] = mo.Ok[props.Property](&props.Hidden{Value: false})
 		case "selected":
 			// default to true
-			req[key] = mo.Ok[props.PropertyEncoder](props.Selected{Value: true})
+			req[key] = mo.Ok[props.Property](&props.Selected{Value: true})
 		default:
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		}
 	}
 	return propfind.EncodeResponse(req, res.URI), nil
@@ -615,32 +615,32 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 		case "displayname":
 			name, err := calendar.CalendarData.Props.Text(ical.PropName)
 			if err != nil {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.DisplayName{Value: name})
+				req[key] = mo.Ok[props.Property](&props.DisplayName{Value: name})
 			}
 		case "resourcetype":
-			req[key] = mo.Ok[props.PropertyEncoder](props.Resourcetype{Type: props.ResourceCollection})
+			req[key] = mo.Ok[props.Property](&props.Resourcetype{Type: props.ResourceCollection})
 		case "getetag":
 			if calendar.ETag != "" {
-				req[key] = mo.Ok[props.PropertyEncoder](props.GetEtag{Value: calendar.ETag})
+				req[key] = mo.Ok[props.Property](&props.GetEtag{Value: calendar.ETag})
 			} else {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			}
 		case "getlastmodified":
 			lastModified, err := calendar.CalendarData.Props.DateTime(ical.PropLastModified, nil)
 			if err != nil {
 				log.Printf("Failed to get last modified date for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.GetLastModified{Value: lastModified})
+				req[key] = mo.Ok[props.Property](&props.GetLastModified{Value: lastModified})
 			}
 		case "getcontenttype":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "owner":
 			if err != nil {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				resource := Resource{
 					UserID:       res.UserID,
@@ -649,14 +649,14 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
 					log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
-				req[key] = mo.Ok[props.PropertyEncoder](props.Owner{Value: encodedPath})
+				req[key] = mo.Ok[props.Property](&props.Owner{Value: encodedPath})
 			}
 		case "current-user-principal":
 			if err != nil {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				resource := Resource{
 					UserID:       res.UserID,
@@ -665,10 +665,10 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
 					log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
-				req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrincipal{Value: encodedPath})
+				req[key] = mo.Ok[props.Property](&props.CurrentUserPrincipal{Value: encodedPath})
 			}
 		case "principal-url":
 			resource := Resource{
@@ -678,12 +678,12 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.PrincipalURL{Value: encodedPath})
+			req[key] = mo.Ok[props.Property](&props.PrincipalURL{Value: encodedPath})
 		case "supported-report-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedReportSet{Reports: []props.ReportType{}})
+			req[key] = mo.Ok[props.Property](&props.SupportedReportSet{Reports: []props.ReportType{}})
 		case "acl":
 			// For now, return a simple ACL with read/write for the principal itself
 			ace := props.ACE{
@@ -692,42 +692,46 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 				Deny:      []string{},
 			}
 			acl := props.ACL{Aces: []props.ACE{ace}}
-			req[key] = mo.Ok[props.PropertyEncoder](acl)
+			req[key] = mo.Ok[props.Property](&acl)
 		case "current-user-privilege-set":
 			// Return a simple privilege set for the principal
-			req[key] = mo.Ok[props.PropertyEncoder](props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
 		case "calendar-description":
 			description, err := calendar.CalendarData.Props.Text(ical.PropDescription)
 			if err != nil {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarDescription{Value: description})
+				req[key] = mo.Ok[props.Property](&props.CalendarDescription{Value: description})
 			}
 		case "calendar-timezone", "timezone":
 			timezone, err := calendar.CalendarData.Component.Props.Text(ical.PropTimezoneID)
 			if err != nil {
 				log.Printf("Failed to get timezone from calendar data for resource %s: %v", path, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarTimezone{Value: timezone})
+				req[key] = mo.Ok[props.Property](&props.CalendarTimezone{Value: timezone})
 			}
 		case "supported-calendar-component-set":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedCalendarComponentSet{Components: []string{"VEVENT"}})
+			if len(calendar.SupportedComponents) == 0 {
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
+			} else {
+				req[key] = mo.Ok[props.Property](&props.SupportedCalendarComponentSet{Components: calendar.SupportedComponents})
+			}
 		case "supported-calendar-data":
-			req[key] = mo.Ok[props.PropertyEncoder](props.SupportedCalendarData{
+			req[key] = mo.Ok[props.Property](&props.SupportedCalendarData{
 				ContentType: "icalendar",
 				Version:     "2.0",
 			})
 		case "max-resource-size":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxResourceSize{Value: 10485760}) // 10MB limit for calendar objects
+			req[key] = mo.Ok[props.Property](&props.MaxResourceSize{Value: 10485760}) // 10MB limit for calendar objects
 		case "min-date-time":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MinDateTime{Value: time.Unix(0, 0).UTC()}) // Minimum date-time for calendar objects
+			req[key] = mo.Ok[props.Property](&props.MinDateTime{Value: time.Unix(0, 0).UTC()}) // Minimum date-time for calendar objects
 		case "max-date-time":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)}) // Maximum date-time for calendar objects
+			req[key] = mo.Ok[props.Property](&props.MaxDateTime{Value: time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)}) // Maximum date-time for calendar objects
 		case "max-instances":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxInstances{Value: 100000}) // Allow up to 100000 instances in recurrence
+			req[key] = mo.Ok[props.Property](&props.MaxInstances{Value: 100000}) // Allow up to 100000 instances in recurrence
 		case "max-attendees-per-instance":
-			req[key] = mo.Ok[props.PropertyEncoder](props.MaxAttendeesPerInstance{Value: 100}) // Allow up to 100 attendees per instance
+			req[key] = mo.Ok[props.Property](&props.MaxAttendeesPerInstance{Value: 100}) // Allow up to 100 attendees per instance
 		case "calendar-home-set":
 			resource := Resource{
 				UserID:       res.UserID,
@@ -736,51 +740,51 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
 				log.Printf("Failed to encode calendar home set for resource %s: %v", res, err)
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarHomeSet{Href: homeSetPath})
+			req[key] = mo.Ok[props.Property](&props.CalendarHomeSet{Href: homeSetPath})
 		case "schedule-inbox-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "schedule-outbox-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "schedule-default-calendar-url":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "calendar-user-address-set":
 			if user == nil {
 				user, err = h.Storage.GetUser(res.UserID)
 				if err != nil {
 					log.Printf("Failed to get user for resource %s: %v", res, err)
-					req[key] = mo.Err[props.PropertyEncoder](propfind.ErrInternal)
+					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 			}
 			if user.UserAddress == "" {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
+				req[key] = mo.Ok[props.Property](&props.CalendarUserAddressSet{Addresses: []string{user.UserAddress}})
 			}
 		case "calendar-user-type":
-			req[key] = mo.Ok[props.PropertyEncoder](props.CalendarUserType{Value: "individual"}) // Default to individual for calendar-user-type
+			req[key] = mo.Ok[props.Property](&props.CalendarUserType{Value: "individual"}) // Default to individual for calendar-user-type
 		case "calendar-color", "color":
 			color, err := calendar.CalendarData.Props.Text(ical.PropColor)
 			if err != nil || color == "" {
-				req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
-				req[key] = mo.Ok[props.PropertyEncoder](props.CalendarColor{Value: color})
+				req[key] = mo.Ok[props.Property](&props.CalendarColor{Value: color})
 			}
 		case "calendar-proxy-read-for", "calendar-proxy-write-for":
 			// TODO
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound)
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		case "hidden":
-			req[key] = mo.Ok[props.PropertyEncoder](props.Hidden{Value: false}) // Default to false for hidden property
+			req[key] = mo.Ok[props.Property](&props.Hidden{Value: false}) // Default to false for hidden property
 		case "selected":
-			req[key] = mo.Ok[props.PropertyEncoder](props.Selected{Value: true}) // Default to true for selected property
+			req[key] = mo.Ok[props.Property](&props.Selected{Value: true}) // Default to true for selected property
 		default:
-			req[key] = mo.Err[props.PropertyEncoder](propfind.ErrNotFound) // Default case for unsupported properties
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound) // Default case for unsupported properties
 		}
 	}
 

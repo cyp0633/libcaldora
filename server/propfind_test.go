@@ -56,10 +56,10 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with some basic properties using mo.Ok instead of mo.None
 		req := propfind.ResponseMap{
-			"displayname":                      mo.Ok[props.PropertyEncoder](nil),
-			"calendar-home-set":                mo.Ok[props.PropertyEncoder](nil),
-			"supported-calendar-component-set": mo.Ok[props.PropertyEncoder](nil),
-			"calendar-user-type":               mo.Ok[props.PropertyEncoder](nil),
+			"displayname":                      mo.Ok[props.Property](nil),
+			"calendar-home-set":                mo.Ok[props.Property](nil),
+			"supported-calendar-component-set": mo.Ok[props.Property](nil),
+			"calendar-user-type":               mo.Ok[props.Property](nil),
 		}
 
 		// Call function
@@ -108,7 +108,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with principal-url property
 		req := propfind.ResponseMap{
-			"principal-url": mo.Ok[props.PropertyEncoder](nil),
+			"principal-url": mo.Ok[props.Property](nil),
 		}
 
 		// Call function
@@ -140,7 +140,7 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with acl property
 		req := propfind.ResponseMap{
-			"acl": mo.Ok[props.PropertyEncoder](nil),
+			"acl": mo.Ok[props.Property](nil),
 		}
 
 		// Call function
@@ -179,11 +179,11 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 
 		// Create request map with calendar limits properties
 		req := propfind.ResponseMap{
-			"max-resource-size":          mo.Ok[props.PropertyEncoder](nil),
-			"min-date-time":              mo.Ok[props.PropertyEncoder](nil),
-			"max-date-time":              mo.Ok[props.PropertyEncoder](nil),
-			"max-instances":              mo.Ok[props.PropertyEncoder](nil),
-			"max-attendees-per-instance": mo.Ok[props.PropertyEncoder](nil),
+			"max-resource-size":          mo.Ok[props.Property](nil),
+			"min-date-time":              mo.Ok[props.Property](nil),
+			"max-date-time":              mo.Ok[props.Property](nil),
+			"max-instances":              mo.Ok[props.Property](nil),
+			"max-attendees-per-instance": mo.Ok[props.Property](nil),
 		}
 
 		// Call function
