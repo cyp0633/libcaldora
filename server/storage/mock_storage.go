@@ -77,6 +77,11 @@ func (m *MockStorage) GetObjectByFilter(userID, calendarID string, filter *Filte
 	return args.Get(0).([]CalendarObject), args.Error(1)
 }
 
+func (m *MockStorage) UpdateObject(userID, calendarID string, obj *CalendarObject) (string, error) {
+	args := m.Called(userID, calendarID, obj)
+	return args.String(0), args.Error(1)
+}
+
 // --- Helper methods for creating test data ---
 
 // NewMockCalendar creates a test Calendar with basic properties

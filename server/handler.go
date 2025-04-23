@@ -137,16 +137,6 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // These functions will be called by ServeHTTP based on the request method.
 // They currently just log and return a 501 Not Implemented status.
 
-func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
-	log.Printf("PUT received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	// TODO: Implement PUT logic (creating/updating calendar objects) - only valid for storage.ResourceObject
-	if ctx.Resource.ResourceType != storage.ResourceObject {
-		http.Error(w, "Method Not Allowed on this resource type", http.StatusMethodNotAllowed)
-		return
-	}
-	http.Error(w, "Not Implemented: PUT", http.StatusNotImplemented)
-}
 
 func (h *CaldavHandler) handleDelete(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	log.Printf("DELETE received for %s (User: %s, Calendar: %s, Object: %s)",
