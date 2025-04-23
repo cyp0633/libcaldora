@@ -1,6 +1,7 @@
 package mkcalendar
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 
@@ -20,14 +21,19 @@ func ParseRequest(xmlStr string) (map[string]props.Property, error) {
 
 	mk := doc.FindElement("//mkcalendar")
 	if mk == nil {
-		return result, nil
+		// no top‐level mkcalendar → still no properties (could be error if you prefer)
+		return result, errors.New("invalid MKCALENDAR request: missing mkcalendar element")
 	}
+
 	set := mk.FindElement("set")
 	if set == nil {
+		// per tests, missing <set> just yields empty map, no error
 		return result, nil
 	}
+
 	prop := set.FindElement("prop")
 	if prop == nil {
+		// per tests, missing <prop> just yields empty map, no error
 		return result, nil
 	}
 
@@ -40,9 +46,7 @@ func ParseRequest(xmlStr string) (map[string]props.Property, error) {
 		}
 		local = strings.ToLower(local)
 
-		// lookup prototype
 		if proto, ok := props.PropNameToStruct[local]; ok {
-			// clone via reflect
 			t := reflect.TypeOf(proto).Elem()
 			inst := reflect.New(t).Interface().(props.Property)
 			if err := inst.Decode(e); err == nil {

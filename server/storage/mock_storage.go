@@ -87,6 +87,11 @@ func (m *MockStorage) DeleteObject(userID, calendarID, objectID string) error {
 	return args.Error(0)
 }
 
+func (m *MockStorage) CreateCalendar(userID string, calendar *Calendar) error {
+	args := m.Called(userID, calendar)
+	return args.Error(0)
+}
+
 // --- Helper methods for creating test data ---
 
 // NewMockCalendar creates a test Calendar with basic properties

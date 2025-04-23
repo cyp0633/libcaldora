@@ -28,6 +28,9 @@ type Storage interface {
 	UpdateObject(userID, calendarID string, object *CalendarObject) (etag string, err error)
 	// DeleteObject removes a calendar object.
 	DeleteObject(userID, calendarID, objectID string) error
+	// CreateCalendar creates a new calendar collection.
+	// Implementation should set the etag and path inside the Calendar struct.
+	CreateCalendar(userID string, calendar *Calendar) error
 }
 
 // Calendar represents a CalDAV calendar collection.
