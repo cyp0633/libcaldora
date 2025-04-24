@@ -37,10 +37,10 @@ type defaultURLConverter struct {
 }
 
 func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
+	resource := Resource{ResourceType: storage.ResourceUnknown, URI: path}
+
 	// Strip the prefix if present
 	path = strings.TrimPrefix(path, c.Prefix)
-
-	resource := Resource{ResourceType: storage.ResourceUnknown}
 	parts := strings.Split(path, "/")
 
 	// Filter out empty segments caused by leading/trailing/double slashes
@@ -100,7 +100,6 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 		return resource, fmt.Errorf("invalid path: too many segments (%d)", numSegments)
 	}
 
-	resource.URI = path
 	return resource, nil
 }
 
