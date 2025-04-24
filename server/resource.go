@@ -125,6 +125,9 @@ func (c defaultURLConverter) EncodePath(resource Resource) (string, error) {
 		}
 		return "/" + resource.UserID + "/cal/" + resource.CalendarID + "/" + resource.ObjectID, nil
 
+	case storage.ResourceServiceRoot:
+		return "/", nil
+
 	default:
 		return "", fmt.Errorf("invalid resource type: %s", resource.ResourceType.String())
 	}
