@@ -54,6 +54,7 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 		case storage.ResourceObject:
 			doc, err = h.handlePropfindObject(req, ctx1.Resource)
 		case storage.ResourceServiceRoot:
+			ctx1.Resource.UserID = ctx.AuthUser // Just a workaround
 			doc, err = h.handlePropfindServiceRoot(req, ctx1.Resource)
 		default:
 			log.Printf("Unknown resource type %d for resource %s", resource.ResourceType, resource)
@@ -805,6 +806,8 @@ func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res 
 	}
 	for key := range req {
 		switch key {
+		case "displayname":
+			req[key] = mo.Ok[props.Property](&props.DisplayName{Value: "CalDAV Service Root"})
 		case "current-user-principal":
 			principalResource := Resource{
 				UserID:       res.UserID,
@@ -817,6 +820,8 @@ func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res 
 				continue
 			}
 			req[key] = mo.Ok[props.Property](&props.CurrentUserPrincipal{Value: encodedPath})
+		case "current-user-privilege-set":
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: []string{"read", "read-acl", "read-current-user-privilege-set"}})
 		case "principal-url":
 			principalResource := Resource{
 				UserID:       res.UserID,
@@ -829,6 +834,18 @@ func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res 
 				continue
 			}
 			req[key] = mo.Ok[props.Property](&props.PrincipalURL{Value: encodedPath})
+		case "calendar-home-set":
+			homeSetResource := Resource{
+				UserID:       res.UserID,
+				ResourceType: storage.ResourceHomeSet,
+			}
+			encodedPath, err := h.URLConverter.EncodePath(homeSetResource)
+			if err != nil {
+				log.Printf("Failed to encode calendar home set URL for resource %s: %v", res, err)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
+				continue
+			}
+			req[key] = mo.Ok[props.Property](&props.CalendarHomeSet{Href: encodedPath})
 		default:
 			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 		}

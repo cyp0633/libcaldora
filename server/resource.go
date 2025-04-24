@@ -15,6 +15,8 @@ import (
 // A resource should be able to find its parent from its path. For example, /<userid>/cal/<calendarid>/<objectid> belongs to
 // user <userid> and calendar <calendarid>. Please consider including all those information in your URI, or you might
 // encounter excessive overhead looking for parent resources.
+//
+// If you set prefix in the handler, you should consider initializing your URLConverter with the same prefix, like defaultURLConverter does.
 type URLConverter interface {
 	// ParsePath parses a given path and returns the corresponding Resource.
 	ParsePath(path string) (Resource, error)
@@ -31,9 +33,13 @@ type Resource struct {
 }
 
 type defaultURLConverter struct {
+	Prefix string
 }
 
 func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
+	// Strip the prefix if present
+	path = strings.TrimPrefix(path, c.Prefix)
+
 	resource := Resource{ResourceType: storage.ResourceUnknown}
 	parts := strings.Split(path, "/")
 
@@ -100,35 +106,40 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 
 // EncodePath encodes a Resource into URI, regardless of whether URI field is filled
 func (c defaultURLConverter) EncodePath(resource Resource) (string, error) {
+	var path string
+
 	switch resource.ResourceType {
 	case storage.ResourcePrincipal:
 		if resource.UserID == "" {
 			return "", fmt.Errorf("invalid resource: principal must have a UserID")
 		}
-		return "/" + resource.UserID, nil
+		path = "/" + resource.UserID
 
 	case storage.ResourceHomeSet:
 		if resource.UserID == "" {
 			return "", fmt.Errorf("invalid resource: home set must have a UserID")
 		}
-		return "/" + resource.UserID + "/cal", nil
+		path = "/" + resource.UserID + "/cal"
 
 	case storage.ResourceCollection:
 		if resource.UserID == "" || resource.CalendarID == "" {
 			return "", fmt.Errorf("invalid resource: collection must have both UserID and CalendarID")
 		}
-		return "/" + resource.UserID + "/cal/" + resource.CalendarID, nil
+		path = "/" + resource.UserID + "/cal/" + resource.CalendarID
 
 	case storage.ResourceObject:
 		if resource.UserID == "" || resource.CalendarID == "" || resource.ObjectID == "" {
 			return "", fmt.Errorf("invalid resource: object must have UserID, CalendarID, and ObjectID")
 		}
-		return "/" + resource.UserID + "/cal/" + resource.CalendarID + "/" + resource.ObjectID, nil
+		path = "/" + resource.UserID + "/cal/" + resource.CalendarID + "/" + resource.ObjectID
 
 	case storage.ResourceServiceRoot:
-		return "/", nil
+		path = "/"
 
 	default:
 		return "", fmt.Errorf("invalid resource type: %s", resource.ResourceType.String())
 	}
+
+	// Add the prefix to the path
+	return c.Prefix + strings.TrimPrefix(path, "/"), nil
 }

@@ -37,7 +37,7 @@ func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth in
 		prefix = prefix + "/"
 	}
 	if converter == nil {
-		converter = defaultURLConverter{}
+		converter = defaultURLConverter{Prefix: prefix}
 	}
 	return &CaldavHandler{
 		Prefix:       prefix,
@@ -60,14 +60,10 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Authenticated user: %s", authUser) // Log username, careful in production
 
-	// 2. Path Parsing (relative to the prefix)
-	relativePath := strings.TrimPrefix(r.URL.Path, h.Prefix)
-	// Optional: Trim trailing slash for consistency, unless it's significant for collections
-	// relativePath = strings.TrimSuffix(relativePath, "/") // Be careful if trailing slash matters for PROPFIND on collections
-
-	resource, err := h.URLConverter.ParsePath(relativePath)
+	// 2. Path Parsing - now handled directly by the URL converter
+	resource, err := h.URLConverter.ParsePath(r.URL.Path)
 	if err != nil {
-		log.Printf("Error parsing path '%s': %v", relativePath, err)
+		log.Printf("Error parsing path '%s': %v", r.URL.Path, err)
 		http.Error(w, err.Error(), http.StatusNotFound) // Or BadRequest depending on error
 		return
 	}
