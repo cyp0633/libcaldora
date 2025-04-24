@@ -24,7 +24,7 @@ func TestParsePath(t *testing.T) {
 		wantObjectID   string
 		wantResType    storage.ResourceType
 	}{
-		{"empty path", "", true, "", "", "", storage.ResourceUnknown},
+		{"empty path", "", false, "", "", "", storage.ResourceServiceRoot},
 		{"principal", "user1", false, "user1", "", "", storage.ResourcePrincipal},
 		{"home set", "user1/cal", false, "user1", "", "", storage.ResourceHomeSet},
 		{"invalid home set", "user1/calendar", true, "", "", "", storage.ResourceUnknown},
