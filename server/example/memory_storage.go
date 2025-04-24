@@ -165,7 +165,7 @@ func (m *MemoryStorage) CreateCalendar(userID string, calendar *storage.Calendar
 		return storage.ErrInvalidInput
 	}
 
-	calendarID := pathParts[2] // Assuming path format: "/userID/cal/calendarID/"
+	calendarID := pathParts[3] // Assuming path format: "/caldav/userID/cal/calendarID/"
 	m.log.Debug("Extracted calendarID from path", "calendarID", calendarID)
 
 	// Check if calendar already exists
@@ -421,7 +421,7 @@ func (m *MemoryStorage) UpdateObject(userID, calendarID string, object *storage.
 		return "", storage.ErrInvalidInput
 	}
 
-	objectID := pathParts[3] // Assuming path format: "/userID/cal/calendarID/objectID.ics"
+	objectID := pathParts[4] // Assuming path format: "/caldav/userID/cal/calendarID/objectID.ics"
 	m.log.Debug("Extracted objectID from path", "objectID", objectID)
 
 	oldETag := ""
@@ -528,7 +528,7 @@ func (m *MemoryStorage) AddEvent(userID, calendarID string, event storage.Calend
 		return
 	}
 
-	objectID := pathParts[3] // Assuming path format: "/userID/cal/calendarID/objectID.ics"
+	objectID := pathParts[4] // Assuming path format: "/caldav/userID/cal/calendarID/objectID.ics"
 	m.log.Debug("Extracted objectID from path", "objectID", objectID)
 
 	// Check if user exists

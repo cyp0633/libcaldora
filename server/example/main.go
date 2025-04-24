@@ -163,7 +163,7 @@ func createCalendarForUser(ms *MemoryStorage, userID, calendarID, name, color st
 		ETag:                fmt.Sprintf("etag-calendar-%s-%s", name, uuid.New().String()[:8]),
 		CTag:                fmt.Sprintf("ctag-%s-%d", name, time.Now().Unix()),
 		CalendarData:        cal,
-		Path:                fmt.Sprintf("/%s/cal/%s/", userID, calendarID),
+		Path:                fmt.Sprintf("/caldav/%s/cal/%s/", userID, calendarID),
 	}
 
 	// Add calendar to storage
@@ -187,7 +187,7 @@ func createEvent(userID, calendarID, summary, location string, start, end time.T
 	event.Props.SetDateTime(ical.PropDateTimeEnd, end)
 
 	return storage.CalendarObject{
-		Path:      fmt.Sprintf("/%s/cal/%s/%s", userID, calendarID, eventID),
+		Path:      fmt.Sprintf("/caldav/%s/cal/%s/%s", userID, calendarID, eventID),
 		ETag:      fmt.Sprintf("etag-%s-%d", eventUID[:8], time.Now().Unix()),
 		Component: event.Component,
 	}
