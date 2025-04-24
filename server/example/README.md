@@ -37,15 +37,6 @@ You can connect to this server using any CalDAV-compatible client with these set
 - **Username:** alice or bob
 - **Password:** password
 
-### Compatible Clients
-
-This server has been tested with:
-
-- Thunderbird Lightning
-- Apple Calendar
-- GNOME Calendar
-- DAVx⁵ (for Android)
-
 ## Implementation Details
 
 This example demonstrates:
@@ -56,7 +47,7 @@ This example demonstrates:
 4. Sample event creation
 5. HTTP server integration
 
-The server uses MockStorage for simplicity, which is an in-memory storage implementation. In a production environment, you would implement a persistent storage backend (database, file system, etc.).
+The server uses an in-memory storage implementation. In a production environment, you would implement a persistent storage backend (database, file system, etc.).
 
 ## Customization
 
