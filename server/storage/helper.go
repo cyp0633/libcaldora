@@ -80,16 +80,30 @@ func ICSToICalComp(ics string) (*ical.Component, error) {
 		return nil, fmt.Errorf("failed to decode calendar: %w", err)
 	}
 
-	// Check if there are multiple components in the calendar
-	if len(cal.Children) > 1 {
-		return nil, fmt.Errorf("multiple components found in calendar")
-	}
-
 	// If no components are found, return an error
 	if len(cal.Children) == 0 {
 		return nil, fmt.Errorf("no components found in calendar")
 	}
 
-	// Return the first component (event or other)
-	return cal.Children[0], nil
+	// Look for the main component (VEVENT, VTODO, VJOURNAL)
+	// while ignoring timezone definitions (VTIMEZONE)
+	var mainComponents []*ical.Component
+	for _, child := range cal.Children {
+		if child.Name != "VTIMEZONE" {
+			mainComponents = append(mainComponents, child)
+		}
+	}
+
+	// Check if we found any non-VTIMEZONE components
+	if len(mainComponents) == 0 {
+		return nil, fmt.Errorf("no main components found in calendar, only timezone definitions")
+	}
+
+	// Check if there are multiple main components
+	if len(mainComponents) > 1 {
+		return nil, fmt.Errorf("multiple main components found in calendar")
+	}
+
+	// Return the main component (event or other)
+	return mainComponents[0], nil
 }
