@@ -53,6 +53,12 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 			doc, err = h.handlePropfindCollection(req, ctx1.Resource)
 		case storage.ResourceObject:
 			doc, err = h.handlePropfindObject(req, ctx1.Resource)
+		case storage.ResourceServiceRoot:
+			doc, err = h.handlePropfindServiceRoot(req, ctx1.Resource)
+		default:
+			log.Printf("Unknown resource type %d for resource %s", resource.ResourceType, resource)
+			http.Error(w, "Unknown resource type", http.StatusNotFound)
+			return
 		}
 
 		if err != nil {
@@ -788,6 +794,45 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 		}
 	}
 
+	return propfind.EncodeResponse(req, path), nil
+}
+
+func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res Resource) (*etree.Document, error) {
+	path, err := h.URLConverter.EncodePath(res)
+	if err != nil {
+		log.Printf("Failed to encode path for resource %s: %v", res, err)
+		return nil, err
+	}
+	for key := range req {
+		switch key {
+		case "current-user-principal":
+			principalResource := Resource{
+				UserID:       res.UserID,
+				ResourceType: storage.ResourcePrincipal,
+			}
+			encodedPath, err := h.URLConverter.EncodePath(principalResource)
+			if err != nil {
+				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
+				continue
+			}
+			req[key] = mo.Ok[props.Property](&props.CurrentUserPrincipal{Value: encodedPath})
+		case "principal-url":
+			principalResource := Resource{
+				UserID:       res.UserID,
+				ResourceType: storage.ResourcePrincipal,
+			}
+			encodedPath, err := h.URLConverter.EncodePath(principalResource)
+			if err != nil {
+				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
+				continue
+			}
+			req[key] = mo.Ok[props.Property](&props.PrincipalURL{Value: encodedPath})
+		default:
+			req[key] = mo.Err[props.Property](propfind.ErrNotFound)
+		}
+	}
 	return propfind.EncodeResponse(req, path), nil
 }
 

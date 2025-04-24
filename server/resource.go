@@ -48,8 +48,8 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 	numSegments := len(segments)
 
 	switch numSegments {
-	case 0: // Path was just the prefix itself (e.g., /caldav/) - Usually not a valid CalDAV resource
-		return resource, fmt.Errorf("invalid path: root path not directly addressable")
+	case 0: // service root
+		resource.ResourceType = storage.ResourceServiceRoot
 
 	case 1: // /<userid>
 		resource.UserID = segments[0]

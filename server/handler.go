@@ -137,7 +137,7 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // These functions will be called by ServeHTTP based on the request method.
 // They currently just log and return a 501 Not Implemented status.
 
-func (h *CaldavHandler) handleOptions(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
+func (h *CaldavHandler) handleOptions(w http.ResponseWriter, _ *http.Request, ctx *RequestContext) {
 	log.Printf("OPTIONS received for %s (User: %s, Calendar: %s, Object: %s)",
 		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
 	// TODO: Set correct Allow and DAV headers based on ctx.Resource.ResourceType and capabilities
@@ -162,3 +162,25 @@ func main() {
     }
 }
 */
+
+// ServeWellKnown handles requests to the well-known CalDAV URL.
+func (h *CaldavHandler) ServeWellKnown(w http.ResponseWriter, r *http.Request) {
+	redirectURL := "//" + r.Host + h.Prefix
+
+	switch r.Method {
+	case http.MethodGet, http.MethodHead:
+		w.Header().Set("Location", redirectURL)
+		w.WriteHeader(http.StatusMovedPermanently)
+	case http.MethodOptions:
+		w.Header().Set("Allow", "GET, HEAD, OPTIONS")
+		w.Header().Set("DAV", "1, 3, calendar-access")
+		w.WriteHeader(http.StatusOK)
+	default:
+		w.Header().Set("Location", redirectURL)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}
+
+	// Add logging
+	log.Printf("Well-known CalDAV request: %s %s -> redirecting to %s",
+		r.Method, r.URL.Path, redirectURL)
+}

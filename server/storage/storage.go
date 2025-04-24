@@ -109,6 +109,7 @@ const (
 	ResourceHomeSet
 	ResourceCollection
 	ResourceObject
+	ResourceServiceRoot // Not really a resource, treat as unknown if not specified
 )
 
 // String provides a human-readable representation of the ResourceType.
