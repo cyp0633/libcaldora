@@ -1,8 +1,10 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -17,7 +19,9 @@ func TestHandleGet(t *testing.T) {
 	mockStorage := &storage.MockStorage{}
 
 	// Create handler with mock storage
-	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
+	// Add slog.Logger parameter with debug level for verbose logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil, logger)
 
 	// Setup test data
 	userID := "alice"

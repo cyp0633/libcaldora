@@ -1,6 +1,8 @@
 package server
 
 import (
+	"log/slog"
+	"os"
 	"testing"
 
 	"github.com/cyp0633/libcaldora/internal/xml/propfind"
@@ -35,9 +37,13 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 	mockURLConverter := new(MockURLConverter)
 	mockStorage := new(storage.MockStorage)
 
+	// Add a logger that writes to a discard handler
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	h := &CaldavHandler{
 		URLConverter: mockURLConverter,
 		Storage:      mockStorage,
+		Logger:       logger,
 	}
 
 	resource := Resource{
@@ -217,9 +223,13 @@ func TestFetchChildren(t *testing.T) {
 	mockURLConverter := new(MockURLConverter)
 	mockStorage := new(storage.MockStorage)
 
+	// Add a logger that writes to a discard handler
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	h := &CaldavHandler{
 		URLConverter: mockURLConverter,
 		Storage:      mockStorage,
+		Logger:       logger,
 	}
 
 	// Test case 1: Depth 0 returns empty
@@ -355,6 +365,7 @@ func TestFetchChildren(t *testing.T) {
 		h := &CaldavHandler{
 			URLConverter: mockURLConverter,
 			Storage:      mockStorage,
+			Logger:       logger, // Add the logger here as well
 		}
 
 		parent := Resource{

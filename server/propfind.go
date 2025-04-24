@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -20,7 +19,9 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 	initialResource := ctx.Resource
 	children, err := h.fetchChildren(ctx.Depth, initialResource)
 	if err != nil {
-		log.Printf("Failed to fetch children for resource %s: %v", initialResource, err)
+		h.Logger.Error("failed to fetch children for resource",
+			"resource", initialResource,
+			"error", err)
 		http.Error(w, "Failed to fetch children", http.StatusInternalServerError)
 		return
 	}
@@ -29,7 +30,8 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 	// parse request body
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Failed to read request body: %v", err)
+		h.Logger.Error("failed to read request body",
+			"error", err)
 		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
@@ -57,13 +59,18 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 			ctx1.Resource.UserID = ctx.AuthUser // Just a workaround
 			doc, err = h.handlePropfindServiceRoot(req, ctx1.Resource)
 		default:
-			log.Printf("Unknown resource type %d for resource %s", resource.ResourceType, resource)
+			h.Logger.Error("unknown resource type",
+				"type", resource.ResourceType,
+				"resource", resource)
 			http.Error(w, "Unknown resource type", http.StatusNotFound)
 			return
 		}
 
 		if err != nil {
-			log.Printf("Error handling PROPFIND for resource %v: %v", resource, err)
+			h.Logger.Error("error handling PROPFIND",
+				"resource_type", resource.ResourceType,
+				"resource", resource,
+				"error", err)
 			continue // Skip this resource but continue with others
 		}
 
@@ -75,7 +82,8 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 	// Merge all responses
 	mergedDoc, err := propfind.MergeResponses(docs)
 	if err != nil {
-		log.Printf("Failed to merge PROPFIND responses: %v", err)
+		h.Logger.Error("failed to merge PROPFIND responses",
+			"error", err)
 		http.Error(w, "Failed to process request", http.StatusInternalServerError)
 		return
 	}
@@ -87,7 +95,8 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 	// Serialize and write the XML document
 	xmlOutput, err := mergedDoc.WriteToString()
 	if err != nil {
-		log.Printf("Failed to serialize XML response: %v", err)
+		h.Logger.Error("failed to serialize XML response",
+			"error", err)
 		http.Error(w, "Failed to generate response", http.StatusInternalServerError)
 		return
 	}
@@ -99,7 +108,9 @@ func (h *CaldavHandler) handlePropfind(w http.ResponseWriter, r *http.Request, c
 func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Resource) (*etree.Document, error) {
 	path, err := h.URLConverter.EncodePath(res)
 	if err != nil {
-		log.Printf("Failed to encode path for resource %s: %v", res, err)
+		h.Logger.Error("failed to encode path for resource",
+			"resource", res,
+			"error", err)
 		return nil, err
 	}
 
@@ -110,12 +121,15 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 		}
 		u, err := h.Storage.GetUser(res.UserID)
 		if err != nil {
-			log.Printf("Failed to get user for resource %s: %v", res, err)
+			h.Logger.Error("failed to get user for resource",
+				"resource", res,
+				"error", err)
 			return nil, err
 		}
 		user = u
 		if user == nil {
-			log.Printf("No user found for resource %s", res)
+			h.Logger.Error("no user found for resource",
+				"resource", res)
 			return nil, propfind.ErrNotFound // Return not found if no user is associated with the resource
 		}
 		return user, nil
@@ -137,7 +151,9 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 				}
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
-					log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
+					h.Logger.Error("failed to encode owner URL for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
@@ -153,7 +169,9 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 				}
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
-					log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+					h.Logger.Error("failed to encode principal URL for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
@@ -166,7 +184,9 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 			}
 			encodedPath, err := h.URLConverter.EncodePath(res)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -180,7 +200,9 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 			}
 			principalPath, err := h.URLConverter.EncodePath(res)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -230,17 +252,22 @@ func (h *CaldavHandler) handlePropfindHomeSet(req propfind.ResponseMap, res Reso
 func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Resource) (*etree.Document, error) {
 	path, err := h.URLConverter.EncodePath(res)
 	if err != nil {
-		log.Printf("Failed to encode path for resource %s: %v", res, err)
+		h.Logger.Error("failed to encode path for resource",
+			"resource", res,
+			"error", err)
 		return nil, err
 	}
 	user, err := h.Storage.GetUser(res.UserID)
 	if err != nil {
-		log.Printf("Failed to get user for resource %s: %v", res, err)
+		h.Logger.Error("failed to get user for resource",
+			"resource", res,
+			"error", err)
 		// Return an internal error if we cannot get the user
 		return nil, err
 	}
 	if user == nil {
-		log.Printf("No user found for resource %s", res)
+		h.Logger.Error("no user found for resource",
+			"resource", res)
 		// Return a not found error if no user is associated with the resource
 		return nil, propfind.ErrNotFound
 	}
@@ -265,7 +292,9 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode owner URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -277,7 +306,9 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -305,7 +336,9 @@ func (h *CaldavHandler) handlePropfindPrincipal(req propfind.ResponseMap, res Re
 			}
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode calendar home set for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode calendar home set for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
@@ -357,7 +390,9 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, res Resou
 	if res.URI == "" {
 		path, err := h.URLConverter.EncodePath(res)
 		if err != nil {
-			log.Printf("Failed to encode path for resource %s: %v", res, err)
+			h.Logger.Error("failed to encode path for resource",
+				"resource", res,
+				"error", err)
 			return nil, err
 		}
 		res.URI = path
@@ -365,11 +400,14 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, res Resou
 
 	object, err := h.Storage.GetObject(res.UserID, res.CalendarID, res.ObjectID)
 	if err != nil {
-		log.Printf("Failed to get object for resource %s: %v", res, err)
+		h.Logger.Error("failed to get object for resource",
+			"resource", res,
+			"error", err)
 		return nil, err
 	}
 	if object == nil || object.Component == nil {
-		log.Printf("No object found for resource %s", res)
+		h.Logger.Error("no object found for resource",
+			"resource", res)
 		return nil, propfind.ErrNotFound
 	}
 
@@ -388,7 +426,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 		case "displayname":
 			name, err := object.Component.Props.Text(ical.PropName)
 			if err != nil {
-				log.Printf("Failed to get display name for resource %s: %v", res, err)
+				h.Logger.Debug("failed to get display name for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				req[key] = mo.Ok[props.Property](&props.DisplayName{Value: name})
@@ -404,7 +444,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 		case "getlastmodified":
 			lastModified, err := object.Component.Props.DateTime(ical.PropLastModified, nil)
 			if err != nil {
-				log.Printf("Failed to get last modified date for resource %s: %v", res, err)
+				h.Logger.Debug("failed to get last modified date for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				req[key] = mo.Ok[props.Property](&props.GetLastModified{Value: lastModified})
@@ -418,7 +460,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode owner URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -430,7 +474,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -442,7 +488,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
@@ -465,18 +513,23 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			if calendar == nil {
 				calendar, err = h.Storage.GetCalendar(res.UserID, res.CalendarID)
 				if err != nil {
-					log.Printf("Failed to get calendar for resource %s: %v", res, err)
+					h.Logger.Error("failed to get calendar for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if calendar == nil || calendar.CalendarData == nil {
-					log.Printf("No calendar found for resource %s", res)
+					h.Logger.Error("no calendar found for resource",
+						"resource", res)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
 				description, err := calendar.CalendarData.Props.Text(ical.PropDescription)
 				if err != nil {
-					log.Printf("Failed to get calendar description for resource %s: %v", res, err)
+					h.Logger.Debug("failed to get calendar description for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				} else {
 					req[key] = mo.Ok[props.Property](&props.CalendarDescription{Value: description})
@@ -486,18 +539,23 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			if calendar == nil {
 				calendar, err = h.Storage.GetCalendar(res.UserID, res.CalendarID)
 				if err != nil {
-					log.Printf("Failed to get calendar for resource %s: %v", res, err)
+					h.Logger.Error("failed to get calendar for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if calendar == nil || calendar.CalendarData == nil {
-					log.Printf("No calendar found for resource %s", res)
+					h.Logger.Error("no calendar found for resource",
+						"resource", res)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
 				timezone, err := calendar.CalendarData.Component.Props.Text(ical.PropTimezoneID)
 				if err != nil {
-					log.Printf("Failed to get timezone from calendar data for resource %s: %v", res, err)
+					h.Logger.Debug("failed to get timezone from calendar data for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				} else {
 					req[key] = mo.Ok[props.Property](&props.CalendarTimezone{Value: timezone})
@@ -506,7 +564,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 		case "calendar-data":
 			ics, err := storage.ICalCompToICS(*object.Component, false)
 			if err != nil {
-				log.Printf("Failed to convert calendar component to ICS for resource %s: %v", res, err)
+				h.Logger.Error("failed to convert calendar component to ICS for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				req[key] = mo.Ok[props.Property](&props.CalendarData{ICal: ics})
@@ -533,7 +593,9 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			}
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode calendar home set for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode calendar home set for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
@@ -551,12 +613,15 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			if user == nil {
 				user, err = h.Storage.GetUser(res.UserID)
 				if err != nil {
-					log.Printf("Failed to get user for resource %s: %v", res, err)
+					h.Logger.Error("failed to get user for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if user == nil || user.UserAddress == "" {
-					log.Printf("No user found for resource %s", res)
+					h.Logger.Error("no user found for resource",
+						"resource", res)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
@@ -572,12 +637,15 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 			if user == nil {
 				user, err = h.Storage.GetUser(res.UserID)
 				if err != nil {
-					log.Printf("Failed to get user for resource %s: %v", res, err)
+					h.Logger.Error("failed to get user for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
 				if user == nil || user.PreferredColor == "" {
-					log.Printf("No user found for resource %s", res)
+					h.Logger.Error("no user found for resource",
+						"resource", res)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
@@ -603,16 +671,21 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res Resource) (*etree.Document, error) {
 	path, err := h.URLConverter.EncodePath(res)
 	if err != nil {
-		log.Printf("Failed to encode path for resource %s: %v", res, err)
+		h.Logger.Error("failed to encode path for resource",
+			"resource", res,
+			"error", err)
 		return nil, err
 	}
 	calendar, err := h.Storage.GetCalendar(res.UserID, res.CalendarID)
 	if err != nil {
-		log.Printf("Failed to get calendar for resource %s: %v", res, err)
+		h.Logger.Error("failed to get calendar for resource",
+			"resource", res,
+			"error", err)
 		return nil, err
 	}
 	if calendar == nil || calendar.CalendarData == nil {
-		log.Printf("No calendar found for resource %s", res)
+		h.Logger.Error("no calendar found for resource",
+			"resource", res)
 		return nil, propfind.ErrNotFound
 	}
 	var user *storage.User
@@ -637,7 +710,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 		case "getlastmodified":
 			lastModified, err := calendar.CalendarData.Props.DateTime(ical.PropLastModified, nil)
 			if err != nil {
-				log.Printf("Failed to get last modified date for resource %s: %v", res, err)
+				h.Logger.Debug("failed to get last modified date for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				req[key] = mo.Ok[props.Property](&props.GetLastModified{Value: lastModified})
@@ -655,7 +730,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 				}
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
-					log.Printf("Failed to encode owner URL for resource %s: %v", res, err)
+					h.Logger.Error("failed to encode owner URL for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
@@ -671,7 +748,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 				}
 				encodedPath, err := h.URLConverter.EncodePath(resource)
 				if err != nil {
-					log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+					h.Logger.Error("failed to encode principal URL for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 					continue
 				}
@@ -684,7 +763,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			}
 			encodedPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
@@ -713,7 +794,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 		case "calendar-timezone", "timezone":
 			timezone, err := calendar.CalendarData.Component.Props.Text(ical.PropTimezoneID)
 			if err != nil {
-				log.Printf("Failed to get timezone from calendar data for resource %s: %v", path, err)
+				h.Logger.Debug("failed to get timezone from calendar data for resource",
+					"path", path,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			} else {
 				req[key] = mo.Ok[props.Property](&props.CalendarTimezone{Value: timezone})
@@ -746,7 +829,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			}
 			homeSetPath, err := h.URLConverter.EncodePath(resource)
 			if err != nil {
-				log.Printf("Failed to encode calendar home set for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode calendar home set for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrInternal)
 				continue
 			}
@@ -764,7 +849,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			if user == nil {
 				user, err = h.Storage.GetUser(res.UserID)
 				if err != nil {
-					log.Printf("Failed to get user for resource %s: %v", res, err)
+					h.Logger.Error("failed to get user for resource",
+						"resource", res,
+						"error", err)
 					req[key] = mo.Err[props.Property](propfind.ErrInternal)
 					continue
 				}
@@ -801,7 +888,9 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res Resource) (*etree.Document, error) {
 	path, err := h.URLConverter.EncodePath(res)
 	if err != nil {
-		log.Printf("Failed to encode path for resource %s: %v", res, err)
+		h.Logger.Error("failed to encode path for resource",
+			"resource", res,
+			"error", err)
 		return nil, err
 	}
 	for key := range req {
@@ -815,7 +904,9 @@ func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res 
 			}
 			encodedPath, err := h.URLConverter.EncodePath(principalResource)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -829,7 +920,9 @@ func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res 
 			}
 			encodedPath, err := h.URLConverter.EncodePath(principalResource)
 			if err != nil {
-				log.Printf("Failed to encode principal URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode principal URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -841,7 +934,9 @@ func (h *CaldavHandler) handlePropfindServiceRoot(req propfind.ResponseMap, res 
 			}
 			encodedPath, err := h.URLConverter.EncodePath(homeSetResource)
 			if err != nil {
-				log.Printf("Failed to encode calendar home set URL for resource %s: %v", res, err)
+				h.Logger.Error("failed to encode calendar home set URL for resource",
+					"resource", res,
+					"error", err)
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 				continue
 			}
@@ -867,19 +962,25 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 		// find object (event) paths in the collection
 		paths, err := h.Storage.GetObjectPathsInCollection(parent.CalendarID)
 		if err != nil {
-			log.Printf("Failed to fetch event paths in collection %s: %v", parent.CalendarID, err)
+			h.Logger.Error("failed to fetch event paths in collection",
+				"calendar_id", parent.CalendarID,
+				"error", err)
 			return nil, err
 		}
 		for _, path := range paths {
 			resource, err := h.URLConverter.ParsePath(path)
 			if err != nil {
-				log.Printf("Failed to parse path %s: %v", path, err)
+				h.Logger.Error("failed to parse path",
+					"path", path,
+					"error", err)
 				return nil, err
 			}
 			resources = append(resources, resource)
 			children, err := h.fetchChildren(depth-1, resource) // Recursively fetch children for the object
 			if err != nil {
-				log.Printf("Failed to fetch children for resource %s: %v", resource, err)
+				h.Logger.Error("failed to fetch children for resource",
+					"resource", resource,
+					"error", err)
 				return nil, err
 			}
 			resources = append(resources, children...)
@@ -888,20 +989,26 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 		// find collections in the home set
 		calendars, err := h.Storage.GetUserCalendars(parent.UserID)
 		if err != nil {
-			log.Printf("Failed to fetch calendars for user %s: %v", parent.UserID, err)
+			h.Logger.Error("failed to fetch calendars for user",
+				"user_id", parent.UserID,
+				"error", err)
 			return nil, err
 		}
 		for _, cal := range calendars {
 			resource, err := h.URLConverter.ParsePath(cal.Path)
 			if err != nil {
-				log.Printf("Failed to parse calendar path %s: %v", cal.Path, err)
+				h.Logger.Error("failed to parse calendar path",
+					"path", cal.Path,
+					"error", err)
 				return nil, err
 			}
 			resources = append(resources, resource)
 			// Recursively fetch children for the collection
 			children, err := h.fetchChildren(depth-1, resource)
 			if err != nil {
-				log.Printf("Failed to fetch children for resource %s: %v", resource, err)
+				h.Logger.Error("failed to fetch children for resource",
+					"resource", resource,
+					"error", err)
 				return nil, err
 			}
 			resources = append(resources, children...)

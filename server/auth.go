@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -12,12 +11,13 @@ import (
 func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (string, bool) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
+		h.Logger.Info("authentication required - no auth header")
 		h.requireAuth(w)
 		return "", false
 	}
 
 	if !strings.HasPrefix(authHeader, "Basic ") {
-		log.Printf("Invalid Authorization header format")
+		h.Logger.Error("invalid authorization header format")
 		http.Error(w, "Bad Request: Invalid Authorization header format", http.StatusBadRequest)
 		return "", false
 	}
@@ -25,7 +25,8 @@ func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (strin
 	encodedCredentials := strings.TrimPrefix(authHeader, "Basic ")
 	decodedBytes, err := base64.StdEncoding.DecodeString(encodedCredentials)
 	if err != nil {
-		log.Printf("Failed to decode base64 credentials: %v", err)
+		h.Logger.Error("failed to decode base64 credentials",
+			"error", err)
 		http.Error(w, "Bad Request: Invalid base64 encoding", http.StatusBadRequest)
 		return "", false
 	}
@@ -33,7 +34,7 @@ func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (strin
 	credentials := string(decodedBytes)
 	parts := strings.SplitN(credentials, ":", 2)
 	if len(parts) != 2 {
-		log.Printf("Invalid format for decoded credentials")
+		h.Logger.Error("invalid format for decoded credentials")
 		http.Error(w, "Bad Request: Invalid credentials format", http.StatusBadRequest)
 		return "", false
 	}
@@ -46,16 +47,19 @@ func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (strin
 	// user database and verify the `password`.
 	// For now, we just check if a username was provided.
 	if username == "" {
-		log.Printf("Empty username provided in Basic Auth")
+		h.Logger.Warn("empty username provided in basic auth")
 		h.requireAuth(w) // Treat empty username as unauthorized
 		return "", false
 	}
 	isValidUser := true // Placeholder: Assume valid user if username is not empty
-	log.Printf("TODO: Implement real credential validation for user: %s", username)
+	h.Logger.Debug("credential validation needed",
+		"user", username,
+		"message", "TODO: Implement real credential validation")
 	// --- End TODO ---
 
 	if !isValidUser {
-		log.Printf("Authentication failed for user: %s", username)
+		h.Logger.Warn("authentication failed",
+			"user", username)
 		h.requireAuth(w)
 		return "", false
 	}

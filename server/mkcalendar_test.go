@@ -2,8 +2,10 @@ package server
 
 import (
 	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -18,7 +20,9 @@ func TestHandleMkCalendar(t *testing.T) {
 	mockStorage := &storage.MockStorage{}
 
 	// Create handler with mock storage
-	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
+	// Add slog.Logger parameter with debug level for verbose logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil, logger)
 
 	// Setup test data
 	userID := "alice"
@@ -217,8 +221,10 @@ func TestHandleMkCalendarPropertyHandling(t *testing.T) {
 	// Create a mock storage
 	mockStorage := &storage.MockStorage{}
 
-	// Create handler with mock storage
-	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
+	// Create handler with mock storage and set up expected behavior
+	// Add slog.Logger parameter with debug level for verbose logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil, logger)
 
 	// Test calendar with all supported properties
 	mockStorage.On("CreateCalendar", "alice", mock.AnythingOfType("*storage.Calendar")).

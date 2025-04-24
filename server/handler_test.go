@@ -2,8 +2,10 @@ package server
 
 import (
 	"encoding/base64"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,7 +15,9 @@ import (
 func TestParsePath(t *testing.T) {
 	// Create mock storage directly - no longer using NewMockStorage()
 	mockStorage := &storage.MockStorage{}
-	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
+	// Add slog.Logger parameter with debug level for verbose logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil, logger)
 
 	testCases := []struct {
 		name           string
@@ -91,7 +95,9 @@ func TestResourceTypeString(t *testing.T) {
 func TestCheckAuth(t *testing.T) {
 	// Create mock storage directly
 	mockStorage := &storage.MockStorage{}
-	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil)
+	// Add slog.Logger parameter with debug level for verbose logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil, logger)
 
 	tests := []struct {
 		name           string

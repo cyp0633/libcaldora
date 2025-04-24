@@ -1,7 +1,8 @@
 package server
 
 import (
-	"log"
+	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,11 +25,12 @@ type CaldavHandler struct {
 	Storage      storage.Storage
 	MaxDepth     int // Optional: Max depth for PROPFIND requests, >3 for infinity
 	URLConverter URLConverter
+	Logger       *slog.Logger // Logger for structured logging
 	// TODO: Add backend interface dependency here later
 }
 
 // NewCaldavHandler creates a new CaldavHandler.
-func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth int, converter URLConverter) *CaldavHandler {
+func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth int, converter URLConverter, logger *slog.Logger) *CaldavHandler {
 	// Ensure prefix starts and ends with a slash for consistent parsing
 	if !strings.HasPrefix(prefix, "/") {
 		prefix = "/" + prefix
@@ -39,18 +41,25 @@ func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth in
 	if converter == nil {
 		converter = defaultURLConverter{Prefix: prefix}
 	}
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
 	return &CaldavHandler{
 		Prefix:       prefix,
 		Realm:        realm,
 		Storage:      storage,
 		MaxDepth:     maxDepth,
 		URLConverter: converter,
+		Logger:       logger,
 	}
 }
 
 // ServeHTTP handles incoming HTTP requests, performs authentication, parsing, and routing.
 func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
+	h.Logger.Info("received request",
+		"method", r.Method,
+		"path", r.URL.Path,
+	)
 
 	// 1. Basic Authentication Check
 	authUser, ok := h.checkAuth(w, r)
@@ -58,12 +67,15 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// checkAuth already sent the 401 response
 		return
 	}
-	log.Printf("Authenticated user: %s", authUser) // Log username, careful in production
+	h.Logger.Info("authenticated user", "user", authUser)
 
 	// 2. Path Parsing - now handled directly by the URL converter
 	resource, err := h.URLConverter.ParsePath(r.URL.Path)
 	if err != nil {
-		log.Printf("Error parsing path '%s': %v", r.URL.Path, err)
+		h.Logger.Error("error parsing path",
+			"path", r.URL.Path,
+			"error", err,
+		)
 		http.Error(w, err.Error(), http.StatusNotFound) // Or BadRequest depending on error
 		return
 	}
@@ -74,8 +86,12 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		AuthUser: authUser,
 	}
 
-	log.Printf("Parsed path: Type=%s, UserID=%s, CalendarID=%s, ObjectID=%s",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
+	h.Logger.Info("parsed path",
+		"type", ctx.Resource.ResourceType,
+		"user_id", ctx.Resource.UserID,
+		"calendar_id", ctx.Resource.CalendarID,
+		"object_id", ctx.Resource.ObjectID,
+	)
 
 	// 3. --- TODO: User Access Control Check ---
 	// After identifying the resource and the authenticated user (ctx.AuthUser),
@@ -83,7 +99,10 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// ctx.UserID, ctx.CalendarID etc. For example, normally ctx.AuthUser must
 	// be equal to ctx.UserID unless delegation or public calendars are involved.
 	if ctx.Resource.UserID != "" && ctx.Resource.UserID != ctx.AuthUser {
-		log.Printf("TODO: Implement access control check: AuthUser '%s' accessing UserID '%s'", ctx.AuthUser, ctx.Resource.UserID)
+		h.Logger.Warn("access control not implemented",
+			"auth_user", ctx.AuthUser,
+			"user_id", ctx.Resource.UserID,
+		)
 		// For now, let's assume users can only access their own resources
 		http.Error(w, "Forbidden: Access denied to the requested resource", http.StatusForbidden)
 		return
@@ -100,7 +119,10 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 		ctx.Depth, err = strconv.Atoi(depth)
 		if err != nil {
-			log.Printf("Invalid Depth header value: %s, defaulting to 0", depth)
+			h.Logger.Warn("invalid depth header",
+				"value", depth,
+				"default", 0,
+			)
 			ctx.Depth = 0
 		}
 		ctx.Depth = min(ctx.Depth, h.MaxDepth)
@@ -124,7 +146,9 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.handleOptions(w, r, ctx)
 	// Add other CalDAV methods like COPY, MOVE if needed
 	default:
-		log.Printf("Method not allowed: %s", r.Method)
+		h.Logger.Error("method not allowed",
+			"method", r.Method,
+		)
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
 }
@@ -134,8 +158,12 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // They currently just log and return a 501 Not Implemented status.
 
 func (h *CaldavHandler) handleOptions(w http.ResponseWriter, _ *http.Request, ctx *RequestContext) {
-	log.Printf("OPTIONS received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
+	h.Logger.Info("options request",
+		"type", ctx.Resource.ResourceType,
+		"user_id", ctx.Resource.UserID,
+		"calendar_id", ctx.Resource.CalendarID,
+		"object_id", ctx.Resource.ObjectID,
+	)
 	// TODO: Set correct Allow and DAV headers based on ctx.Resource.ResourceType and capabilities
 	w.Header().Set("Allow", "OPTIONS, PROPFIND, REPORT, GET, PUT, DELETE, MKCALENDAR") // Example, tailor this
 	w.Header().Set("DAV", "1, 3, calendar-access")                                     // Example CalDAV capabilities
@@ -176,7 +204,9 @@ func (h *CaldavHandler) ServeWellKnown(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTemporaryRedirect)
 	}
 
-	// Add logging
-	log.Printf("Well-known CalDAV request: %s %s -> redirecting to %s",
-		r.Method, r.URL.Path, redirectURL)
+	h.Logger.Info("well-known caldav request",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"redirect_to", redirectURL,
+	)
 }

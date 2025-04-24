@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/cyp0633/libcaldora/internal/xml/mkcalendar"
@@ -12,9 +11,15 @@ import (
 )
 
 func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
-	log.Printf("MKCALENDAR/MKCOL received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
+	h.Logger.Info("mkcalendar/mkcol request received",
+		"resource_type", ctx.Resource.ResourceType,
+		"user_id", ctx.Resource.UserID,
+		"calendar_id", ctx.Resource.CalendarID,
+		"object_id", ctx.Resource.ObjectID)
+
 	if ctx.Resource.ResourceType != storage.ResourceCollection {
+		h.Logger.Warn("mkcalendar not allowed on this resource type",
+			"resource_type", ctx.Resource.ResourceType)
 		http.Error(w, "Method Not Allowed: MKCALENDAR can only be used to create a calendar collection", http.StatusMethodNotAllowed)
 		return
 	}
@@ -22,13 +27,15 @@ func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request,
 	// parse request body
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Failed to read request body: %v", err)
+		h.Logger.Error("failed to read request body",
+			"error", err)
 		http.Error(w, "Failed to read request body", http.StatusInternalServerError)
 		return
 	}
 	properties, err := mkcalendar.ParseRequest(string(bodyBytes))
 	if err != nil {
-		log.Printf("Failed to parse MKCALENDAR request: %v", err)
+		h.Logger.Error("failed to parse mkcalendar request",
+			"error", err)
 		http.Error(w, "Failed to parse MKCALENDAR request", http.StatusBadRequest)
 		return
 	}
@@ -48,12 +55,14 @@ func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request,
 		case "displayname":
 			if dn, ok := prop.(*props.DisplayName); ok && dn.Value != "" {
 				cal.CalendarData.Props.SetText(ical.PropName, dn.Value)
-				log.Printf("Setting calendar name: %s", dn.Value)
+				h.Logger.Debug("setting calendar name",
+					"name", dn.Value)
 			}
 		case "calendar-description":
 			if desc, ok := prop.(*props.CalendarDescription); ok && desc.Value != "" {
 				cal.CalendarData.Props.SetText(ical.PropDescription, desc.Value)
-				log.Printf("Setting calendar description: %s", desc.Value)
+				h.Logger.Debug("setting calendar description",
+					"description", desc.Value)
 			}
 		case "calendar-timezone":
 			if tz, ok := prop.(*props.CalendarTimezone); ok && tz.Value != "" {
@@ -65,12 +74,14 @@ func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request,
 				}
 				vtimezone.Props.SetText(ical.PropTimezoneID, tz.Value)
 				cal.CalendarData.Children = append(cal.CalendarData.Children, vtimezone)
-				log.Printf("Setting calendar timezone: %s", tz.Value)
+				h.Logger.Debug("setting calendar timezone",
+					"timezone", tz.Value)
 			}
 		case "supported-calendar-component-set":
 			if compSet, ok := prop.(*props.SupportedCalendarComponentSet); ok && len(compSet.Components) > 0 {
 				cal.SupportedComponents = compSet.Components
-				log.Printf("Setting supported components: %v", compSet.Components)
+				h.Logger.Debug("setting supported components",
+					"components", compSet.Components)
 			}
 		case "calendar-color", "color":
 			// Handle both Apple and Google color properties
@@ -83,18 +94,21 @@ func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request,
 
 			if colorValue != "" {
 				cal.CalendarData.Props.SetText(ical.PropColor, colorValue)
-				log.Printf("Setting calendar color: %s", colorValue)
+				h.Logger.Debug("setting calendar color",
+					"color", colorValue)
 			}
 		case "timezone":
 			// Google specific timezone
 			if tz, ok := prop.(*props.Timezone); ok && tz.Value != "" {
 				// Store in a custom property or handle as needed
 				cal.CalendarData.Props.SetText("X-TIMEZONE", tz.Value)
-				log.Printf("Setting Google timezone: %s", tz.Value)
+				h.Logger.Debug("setting Google timezone",
+					"timezone", tz.Value)
 			}
 		default:
 			// Ignore unknown or unsupported properties
-			log.Printf("Ignoring unsupported property: %s", key)
+			h.Logger.Debug("ignoring unsupported property",
+				"property", key)
 		}
 	}
 
@@ -102,21 +116,25 @@ func (h *CaldavHandler) handleMkCalendar(w http.ResponseWriter, r *http.Request,
 	if len(cal.SupportedComponents) == 0 {
 		// Default to supporting VEVENT if not specified
 		cal.SupportedComponents = []string{"VEVENT"}
-		log.Printf("No component set specified, defaulting to VEVENT")
+		h.Logger.Debug("no component set specified, defaulting to VEVENT")
 	}
 
 	err = h.Storage.CreateCalendar(ctx.Resource.UserID, cal)
 	if err != nil {
-		log.Printf("Failed to create calendar: %v", err)
+		h.Logger.Error("failed to create calendar",
+			"error", err)
 		http.Error(w, "Failed to create calendar", http.StatusInternalServerError)
 		return
 	}
 	if cal.ETag == "" || cal.Path == "" {
-		log.Printf("Failed to create calendar: ETag or Path is empty")
+		h.Logger.Error("calendar created but ETag or Path is empty")
 		http.Error(w, "Failed to create calendar", http.StatusInternalServerError)
 		return
 	}
 
+	h.Logger.Info("calendar created successfully",
+		"path", cal.Path,
+		"etag", cal.ETag)
 	w.Header().Set("Location", cal.Path)
 	w.Header().Set("ETag", cal.ETag)
 	w.WriteHeader(http.StatusCreated)

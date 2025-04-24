@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -14,12 +13,17 @@ import (
 )
 
 func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
-	log.Printf("REPORT received for %s (User: %s, Calendar: %s, Object: %s)",
-		ctx.Resource.ResourceType, ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
+	h.Logger.Info("report request received",
+		"resource_type", ctx.Resource.ResourceType,
+		"user_id", ctx.Resource.UserID,
+		"calendar_id", ctx.Resource.CalendarID,
+		"object_id", ctx.Resource.ObjectID)
 
 	// Read the request body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		h.Logger.Error("failed to read report request body",
+			"error", err)
 		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
@@ -28,6 +32,8 @@ func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx
 	// Parse XML
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(body); err != nil {
+		h.Logger.Error("failed to parse report XML",
+			"error", err)
 		http.Error(w, "Error parsing XML request body", http.StatusBadRequest)
 		return
 	}
@@ -35,6 +41,7 @@ func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx
 	// Get the root element
 	root := doc.Root()
 	if root == nil {
+		h.Logger.Error("invalid XML: no root element")
 		http.Error(w, "Invalid XML: no root element", http.StatusBadRequest)
 		return
 	}
@@ -44,6 +51,9 @@ func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx
 	if idx := strings.Index(tagName, ":"); idx != -1 {
 		tagName = tagName[idx+1:]
 	}
+
+	h.Logger.Debug("report type identified",
+		"tag", tagName)
 
 	// Clone the request for handlers to re-read the body
 	reqClone := r.Clone(r.Context())
@@ -62,7 +72,8 @@ func (h *CaldavHandler) handleReport(w http.ResponseWriter, r *http.Request, ctx
 	case "availability-query":
 		h.handleAvailabilityQuery(w, reqClone, ctx)
 	default:
-		log.Printf("Unsupported REPORT type: %s", tagName)
+		h.Logger.Warn("unsupported report type",
+			"tag", tagName)
 		http.Error(w, "Unsupported report type", http.StatusBadRequest)
 	}
 }
@@ -71,25 +82,31 @@ func (h *CaldavHandler) handleCalendarMultiget(w http.ResponseWriter, r *http.Re
 	// get resources and requested properties
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading request body: %v", err)
+		h.Logger.Error("failed to read request body",
+			"error", err)
 		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
 
 	bodyStr := string(bodyBytes)
-	log.Printf("Calendar-multiget request body: %s", bodyStr)
+	h.Logger.Info("calendar-multiget request body",
+		"body", bodyStr)
 
 	req, resourceLinks := cmg.ParseRequest(bodyStr)
 
-	log.Printf("Parsed %d resource links from request", len(resourceLinks))
+	h.Logger.Info("parsed resource links from request",
+		"count", len(resourceLinks))
 
 	// use PROPFIND handler to get properties
 	var docs []*etree.Document
 	for _, resourceLink := range resourceLinks {
-		log.Printf("Processing resource link: %s", resourceLink)
+		h.Logger.Info("processing resource link",
+			"link", resourceLink)
 		resource, err := h.URLConverter.ParsePath(resourceLink)
 		if err != nil {
-			log.Printf("Error parsing path '%s': %v", resourceLink, err)
+			h.Logger.Error("error parsing path",
+				"path", resourceLink,
+				"error", err)
 			http.Error(w, "Error retrieving resource", http.StatusInternalServerError)
 			return
 		}
@@ -105,13 +122,16 @@ func (h *CaldavHandler) handleCalendarMultiget(w http.ResponseWriter, r *http.Re
 		case storage.ResourcePrincipal:
 			doc, err = h.handlePropfindPrincipal(req, resource)
 		default:
-			log.Printf("Unsupported resource type: %v", resource.ResourceType)
+			h.Logger.Error("unsupported resource type",
+				"type", resource.ResourceType)
 			http.Error(w, "Unsupported resource type", http.StatusBadRequest)
 			return
 		}
 
 		if err != nil {
-			log.Printf("Error handling propfind for %v: %v", resource.ResourceType, err)
+			h.Logger.Error("error handling propfind",
+				"type", resource.ResourceType,
+				"error", err)
 			http.Error(w, "Error retrieving resource", http.StatusInternalServerError)
 			return
 		}
@@ -120,7 +140,8 @@ func (h *CaldavHandler) handleCalendarMultiget(w http.ResponseWriter, r *http.Re
 
 	mergedDoc, err := propfind.MergeResponses(docs)
 	if err != nil {
-		log.Printf("Error merging responses: %v", err)
+		h.Logger.Error("error merging responses",
+			"error", err)
 		http.Error(w, "Error merging responses", http.StatusInternalServerError)
 		return
 	}
@@ -132,28 +153,33 @@ func (h *CaldavHandler) handleCalendarMultiget(w http.ResponseWriter, r *http.Re
 	// Serialize and write the XML document
 	xmlOutput, err := mergedDoc.WriteToString()
 	if err != nil {
-		log.Printf("Failed to serialize XML response: %v", err)
+		h.Logger.Error("failed to serialize XML response",
+			"error", err)
 		http.Error(w, "Failed to generate response", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("Sending calendar-multiget response: %s", xmlOutput)
+	h.Logger.Info("sending calendar-multiget response",
+		"response_size", len(xmlOutput))
 	w.Write([]byte(xmlOutput))
 }
 
 func (h *CaldavHandler) handleCalendarQuery(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading request body: %v", err)
+		h.Logger.Error("failed to read request body",
+			"error", err)
 		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
 	bodyStr := string(bodyBytes)
-	log.Printf("Calendar-query request body: %s", bodyStr)
+	h.Logger.Info("calendar-query request body",
+		"body", bodyStr)
 
 	req, filter, err := cq.ParseRequest(bodyStr)
 	if err != nil {
-		log.Printf("Error parsing request: %v", err)
+		h.Logger.Error("error parsing request",
+			"error", err)
 		http.Error(w, "Error parsing request", http.StatusBadRequest)
 		return
 	}
@@ -163,18 +189,21 @@ func (h *CaldavHandler) handleCalendarQuery(w http.ResponseWriter, r *http.Reque
 	case storage.ResourceObject:
 		object, err := h.Storage.GetObject(ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
 		if err != nil {
-			log.Printf("Error getting object: %v", err)
+			h.Logger.Error("error getting object",
+				"error", err)
 			http.Error(w, "Error retrieving object", http.StatusInternalServerError)
 			return
 		}
 		if !filter.Validate(object) {
-			log.Printf("Object does not match filter: %v", object)
+			h.Logger.Warn("object does not match filter",
+				"object_id", ctx.Resource.ObjectID)
 			http.Error(w, "Object does not match filter", http.StatusNotFound)
 			return
 		}
 		doc, err := h.handlePropfindObjectWithObject(req, ctx.Resource, *object)
 		if err != nil {
-			log.Printf("Error handling propfind for object: %v", err)
+			h.Logger.Error("error handling propfind for object",
+				"error", err)
 			http.Error(w, "Error retrieving object", http.StatusInternalServerError)
 			return
 		}
@@ -182,14 +211,16 @@ func (h *CaldavHandler) handleCalendarQuery(w http.ResponseWriter, r *http.Reque
 	case storage.ResourceCollection:
 		objects, err := h.Storage.GetObjectByFilter(ctx.Resource.UserID, ctx.Resource.CalendarID, filter)
 		if err != nil {
-			log.Printf("Error getting objects by filter: %v", err)
+			h.Logger.Error("error getting objects by filter",
+				"error", err)
 			http.Error(w, "Error retrieving objects", http.StatusInternalServerError)
 			return
 		}
 		for _, object := range objects {
 			doc, err := h.handlePropfindObjectWithObject(req, ctx.Resource, object)
 			if err != nil {
-				log.Printf("Error handling propfind for object: %v", err)
+				h.Logger.Error("error handling propfind for object",
+					"error", err)
 				http.Error(w, "Error retrieving object", http.StatusInternalServerError)
 				return
 			}
@@ -197,26 +228,33 @@ func (h *CaldavHandler) handleCalendarQuery(w http.ResponseWriter, r *http.Reque
 		}
 	default:
 		// bad request, only collection & object
-		log.Printf("Unsupported resource type for calendar-query: %s", ctx.Resource.ResourceType)
+		h.Logger.Error("unsupported resource type for calendar-query",
+			"type", ctx.Resource.ResourceType)
 		http.Error(w, "Unsupported resource type for calendar-query", http.StatusBadRequest)
 		return
 	}
 
 	mergedDoc, err := propfind.MergeResponses(docs)
 	if err != nil {
-		log.Printf("Error merging responses: %v", err)
+		h.Logger.Error("error merging responses",
+			"error", err)
 		http.Error(w, "Error merging responses", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	w.WriteHeader(http.StatusMultiStatus) // 207 Multi-Status
+
 	xmlOutput, err := mergedDoc.WriteToString()
 	if err != nil {
-		log.Printf("Failed to serialize XML response: %v", err)
+		h.Logger.Error("failed to serialize XML response",
+			"error", err)
 		http.Error(w, "Failed to generate response", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Sending calendar-query response: %s", xmlOutput)
+
+	h.Logger.Info("sending calendar-query response",
+		"response_size", len(xmlOutput))
 	w.Write([]byte(xmlOutput))
 }
 

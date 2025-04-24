@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/cyp0633/libcaldora/server"
@@ -24,8 +26,13 @@ func main() {
 	// Initialize memory storage with sample data
 	memStorage := setupStorage()
 
+	// Create a verbose logger with debug level for detailed logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+
 	// Create the CalDAV handler with our storage
-	handler := server.NewCaldavHandler(caldavPrefix, serverRealm, memStorage, maxDepth, nil)
+	handler := server.NewCaldavHandler(caldavPrefix, serverRealm, memStorage, maxDepth, nil, logger)
 
 	// Register the handler with the HTTP server
 	http.Handle(caldavPrefix, handler)

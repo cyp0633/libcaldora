@@ -2,6 +2,7 @@ package server
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,9 +25,13 @@ func TestHandleCalendarMultiget(t *testing.T) {
 	mockURLConverter := new(MockURLConverter)
 	mockStorage := new(storage.MockStorage)
 
+	// Create a test logger that writes to a discard handler
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	h := &CaldavHandler{
 		URLConverter: mockURLConverter,
 		Storage:      mockStorage,
+		Logger:       logger,
 	}
 
 	// Common resource for context (usually the collection where REPORT is sent)
@@ -264,9 +269,13 @@ func TestHandleCalendarQuery(t *testing.T) {
 	mockURL := new(MockURLConverter)
 	mockStorage := new(storage.MockStorage)
 
+	// Create a test logger that writes to a discard handler
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
 	h := &CaldavHandler{
 		URLConverter: mockURL,
 		Storage:      mockStorage,
+		Logger:       logger,
 	}
 
 	cases := []struct {

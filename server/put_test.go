@@ -2,8 +2,10 @@ package server
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +28,9 @@ func TestHandlePut(t *testing.T) {
 
 	// Create handler with mock storage and URL converter
 	urlConverter := &mockURLConverter{}
-	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, urlConverter)
+	// Add slog.Logger parameter with debug level for verbose logging
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	handler := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, urlConverter, logger)
 
 	// Create test event data
 	now := time.Now()
