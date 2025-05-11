@@ -105,17 +105,67 @@ func TestCheckAuth(t *testing.T) {
 		wantStatusCode int
 		wantUsername   string
 		wantSuccess    bool
+		setupMock      func()
 	}{
-		{"no auth header", "", http.StatusUnauthorized, "", false},
-		{"invalid format", "NotBasic abcdef", http.StatusBadRequest, "", false},
-		{"invalid base64", "Basic !@#$%^", http.StatusBadRequest, "", false},
-		{"invalid credential format", "Basic " + base64.StdEncoding.EncodeToString([]byte("username-without-colon")), http.StatusBadRequest, "", false},
-		{"empty username", "Basic " + base64.StdEncoding.EncodeToString([]byte(":password")), http.StatusUnauthorized, "", false},
-		{"successful auth", "Basic " + base64.StdEncoding.EncodeToString([]byte("user1:password")), http.StatusOK, "user1", true},
+		{
+			name:           "no auth header",
+			authHeader:     "",
+			wantStatusCode: http.StatusUnauthorized,
+			wantUsername:   "",
+			wantSuccess:    false,
+			setupMock:      func() {},
+		},
+		{
+			name:           "invalid format",
+			authHeader:     "NotBasic abcdef",
+			wantStatusCode: http.StatusBadRequest,
+			wantUsername:   "",
+			wantSuccess:    false,
+			setupMock:      func() {},
+		},
+		{
+			name:           "invalid base64",
+			authHeader:     "Basic !@#$%^",
+			wantStatusCode: http.StatusBadRequest,
+			wantUsername:   "",
+			wantSuccess:    false,
+			setupMock:      func() {},
+		},
+		{
+			name:           "invalid credential format",
+			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("username-without-colon")),
+			wantStatusCode: http.StatusBadRequest,
+			wantUsername:   "",
+			wantSuccess:    false,
+			setupMock:      func() {},
+		},
+		{
+			name:           "empty username",
+			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte(":password")),
+			wantStatusCode: http.StatusUnauthorized,
+			wantUsername:   "",
+			wantSuccess:    false,
+			setupMock: func() {
+				mockStorage.On("AuthUser", "", "password").Return("", storage.ErrNotFound)
+			},
+		},
+		{
+			name:           "successful auth",
+			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("user1:password")),
+			wantStatusCode: http.StatusOK,
+			wantUsername:   "user1",
+			wantSuccess:    true,
+			setupMock: func() {
+				mockStorage.On("AuthUser", "user1", "password").Return("user1", nil)
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Set up mock expectations
+			tt.setupMock()
+
 			req := httptest.NewRequest("GET", "http://example.com/", nil)
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
@@ -143,6 +193,9 @@ func TestCheckAuth(t *testing.T) {
 					t.Errorf("Expected WWW-Authenticate header with Basic realm, got %q", authHeader)
 				}
 			}
+
+			// Verify that all expectations were met
+			mockStorage.AssertExpectations(t)
 		})
 	}
 }

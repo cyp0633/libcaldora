@@ -600,3 +600,29 @@ func pathSplit(path string) []string {
 
 	return parts
 }
+
+// AuthUser authenticates a user with username and password, returns the user ID if successful.
+func (m *MemoryStorage) AuthUser(username, password string) (string, error) {
+	m.log.Debug("Authenticating user", "username", username)
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// In this example implementation, we just check if the user exists
+	// and if the password is "password" (for demonstration purposes)
+	user, exists := m.users[username]
+	if !exists {
+		m.log.Warn("User not found during authentication", "username", username)
+		return "", storage.ErrNotFound
+	}
+
+	// For this example, we accept any password
+	// In a real implementation, you would verify the password hash
+	if password == "" {
+		m.log.Warn("Empty password provided", "username", username)
+		return "", storage.ErrNotFound
+	}
+
+	m.log.Info("User authenticated successfully", "username", username, "displayName", user.DisplayName)
+	return username, nil
+}

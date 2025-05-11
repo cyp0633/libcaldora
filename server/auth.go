@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// checkAuth enforces Basic Authentication. Returns the username and true if successful.
+// checkAuth enforces Basic Authentication. Returns the user ID and true if successful.
 func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (string, bool) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -40,32 +40,29 @@ func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (strin
 	}
 
 	username := parts[0]
-	_ = parts[1] // Password is intentionally unused for now
+	password := parts[1]
 
-	// --- TODO: Implement actual user authentication ---
-	// This is where you would typically look up the user `username` in your
-	// user database and verify the `password`.
-	// For now, we just check if a username was provided.
-	if username == "" {
-		h.Logger.Warn("empty username provided in basic auth")
-		h.requireAuth(w) // Treat empty username as unauthorized
-		return "", false
-	}
-	isValidUser := true // Placeholder: Assume valid user if username is not empty
-	h.Logger.Debug("credential validation needed",
-		"user", username,
-		"message", "TODO: Implement real credential validation")
-	// --- End TODO ---
-
-	if !isValidUser {
+	// Authenticate user
+	userID, err := h.Storage.AuthUser(username, password)
+	if err != nil {
 		h.Logger.Warn("authentication failed",
-			"user", username)
+			"username", username,
+			"error", err)
 		h.requireAuth(w)
 		return "", false
 	}
 
-	// Authentication successful (for now)
-	return username, true
+	if userID == "" {
+		h.Logger.Warn("authentication failed - invalid credentials",
+			"username", username)
+		h.requireAuth(w)
+		return "", false
+	}
+
+	h.Logger.Info("authentication successful",
+		"username", username,
+		"userID", userID)
+	return userID, true
 }
 
 // requireAuth sends a 401 Unauthorized response asking for Basic Auth.

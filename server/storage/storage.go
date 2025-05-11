@@ -17,6 +17,8 @@ type Storage interface {
 	GetUserCalendars(userID string) ([]Calendar, error)
 	// GetUser gets user information.
 	GetUser(userID string) (*User, error)
+	// AuthUser authenticates a user with username and password, returns the user ID if successful.
+	AuthUser(username, password string) (string, error)
 	// GetCalendar retrieves a specific calendar by user id and calendar id.
 	GetCalendar(userID, calendarID string) (*Calendar, error)
 	// GetObject finds a calendar object (VEVENT, VTODO, VJOURNAL, etc) by user id, calendar id and object id

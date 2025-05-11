@@ -92,6 +92,12 @@ func (m *MockStorage) CreateCalendar(userID string, calendar *Calendar) error {
 	return args.Error(0)
 }
 
+// AuthUser implements the Storage interface
+func (m *MockStorage) AuthUser(username, password string) (string, error) {
+	args := m.Called(username, password)
+	return args.String(0), args.Error(1)
+}
+
 // --- Helper methods for creating test data ---
 
 // NewMockCalendar creates a test Calendar with basic properties

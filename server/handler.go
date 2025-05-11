@@ -62,12 +62,13 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// 1. Basic Authentication Check
-	authUser, ok := h.checkAuth(w, r)
+	userID, ok := h.checkAuth(w, r)
 	if !ok {
 		// checkAuth already sent the 401 response
 		return
 	}
-	h.Logger.Info("authenticated user", "user", authUser)
+
+	h.Logger.Info("authenticated user", "userID", userID)
 
 	// 2. Path Parsing - now handled directly by the URL converter
 	resource, err := h.URLConverter.ParsePath(r.URL.Path)
@@ -83,7 +84,7 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Create request context with the parsed resource
 	ctx := &RequestContext{
 		Resource: resource,
-		AuthUser: authUser,
+		AuthUser: userID, // Use the user ID directly
 	}
 
 	h.Logger.Info("parsed path",
