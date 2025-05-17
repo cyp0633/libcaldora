@@ -25,8 +25,9 @@ type URLConverter interface {
 }
 
 type Resource struct {
-	UserID       string
-	CalendarID   string
+	UserID     string
+	CalendarID string
+	// Not have to be align with UID, this is part of the URI. If you end the URI with trailing .ics, you should add it as well
 	ObjectID     string
 	URI          string // may save encode/parsing overhead
 	ResourceType storage.ResourceType

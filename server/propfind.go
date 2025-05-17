@@ -676,6 +676,13 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			"error", err)
 		return nil, err
 	}
+
+	h.Logger.Debug("handling PROPFIND for collection",
+		"path", path,
+		"user_id", res.UserID,
+		"calendar_id", res.CalendarID,
+		"resource_type", res.ResourceType)
+
 	calendar, err := h.Storage.GetCalendar(res.UserID, res.CalendarID)
 	if err != nil {
 		h.Logger.Error("failed to get calendar for resource",
@@ -683,11 +690,26 @@ func (h *CaldavHandler) handlePropfindCollection(req propfind.ResponseMap, res R
 			"error", err)
 		return nil, err
 	}
-	if calendar == nil || calendar.CalendarData == nil {
-		h.Logger.Error("no calendar found for resource",
-			"resource", res)
+
+	if calendar == nil {
+		h.Logger.Error("calendar not found",
+			"user_id", res.UserID,
+			"calendar_id", res.CalendarID)
 		return nil, propfind.ErrNotFound
 	}
+
+	if calendar.CalendarData == nil {
+		h.Logger.Error("calendar data is nil",
+			"user_id", res.UserID,
+			"calendar_id", res.CalendarID)
+		return nil, propfind.ErrNotFound
+	}
+
+	h.Logger.Debug("found calendar",
+		"user_id", res.UserID,
+		"calendar_id", res.CalendarID,
+		"has_calendar_data", calendar.CalendarData != nil)
+
 	var user *storage.User
 
 	for key := range req {
@@ -953,9 +975,17 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 		return
 	}
 
+	h.Logger.Debug("fetching children",
+		"depth", depth,
+		"parent_type", parent.ResourceType,
+		"user_id", parent.UserID,
+		"calendar_id", parent.CalendarID)
+
 	switch parent.ResourceType {
 	case storage.ResourceObject, storage.ResourcePrincipal:
 		// These types don't have children, return empty slice
+		h.Logger.Debug("resource type has no children",
+			"resource_type", parent.ResourceType)
 		return []Resource{}, nil
 
 	case storage.ResourceCollection:
@@ -967,7 +997,16 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 				"error", err)
 			return nil, err
 		}
+
+		h.Logger.Debug("found event paths in collection",
+			"calendar_id", parent.CalendarID,
+			"path_count", len(paths))
+
 		for _, path := range paths {
+			h.Logger.Debug("parsing event path",
+				"path", path,
+				"calendar_id", parent.CalendarID)
+
 			resource, err := h.URLConverter.ParsePath(path)
 			if err != nil {
 				h.Logger.Error("failed to parse path",
@@ -975,6 +1014,12 @@ func (h *CaldavHandler) fetchChildren(depth int, parent Resource) (resources []R
 					"error", err)
 				return nil, err
 			}
+
+			h.Logger.Debug("parsed event resource",
+				"path", path,
+				"resource_type", resource.ResourceType,
+				"object_id", resource.ObjectID)
+
 			resources = append(resources, resource)
 			children, err := h.fetchChildren(depth-1, resource) // Recursively fetch children for the object
 			if err != nil {
