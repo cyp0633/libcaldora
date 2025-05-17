@@ -86,6 +86,8 @@ type User struct {
 	PreferredColor string
 	// ISO 8601 timezone, e.g. Asia/Shanghai, used for g:timezone
 	PreferredTimezone string
+	// The user's principal path
+	Path string
 }
 
 var (

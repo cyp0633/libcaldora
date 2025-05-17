@@ -47,6 +47,12 @@ type DefaultURLConverter struct {
 	Prefix string
 }
 
+// NewDefaultURLConverter creates a new DefaultURLConverter with the given prefix.
+// The prefix should start with a slash and end with a slash (e.g., "/caldav/").
+func NewDefaultURLConverter(prefix string) *DefaultURLConverter {
+	return &DefaultURLConverter{Prefix: prefix}
+}
+
 // ParsePath parses a CalDAV path into its components.
 // It handles paths with or without the configured prefix.
 func (c *DefaultURLConverter) ParsePath(path string) (Resource, error) {
