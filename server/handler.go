@@ -39,7 +39,7 @@ func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth in
 		prefix = prefix + "/"
 	}
 	if converter == nil {
-		converter = defaultURLConverter{Prefix: prefix}
+		converter = &DefaultURLConverter{Prefix: prefix}
 	}
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))

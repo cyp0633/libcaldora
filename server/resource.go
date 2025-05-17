@@ -8,7 +8,7 @@ import (
 	"github.com/cyp0633/libcaldora/server/storage"
 )
 
-// URLConverter helps you define URL path convention. Leave this blank when creating handler defaults to defaultURLConverter.
+// URLConverter helps you define URL path convention. Leave this blank when creating handler defaults to DefaultURLConverter.
 //
 // However, there are some basic assumptions you should respect:
 //
@@ -16,7 +16,7 @@ import (
 // user <userid> and calendar <calendarid>. Please consider including all those information in your URI, or you might
 // encounter excessive overhead looking for parent resources.
 //
-// If you set prefix in the handler, you should consider initializing your URLConverter with the same prefix, like defaultURLConverter does.
+// If you set prefix in the handler, you should consider initializing your URLConverter with the same prefix, like DefaultURLConverter does.
 type URLConverter interface {
 	// ParsePath parses a given path and returns the corresponding Resource.
 	ParsePath(path string) (Resource, error)
@@ -32,11 +32,24 @@ type Resource struct {
 	ResourceType storage.ResourceType
 }
 
-type defaultURLConverter struct {
+// DefaultURLConverter implements the URLConverter interface with a standard CalDAV URL structure:
+// /<userid>/cal/<calendarid>/<objectid>
+//
+// The URL structure follows these rules:
+// - Service Root: /
+// - Principal: /<userid>
+// - Home Set: /<userid>/cal
+// - Collection: /<userid>/cal/<calendarid>
+// - Object: /<userid>/cal/<calendarid>/<objectid>
+//
+// The Prefix field can be used to add a common prefix to all paths (e.g., "/caldav/")
+type DefaultURLConverter struct {
 	Prefix string
 }
 
-func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
+// ParsePath parses a CalDAV path into its components.
+// It handles paths with or without the configured prefix.
+func (c *DefaultURLConverter) ParsePath(path string) (Resource, error) {
 	resource := Resource{ResourceType: storage.ResourceUnknown, URI: path}
 
 	// Strip the prefix if present
@@ -103,8 +116,10 @@ func (c defaultURLConverter) ParsePath(path string) (Resource, error) {
 	return resource, nil
 }
 
-// EncodePath encodes a Resource into URI, regardless of whether URI field is filled
-func (c defaultURLConverter) EncodePath(resource Resource) (string, error) {
+// EncodePath encodes a Resource into a CalDAV path.
+// It validates that the resource has all required fields for its type
+// and adds the configured prefix to the path.
+func (c *DefaultURLConverter) EncodePath(resource Resource) (string, error) {
 	var path string
 
 	switch resource.ResourceType {
