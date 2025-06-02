@@ -85,13 +85,28 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 	}
 	r.Body.Close()
 
-	comp, err := storage.ICSToICalComp(string(data))
+	components, err := storage.ICSToICalComp(string(data))
 	if err != nil {
 		h.Logger.Warn("invalid iCalendar data",
 			"error", err)
 		http.Error(w, "Invalid iCalendar data", http.StatusBadRequest)
 		return
 	}
+
+	if len(components) == 0 {
+		h.Logger.Warn("no components found in iCalendar data")
+		http.Error(w, "No components found in iCalendar data", http.StatusBadRequest)
+		return
+	}
+
+	if len(components) > 1 {
+		h.Logger.Warn("multiple components found in iCalendar data",
+			"count", len(components))
+		http.Error(w, "Multiple components not supported in single object upload", http.StatusBadRequest)
+		return
+	}
+
+	comp := components[0]
 
 	// 5) Persist
 	path, err := h.URLConverter.EncodePath(ctx.Resource)

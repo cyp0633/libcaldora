@@ -562,7 +562,7 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 				}
 			}
 		case "calendar-data":
-			ics, err := storage.ICalCompToICS(*object.Component, false)
+			ics, err := storage.ICalCompToICS([]ical.Component{*object.Component}, false)
 			if err != nil {
 				h.Logger.Error("failed to convert calendar component to ICS for resource",
 					"resource", res,
