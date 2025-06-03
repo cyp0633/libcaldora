@@ -54,7 +54,7 @@ func TestHandleGet(t *testing.T) {
 		Path:         "/" + userID + "/cal/" + calendarID + "/" + objectID,
 		ETag:         "etag-event-123",
 		LastModified: now,
-		Component:    eventComponent,
+		Component:    []*ical.Component{eventComponent},
 	}
 
 	// Test cases

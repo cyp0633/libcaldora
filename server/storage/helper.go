@@ -10,7 +10,7 @@ import (
 )
 
 // ICalCompToICS converts ical.Component(s) (event or other calendar components) to an ICS string.
-func ICalCompToICS(components []ical.Component, removeCalendarWrapper bool) (string, error) {
+func ICalCompToICS(components []*ical.Component, removeCalendarWrapper bool) (string, error) {
 	if len(components) == 0 {
 		return "", fmt.Errorf("no components provided")
 	}
@@ -20,8 +20,10 @@ func ICalCompToICS(components []ical.Component, removeCalendarWrapper bool) (str
 	cal.Props.SetText(ical.PropProductID, "-//Caldora//Go Calendar//EN")
 
 	// Add all components to the calendar
-	for i := range components {
-		component := &components[i]
+	for _, component := range components {
+		if component == nil {
+			continue // Skip nil components
+		}
 		// Ensure DTSTAMP is present
 		if component.Props.Get(ical.PropDateTimeStamp) == nil {
 			component.Props.SetDateTime(ical.PropDateTimeStamp, time.Now())

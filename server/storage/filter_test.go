@@ -16,7 +16,7 @@ func createTestEvent(uid, summary string, start, end time.Time) *CalendarObject 
 	comp.Props.SetDateTime(ical.PropDateTimeStart, start)
 	comp.Props.SetDateTime(ical.PropDateTimeEnd, end)
 	return &CalendarObject{
-		Component: comp,
+		Component: []*ical.Component{comp},
 	}
 }
 
@@ -29,7 +29,7 @@ func createTestTodo(uid, summary string, due time.Time, status string) *Calendar
 		comp.Props.SetText(ical.PropStatus, status)
 	}
 	return &CalendarObject{
-		Component: comp,
+		Component: []*ical.Component{comp},
 	}
 }
 
@@ -40,11 +40,13 @@ func createCalendarWithEvents(events ...*CalendarObject) *CalendarObject {
 
 	// Add events as children
 	for _, event := range events {
-		calendar.Children = append(calendar.Children, event.Component)
+		if len(event.Component) > 0 && event.Component[0] != nil {
+			calendar.Children = append(calendar.Children, event.Component[0])
+		}
 	}
 
 	return &CalendarObject{
-		Component: calendar,
+		Component: []*ical.Component{calendar},
 	}
 }
 
@@ -66,7 +68,7 @@ func createEventWithAttendee(uid, summary string, start, end time.Time, attendee
 	}
 
 	return &CalendarObject{
-		Component: comp,
+		Component: []*ical.Component{comp},
 	}
 }
 
@@ -281,12 +283,12 @@ func TestFilter_ValidatePropertyFilters(t *testing.T) {
 
 	// Create event with specific properties
 	event := createTestEvent("123", "Business Meeting", now, now.Add(1*time.Hour))
-	event.Component.Props.SetText(ical.PropLocation, "Conference Room")
-	event.Component.Props.SetText(ical.PropDescription, "Quarterly review meeting")
+	event.Component[0].Props.SetText(ical.PropLocation, "Conference Room")
+	event.Component[0].Props.SetText(ical.PropDescription, "Quarterly review meeting")
 
 	// Create todo with different properties
 	todo := createTestTodo("456", "Prepare Report", now.Add(24*time.Hour), "NEEDS-ACTION")
-	todo.Component.Props.SetText(ical.PropDescription, "Prepare quarterly financial report")
+	todo.Component[0].Props.SetText(ical.PropDescription, "Prepare quarterly financial report")
 
 	tests := []struct {
 		name   string
@@ -721,7 +723,7 @@ func TestFilter_ValidateNestedComponents(t *testing.T) {
 	alarm := ical.NewComponent(ical.CompAlarm)
 	alarm.Props.SetText(ical.PropAction, "DISPLAY")
 	alarm.Props.SetText(ical.PropDescription, "Reminder")
-	event2.Component.Children = append(event2.Component.Children, alarm)
+	event2.Component[0].Children = append(event2.Component[0].Children, alarm)
 
 	// Create a calendar with both events as children
 	calendar := createCalendarWithEvents(event1, event2)
@@ -892,9 +894,9 @@ func TestFilter_ComplexFilters(t *testing.T) {
 			},
 		},
 	)
-	workMeeting.Component.Props.SetText(ical.PropLocation, "Conference Room A")
-	workMeeting.Component.Props.SetText(ical.PropDescription, "Quarterly planning session")
-	workMeeting.Component.Props.SetText(ical.PropCategories, "WORK,MEETING,PLANNING")
+	workMeeting.Component[0].Props.SetText(ical.PropLocation, "Conference Room A")
+	workMeeting.Component[0].Props.SetText(ical.PropDescription, "Quarterly planning session")
+	workMeeting.Component[0].Props.SetText(ical.PropCategories, "WORK,MEETING,PLANNING")
 
 	// Personal appointment
 	personalAppt := createTestEvent(
@@ -903,9 +905,9 @@ func TestFilter_ComplexFilters(t *testing.T) {
 		baseTime.Add(1*24*time.Hour), // Next day
 		baseTime.Add(1*24*time.Hour+1*time.Hour),
 	)
-	personalAppt.Component.Props.SetText(ical.PropLocation, "Dental Clinic")
-	personalAppt.Component.Props.SetText(ical.PropDescription, "Regular check-up")
-	personalAppt.Component.Props.SetText(ical.PropCategories, "PERSONAL,HEALTH")
+	personalAppt.Component[0].Props.SetText(ical.PropLocation, "Dental Clinic")
+	personalAppt.Component[0].Props.SetText(ical.PropDescription, "Regular check-up")
+	personalAppt.Component[0].Props.SetText(ical.PropCategories, "PERSONAL,HEALTH")
 
 	// TODO item
 	workTodo := createTestTodo(
@@ -914,8 +916,8 @@ func TestFilter_ComplexFilters(t *testing.T) {
 		baseTime.Add(3*24*time.Hour), // Three days later
 		"IN-PROCESS",
 	)
-	workTodo.Component.Props.SetText(ical.PropDescription, "Slides for the team meeting")
-	workTodo.Component.Props.SetText(ical.PropCategories, "WORK,PRESENTATION")
+	workTodo.Component[0].Props.SetText(ical.PropDescription, "Slides for the team meeting")
+	workTodo.Component[0].Props.SetText(ical.PropCategories, "WORK,PRESENTATION")
 
 	// Add them to a calendar
 	calendar := createCalendarWithEvents(workMeeting, personalAppt, workTodo)

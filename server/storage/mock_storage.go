@@ -127,7 +127,7 @@ func NewMockEvent(path, uid, summary string, start, end time.Time) CalendarObjec
 		Path:         path,
 		ETag:         "etag-" + uid + "-1",
 		LastModified: time.Now(),
-		Component:    event,
+		Component:    []*ical.Component{event},
 	}
 }
 
@@ -142,7 +142,7 @@ func NewMockTodo(path, uid, summary string, due time.Time) CalendarObject {
 		Path:         path,
 		ETag:         "etag-" + uid + "-1",
 		LastModified: time.Now(),
-		Component:    todo,
+		Component:    []*ical.Component{todo},
 	}
 }
 

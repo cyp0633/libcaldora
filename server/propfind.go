@@ -405,7 +405,7 @@ func (h *CaldavHandler) handlePropfindObject(req propfind.ResponseMap, res Resou
 			"error", err)
 		return nil, err
 	}
-	if object == nil || object.Component == nil {
+	if object == nil || len(object.Component) == 0 {
 		h.Logger.Error("no object found for resource",
 			"resource", res)
 		return nil, propfind.ErrNotFound
@@ -424,7 +424,7 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 	for key := range req {
 		switch key {
 		case "displayname":
-			name, err := object.Component.Props.Text(ical.PropName)
+			name, err := object.Component[0].Props.Text(ical.PropName)
 			if err != nil {
 				h.Logger.Debug("failed to get display name for resource",
 					"resource", res,
@@ -434,7 +434,7 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 				req[key] = mo.Ok[props.Property](&props.DisplayName{Value: name})
 			}
 		case "resourcetype":
-			req[key] = mo.Ok[props.Property](&props.Resourcetype{Type: props.ResourceObject, ObjectType: object.Component.Name})
+			req[key] = mo.Ok[props.Property](&props.Resourcetype{Type: props.ResourceObject, ObjectType: object.Component[0].Name})
 		case "getetag":
 			if object.ETag != "" {
 				req[key] = mo.Ok[props.Property](&props.GetEtag{Value: object.ETag})
@@ -442,7 +442,7 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 				req[key] = mo.Err[props.Property](propfind.ErrNotFound)
 			}
 		case "getlastmodified":
-			lastModified, err := object.Component.Props.DateTime(ical.PropLastModified, nil)
+			lastModified, err := object.Component[0].Props.DateTime(ical.PropLastModified, nil)
 			if err != nil {
 				h.Logger.Debug("failed to get last modified date for resource",
 					"resource", res,
@@ -562,7 +562,7 @@ func (h *CaldavHandler) handlePropfindObjectWithObject(req propfind.ResponseMap,
 				}
 			}
 		case "calendar-data":
-			ics, err := storage.ICalCompToICS([]ical.Component{*object.Component}, false)
+			ics, err := storage.ICalCompToICS(object.Component, false)
 			if err != nil {
 				h.Logger.Error("failed to convert calendar component to ICS for resource",
 					"resource", res,

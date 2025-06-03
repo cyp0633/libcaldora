@@ -11,7 +11,7 @@ import (
 func TestICalCompToICS(t *testing.T) {
 	tests := []struct {
 		name                  string
-		components            []ical.Component
+		components            []*ical.Component
 		removeCalendarWrapper bool
 		want                  []string // substrings that should be in result
 		dontWant              []string // substrings that should not be in result when wrapper is removed
@@ -19,13 +19,13 @@ func TestICalCompToICS(t *testing.T) {
 	}{
 		{
 			name: "single event with wrapper",
-			components: []ical.Component{func() ical.Component {
+			components: []*ical.Component{func() *ical.Component {
 				e := ical.NewEvent()
 				e.Props.SetText(ical.PropSummary, "Test Event")
 				e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
 				e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
 				e.Props.SetText(ical.PropUID, "test-event-1")
-				return *e.Component
+				return e.Component
 			}()},
 			removeCalendarWrapper: false,
 			want: []string{
@@ -44,13 +44,13 @@ func TestICalCompToICS(t *testing.T) {
 		},
 		{
 			name: "single event without wrapper",
-			components: []ical.Component{func() ical.Component {
+			components: []*ical.Component{func() *ical.Component {
 				e := ical.NewEvent()
 				e.Props.SetText(ical.PropSummary, "Test Event")
 				e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
 				e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
 				e.Props.SetText(ical.PropUID, "test-event-1")
-				return *e.Component
+				return e.Component
 			}()},
 			removeCalendarWrapper: true,
 			want: []string{
@@ -71,22 +71,22 @@ func TestICalCompToICS(t *testing.T) {
 		},
 		{
 			name: "multiple events with wrapper",
-			components: []ical.Component{
-				func() ical.Component {
+			components: []*ical.Component{
+				func() *ical.Component {
 					e := ical.NewEvent()
 					e.Props.SetText(ical.PropSummary, "Event 1")
 					e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
 					e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
 					e.Props.SetText(ical.PropUID, "event-1")
-					return *e.Component
+					return e.Component
 				}(),
-				func() ical.Component {
+				func() *ical.Component {
 					e := ical.NewEvent()
 					e.Props.SetText(ical.PropSummary, "Event 2")
 					e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC))
 					e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 2, 13, 0, 0, 0, time.UTC))
 					e.Props.SetText(ical.PropUID, "event-2")
-					return *e.Component
+					return e.Component
 				}(),
 			},
 			removeCalendarWrapper: false,
@@ -108,22 +108,22 @@ func TestICalCompToICS(t *testing.T) {
 		},
 		{
 			name: "multiple events without wrapper",
-			components: []ical.Component{
-				func() ical.Component {
+			components: []*ical.Component{
+				func() *ical.Component {
 					e := ical.NewEvent()
 					e.Props.SetText(ical.PropSummary, "Event 1")
 					e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 1, 10, 0, 0, 0, time.UTC))
 					e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC))
 					e.Props.SetText(ical.PropUID, "event-1")
-					return *e.Component
+					return e.Component
 				}(),
-				func() ical.Component {
+				func() *ical.Component {
 					e := ical.NewEvent()
 					e.Props.SetText(ical.PropSummary, "Event 2")
 					e.Props.SetDateTime(ical.PropDateTimeStart, time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC))
 					e.Props.SetDateTime(ical.PropDateTimeEnd, time.Date(2024, 1, 2, 13, 0, 0, 0, time.UTC))
 					e.Props.SetText(ical.PropUID, "event-2")
-					return *e.Component
+					return e.Component
 				}(),
 			},
 			removeCalendarWrapper: true,
@@ -147,7 +147,7 @@ func TestICalCompToICS(t *testing.T) {
 		},
 		{
 			name:                  "empty components list",
-			components:            []ical.Component{},
+			components:            []*ical.Component{},
 			removeCalendarWrapper: false,
 			want:                  []string{},
 			wantErr:               true,

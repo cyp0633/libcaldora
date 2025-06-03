@@ -57,6 +57,8 @@ type Calendar struct {
 
 // CalendarObject represents an individual calendar resource like an event (VEVENT),
 // task (VTODO), or journal entry (VJOURNAL) within a calendar collection.
+//
+// It includes the resource itself (Component), and some of its properties
 type CalendarObject struct {
 	// Path is the unique URI path for this calendar object resource.
 	//
@@ -74,7 +76,8 @@ type CalendarObject struct {
 	LastModified time.Time
 
 	// Component stores the underlying VEVENT, VTODO, etc. data using go-ical.
-	Component *ical.Component
+	// Sometimes a URI corresponds to multiple components (e.g. VEVENT with override, VTIMEZONE)
+	Component []*ical.Component
 }
 
 type User struct {

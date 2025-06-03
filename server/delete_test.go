@@ -31,13 +31,14 @@ func TestHandleDelete(t *testing.T) {
 
 	// Create an existing object for deletion tests
 	now := time.Now()
+	comp := ical.NewComponent(ical.CompEvent)
+	comp.Props.SetText(ical.PropUID, "event-uid-1")
 	existingEvent := &storage.CalendarObject{
 		Path:         "/" + userID + "/cal/" + calendarID + "/" + objectID,
 		ETag:         "etag-event-123",
 		LastModified: now,
-		Component:    ical.NewComponent(ical.CompEvent),
+		Component:    []*ical.Component{comp},
 	}
-	existingEvent.Component.Props.SetText(ical.PropUID, "event-uid-1")
 
 	// Test cases
 	tests := []struct {

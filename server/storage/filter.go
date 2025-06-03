@@ -51,12 +51,12 @@ type Filter struct {
 // Validate checks if a calendar object matches the given filter.
 func (f *Filter) Validate(calObj *CalendarObject) bool {
 	// Handle nil object
-	if calObj == nil || calObj.Component == nil {
+	if calObj == nil || len(calObj.Component) == 0 || calObj.Component[0] == nil {
 		return f.IsNotDefined
 	}
 
-	// Get component name
-	componentName := calObj.Component.Name
+	// Get component name from the first component
+	componentName := calObj.Component[0].Name
 
 	// Handle is-not-defined case
 	if f.IsNotDefined {
@@ -69,7 +69,7 @@ func (f *Filter) Validate(calObj *CalendarObject) bool {
 	}
 
 	// Check time range constraints
-	if f.TimeRange != nil && !validateTimeRange(calObj.Component, f.TimeRange) {
+	if f.TimeRange != nil && !validateTimeRange(calObj.Component[0], f.TimeRange) {
 		return false
 	}
 
@@ -81,7 +81,7 @@ func (f *Filter) Validate(calObj *CalendarObject) bool {
 
 	// Validate property filters
 	if len(f.PropFilters) > 0 {
-		propResult := validatePropFilters(calObj.Component, f.PropFilters, test)
+		propResult := validatePropFilters(calObj.Component[0], f.PropFilters, test)
 		if !propResult {
 			return false
 		}
@@ -89,7 +89,7 @@ func (f *Filter) Validate(calObj *CalendarObject) bool {
 
 	// Validate nested component filters
 	if len(f.Children) > 0 {
-		childResult := validateChildren(calObj.Component, f.Children, test)
+		childResult := validateChildren(calObj.Component[0], f.Children, test)
 		if !childResult {
 			return false
 		}
@@ -188,7 +188,7 @@ func validateTimeRange(comp *ical.Component, timeRange *TimeRange) bool {
 	}
 
 	// Overlap if start ≤ rangeEnd AND end ≥ rangeStart
-	// (nil bound means “–∞” or “+∞”)
+	// (nil bound means "–∞" or "+∞")
 	cond1 := rangeEnd == nil || !start.After(*rangeEnd)    // start ≤ rangeEnd
 	cond2 := rangeStart == nil || !end.Before(*rangeStart) // end ≥ rangeStart
 
@@ -387,7 +387,7 @@ func validateChildren(comp *ical.Component, children []Filter, test string) bool
 
 		// Check if any child matches the filter
 		for _, childComp := range childComps {
-			tempObj := &CalendarObject{Component: childComp}
+			tempObj := &CalendarObject{Component: []*ical.Component{childComp}}
 			if childFilter.Validate(tempObj) {
 				childMatched = true
 				break

@@ -67,12 +67,13 @@ func TestHandleCalendarMultiget(t *testing.T) {
 		mockURLConverter.On("ParsePath", collectionPath).Return(collectionResource, nil).Once()
 
 		// Mock Storage calls needed by handlePropfindObject for objectResource
+		comp := &ical.Component{
+			Name:  ical.CompEvent,
+			Props: make(ical.Props),
+		}
 		mockStorage.On("GetObject", "user1", "cal1", "event1").Return(&storage.CalendarObject{
-			ETag: "etag1",
-			Component: &ical.Component{ // Add a minimal non-nil component
-				Name:  ical.CompEvent,
-				Props: make(ical.Props),
-			},
+			ETag:      "etag1",
+			Component: []*ical.Component{comp}, // Add a minimal non-nil component
 		}, nil).Once()
 
 		// Mock Storage calls needed by handlePropfindCollection for collectionResource
@@ -317,7 +318,7 @@ func TestHandleCalendarQuery(t *testing.T) {
 
 				object := &storage.CalendarObject{
 					ETag:      "event1-etag",
-					Component: calComp,
+					Component: []*ical.Component{calComp},
 				}
 
 				mockStorage.On("GetObject", "user1", "cal1", "event1").Return(object, nil).Once()
@@ -358,14 +359,15 @@ func TestHandleCalendarQuery(t *testing.T) {
 </C:calendar-query>`,
 			setupMocks: func() {
 				// Create an object that won't match the filter
-				object := &storage.CalendarObject{
-					ETag: "event2-etag",
-					Component: &ical.Component{
-						Name: ical.CompEvent,
-						Props: ical.Props{
-							"SUMMARY": []ical.Prop{{Value: "DifferentSummary"}},
-						},
+				comp := &ical.Component{
+					Name: ical.CompEvent,
+					Props: ical.Props{
+						"SUMMARY": []ical.Prop{{Value: "DifferentSummary"}},
 					},
+				}
+				object := &storage.CalendarObject{
+					ETag:      "event2-etag",
+					Component: []*ical.Component{comp},
 				}
 				mockStorage.On("GetObject", "user1", "cal1", "event2").Return(object, nil).Once()
 			},
@@ -395,13 +397,14 @@ func TestHandleCalendarQuery(t *testing.T) {
 </C:calendar-query>`,
 			setupMocks: func() {
 				// Objects that match the filter
+				comp := &ical.Component{
+					Name:  ical.CompEvent,
+					Props: make(ical.Props),
+				}
 				objects := []storage.CalendarObject{
 					{
-						ETag: "event1-etag",
-						Component: &ical.Component{
-							Name:  ical.CompEvent,
-							Props: make(ical.Props),
-						},
+						ETag:      "event1-etag",
+						Component: []*ical.Component{comp},
 					},
 				}
 				mockStorage.On("GetObjectByFilter", "user1", "cal1", mock.Anything).Return(objects, nil).Once()

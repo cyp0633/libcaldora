@@ -28,7 +28,7 @@ func (h *CaldavHandler) handleGet(w http.ResponseWriter, r *http.Request, ctx *R
 
 	// get object
 	object, err := h.Storage.GetObject(ctx.Resource.UserID, ctx.Resource.CalendarID, ctx.Resource.ObjectID)
-	if err != nil || object == nil || object.Component == nil {
+	if err != nil || object == nil || len(object.Component) == 0 {
 		h.Logger.Error("failed to retrieve object",
 			"error", err,
 			"object_id", ctx.Resource.ObjectID)
@@ -56,7 +56,11 @@ func (h *CaldavHandler) handleGet(w http.ResponseWriter, r *http.Request, ctx *R
 	}
 
 	// wrap event into calendar
-	collection.CalendarData.Children = append(collection.CalendarData.Children, object.Component)
+	for _, component := range object.Component {
+		if component != nil {
+			collection.CalendarData.Children = append(collection.CalendarData.Children, component)
+		}
+	}
 
 	// Ensure PRODID and VERSION are set to avoid encoding errors
 	if _, err := collection.CalendarData.Props.Text(ical.PropProductID); err != nil {

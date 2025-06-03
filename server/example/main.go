@@ -189,6 +189,6 @@ func createEvent(userID, calendarID, summary, location string, start, end time.T
 	return storage.CalendarObject{
 		Path:      fmt.Sprintf("/caldav/%s/cal/%s/%s", userID, calendarID, eventID),
 		ETag:      fmt.Sprintf("etag-%s-%d", eventUID[:8], time.Now().Unix()),
-		Component: event.Component,
+		Component: []*ical.Component{event.Component},
 	}
 }

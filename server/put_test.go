@@ -47,13 +47,14 @@ END:VEVENT
 END:VCALENDAR`
 
 	// Create an existing object for update tests
+	comp := ical.NewComponent(ical.CompEvent)
+	comp.Props.SetText(ical.PropUID, "event-uid-1")
 	existingEvent := &storage.CalendarObject{
 		Path:         encodedPath,
 		ETag:         "etag-event-123",
 		LastModified: now,
-		Component:    ical.NewComponent(ical.CompEvent),
+		Component:    []*ical.Component{comp},
 	}
-	existingEvent.Component.Props.SetText(ical.PropUID, "event-uid-1")
 
 	// Test cases
 	tests := []struct {

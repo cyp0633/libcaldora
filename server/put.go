@@ -106,8 +106,6 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 		return
 	}
 
-	comp := components[0]
-
 	// 5) Persist
 	path, err := h.URLConverter.EncodePath(ctx.Resource)
 	if err != nil {
@@ -118,7 +116,7 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 		http.Error(w, "Failed to encode path", http.StatusInternalServerError)
 		return
 	}
-	newObj := &storage.CalendarObject{Path: path, Component: comp}
+	newObj := &storage.CalendarObject{Path: path, Component: components}
 	newETag, err := h.Storage.UpdateObject(ctx.Resource.UserID, ctx.Resource.CalendarID, newObj)
 	if err != nil {
 		h.Logger.Error("failed to save object",
