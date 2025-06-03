@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cyp0633/libcaldora/server/storage"
+	"github.com/emersion/go-ical"
 )
 
 func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *RequestContext) {
@@ -85,7 +86,10 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 	}
 	r.Body.Close()
 
-	components, err := storage.ICSToICalComp(string(data))
+	// Parse calendar data to get all components including VTIMEZONE
+	reader := strings.NewReader(string(data))
+	dec := ical.NewDecoder(reader)
+	cal, err := dec.Decode()
 	if err != nil {
 		h.Logger.Warn("invalid iCalendar data",
 			"error", err)
@@ -93,18 +97,30 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 		return
 	}
 
-	if len(components) == 0 {
-		h.Logger.Warn("no components found in iCalendar data")
-		http.Error(w, "No components found in iCalendar data", http.StatusBadRequest)
+	// Collect all meaningful components (including VTIMEZONE)
+	var allComponents []*ical.Component
+	for _, child := range cal.Children {
+		// Include all components except empty ones
+		if child != nil && child.Name != "" {
+			allComponents = append(allComponents, child)
+		}
+	}
+
+	if len(allComponents) == 0 {
+		h.Logger.Warn("no valid components found in iCalendar data")
+		http.Error(w, "No valid components found in iCalendar data", http.StatusBadRequest)
 		return
 	}
 
-	if len(components) > 1 {
-		h.Logger.Warn("multiple components found in iCalendar data",
-			"count", len(components))
-		http.Error(w, "Multiple components not supported in single object upload", http.StatusBadRequest)
-		return
-	}
+	h.Logger.Debug("parsed calendar object",
+		"component_count", len(allComponents),
+		"component_types", func() []string {
+			var types []string
+			for _, comp := range allComponents {
+				types = append(types, comp.Name)
+			}
+			return types
+		}())
 
 	// 5) Persist
 	path, err := h.URLConverter.EncodePath(ctx.Resource)
@@ -116,7 +132,7 @@ func (h *CaldavHandler) handlePut(w http.ResponseWriter, r *http.Request, ctx *R
 		http.Error(w, "Failed to encode path", http.StatusInternalServerError)
 		return
 	}
-	newObj := &storage.CalendarObject{Path: path, Component: components}
+	newObj := &storage.CalendarObject{Path: path, Component: allComponents}
 	newETag, err := h.Storage.UpdateObject(ctx.Resource.UserID, ctx.Resource.CalendarID, newObj)
 	if err != nil {
 		h.Logger.Error("failed to save object",

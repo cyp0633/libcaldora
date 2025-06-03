@@ -4,10 +4,15 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
+	"strings"
+
+	"github.com/beevik/etree"
 	"github.com/cyp0633/libcaldora/internal/xml/propfind"
 	"github.com/cyp0633/libcaldora/internal/xml/props"
 	"github.com/cyp0633/libcaldora/server/storage"
+	"github.com/emersion/go-ical"
 	"github.com/samber/mo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -410,4 +415,254 @@ func TestFetchChildren(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 		mockURLConverter.AssertExpectations(t)
 	})
+}
+
+func TestHandlePropfindMultiComponentCalendarData(t *testing.T) {
+	// Setup
+	mockURLConverter := new(MockURLConverter)
+	mockStorage := new(storage.MockStorage)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	h := &CaldavHandler{
+		URLConverter: mockURLConverter,
+		Storage:      mockStorage,
+		Logger:       logger,
+	}
+
+	userID := "alice"
+	calendarID := "work"
+	now := time.Now()
+
+	// Create test calendar
+	testCalendar := &storage.Calendar{
+		Path:         "/" + userID + "/cal/" + calendarID,
+		CTag:         "ctag-123",
+		ETag:         "etag-cal-123",
+		CalendarData: ical.NewCalendar(),
+	}
+	testCalendar.CalendarData.Props.SetText(ical.PropName, "Work Calendar")
+	testCalendar.CalendarData.Props.SetText(ical.PropProductID, "-//libcaldora//NONSGML v1.0//EN")
+	testCalendar.CalendarData.Props.SetText(ical.PropVersion, "2.0")
+
+	tests := []struct {
+		name          string
+		objectID      string
+		setupObject   func() *storage.CalendarObject
+		checkResponse func(t *testing.T, doc *etree.Document)
+	}{
+		{
+			name:     "PROPFIND calendar-data for VEVENT with VTIMEZONE",
+			objectID: "event-with-timezone.ics",
+			setupObject: func() *storage.CalendarObject {
+				// Create VTIMEZONE component
+				timezone := ical.NewComponent("VTIMEZONE")
+				timezone.Props.SetText("TZID", "America/New_York")
+
+				// Add STANDARD time definition
+				standard := ical.NewComponent("STANDARD")
+				standard.Props.SetText("DTSTART", "20071104T020000")
+				standard.Props.SetText("TZOFFSETFROM", "-0400")
+				standard.Props.SetText("TZOFFSETTO", "-0500")
+				standard.Props.SetText("RRULE", "FREQ=YEARLY;BYMONTH=11;BYDAY=1SU")
+				timezone.Children = append(timezone.Children, standard)
+
+				// Create VEVENT component
+				eventComponent := ical.NewComponent(ical.CompEvent)
+				eventComponent.Props.SetText(ical.PropUID, "event-with-tz-1")
+				eventComponent.Props.SetText(ical.PropSummary, "Meeting in NY timezone")
+				eventComponent.Props.SetDateTime(ical.PropDateTimeStart, now)
+				eventComponent.Props.SetDateTime(ical.PropDateTimeEnd, now.Add(1*time.Hour))
+				eventComponent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+				return &storage.CalendarObject{
+					Path:         "/" + userID + "/cal/" + calendarID + "/event-with-timezone.ics",
+					ETag:         "etag-tz-event-123",
+					LastModified: now,
+					Component:    []*ical.Component{timezone, eventComponent},
+				}
+			},
+			checkResponse: func(t *testing.T, doc *etree.Document) {
+				// Check that calendar-data is present and contains both components
+				calData := doc.Root().FindElement("//cal:calendar-data")
+				assert.NotNil(t, calData, "calendar-data element should be present")
+
+				icsContent := calData.Text()
+				assert.NotEmpty(t, icsContent, "calendar-data should not be empty")
+
+				// Check for VTIMEZONE and VEVENT components
+				assert.Contains(t, icsContent, "BEGIN:VTIMEZONE")
+				assert.Contains(t, icsContent, "TZID:America/New_York")
+				assert.Contains(t, icsContent, "BEGIN:VEVENT")
+				assert.Contains(t, icsContent, "Meeting in NY timezone")
+				assert.Contains(t, icsContent, "UID:event-with-tz-1")
+			},
+		},
+		{
+			name:     "PROPFIND calendar-data for VEVENT with override",
+			objectID: "recurring-with-exception.ics",
+			setupObject: func() *storage.CalendarObject {
+				// Create main recurring VEVENT
+				masterEvent := ical.NewComponent(ical.CompEvent)
+				masterEvent.Props.SetText(ical.PropUID, "recurring-event-123")
+				masterEvent.Props.SetText(ical.PropSummary, "Weekly Team Meeting")
+				masterEvent.Props.SetDateTime(ical.PropDateTimeStart, now)
+				masterEvent.Props.SetDateTime(ical.PropDateTimeEnd, now.Add(1*time.Hour))
+				masterEvent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+				masterEvent.Props.SetText(ical.PropRecurrenceRule, "FREQ=WEEKLY;BYDAY=TU")
+
+				// Create exception/override VEVENT
+				exceptionEvent := ical.NewComponent(ical.CompEvent)
+				exceptionEvent.Props.SetText(ical.PropUID, "recurring-event-123")
+				exceptionEvent.Props.SetText(ical.PropSummary, "Weekly Team Meeting - RESCHEDULED")
+				exceptionDate := now.AddDate(0, 0, 7)
+				exceptionEvent.Props.SetDateTime("RECURRENCE-ID", exceptionDate)
+				exceptionEvent.Props.SetDateTime(ical.PropDateTimeStart, exceptionDate.Add(2*time.Hour))
+				exceptionEvent.Props.SetDateTime(ical.PropDateTimeEnd, exceptionDate.Add(3*time.Hour))
+				exceptionEvent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+				return &storage.CalendarObject{
+					Path:         "/" + userID + "/cal/" + calendarID + "/recurring-with-exception.ics",
+					ETag:         "etag-recurring-exception-123",
+					LastModified: now,
+					Component:    []*ical.Component{masterEvent, exceptionEvent},
+				}
+			},
+			checkResponse: func(t *testing.T, doc *etree.Document) {
+				calData := doc.Root().FindElement("//cal:calendar-data")
+				assert.NotNil(t, calData, "calendar-data element should be present")
+
+				icsContent := calData.Text()
+				assert.NotEmpty(t, icsContent, "calendar-data should not be empty")
+
+				// Check for both master and exception events
+				assert.Contains(t, icsContent, "UID:recurring-event-123")
+				assert.Contains(t, icsContent, "Weekly Team Meeting")
+				assert.Contains(t, icsContent, "Weekly Team Meeting - RESCHEDULED")
+				assert.Contains(t, icsContent, "RRULE")
+				assert.Contains(t, icsContent, "RECURRENCE-ID")
+
+				// Verify we have two VEVENT sections
+				eventCount := strings.Count(icsContent, "BEGIN:VEVENT")
+				assert.Equal(t, 2, eventCount, "Should have 2 VEVENT components")
+			},
+		},
+		{
+			name:     "PROPFIND calendar-data for complex multi-component",
+			objectID: "complex-multi.ics",
+			setupObject: func() *storage.CalendarObject {
+				// Create VTIMEZONE with proper structure
+				timezone := ical.NewComponent("VTIMEZONE")
+				timezone.Props.SetText("TZID", "Europe/London")
+
+				// Add STANDARD time definition (required by go-ical)
+				standard := ical.NewComponent("STANDARD")
+				standard.Props.SetText("DTSTART", "20071028T020000")
+				standard.Props.SetText("TZOFFSETFROM", "+0100")
+				standard.Props.SetText("TZOFFSETTO", "+0000")
+				standard.Props.SetText("RRULE", "FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU")
+				timezone.Children = append(timezone.Children, standard)
+
+				// Create VEVENT
+				eventComponent := ical.NewComponent(ical.CompEvent)
+				eventComponent.Props.SetText(ical.PropUID, "complex-event-1")
+				eventComponent.Props.SetText(ical.PropSummary, "Project Meeting")
+				eventComponent.Props.SetDateTime(ical.PropDateTimeStart, now)
+				eventComponent.Props.SetDateTime(ical.PropDateTimeEnd, now.Add(1*time.Hour))
+				eventComponent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+				// Create VTODO
+				todoComponent := ical.NewComponent(ical.CompToDo)
+				todoComponent.Props.SetText(ical.PropUID, "complex-todo-1")
+				todoComponent.Props.SetText(ical.PropSummary, "Follow up on meeting")
+				todoComponent.Props.SetDateTime(ical.PropDue, now.Add(24*time.Hour))
+				todoComponent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+				return &storage.CalendarObject{
+					Path:         "/" + userID + "/cal/" + calendarID + "/complex-multi.ics",
+					ETag:         "etag-complex-123",
+					LastModified: now,
+					Component:    []*ical.Component{timezone, eventComponent, todoComponent},
+				}
+			},
+			checkResponse: func(t *testing.T, doc *etree.Document) {
+				calData := doc.Root().FindElement("//cal:calendar-data")
+				assert.NotNil(t, calData, "calendar-data element should be present")
+
+				icsContent := calData.Text()
+				assert.NotEmpty(t, icsContent, "calendar-data should not be empty")
+
+				// Check for all three component types
+				assert.Contains(t, icsContent, "BEGIN:VTIMEZONE")
+				assert.Contains(t, icsContent, "TZID:Europe/London")
+				assert.Contains(t, icsContent, "BEGIN:VEVENT")
+				assert.Contains(t, icsContent, "Project Meeting")
+				assert.Contains(t, icsContent, "UID:complex-event-1")
+				assert.Contains(t, icsContent, "BEGIN:VTODO")
+				assert.Contains(t, icsContent, "Follow up on meeting")
+				assert.Contains(t, icsContent, "UID:complex-todo-1")
+			},
+		},
+	}
+
+	// Run test cases
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset mocks
+			mockStorage.ExpectedCalls = nil
+			mockURLConverter.ExpectedCalls = nil
+
+			// Setup test object
+			testObject := tt.setupObject()
+
+			// Setup mocks
+			objectResource := Resource{
+				UserID:       userID,
+				CalendarID:   calendarID,
+				ObjectID:     tt.objectID,
+				ResourceType: storage.ResourceObject,
+			}
+
+			mockStorage.On("GetObject", userID, calendarID, tt.objectID).
+				Return(testObject, nil).Once()
+			mockURLConverter.On("EncodePath", objectResource).
+				Return(testObject.Path, nil).Once()
+
+			// Create request map for calendar-data property
+			req := propfind.ResponseMap{
+				"calendar-data": mo.Ok[props.Property](nil),
+				"getetag":       mo.Ok[props.Property](nil),
+			}
+
+			// Call function
+			doc, err := h.handlePropfindObject(req, objectResource)
+
+			// Assertions
+			assert.NoError(t, err)
+			assert.NotNil(t, doc)
+
+			// Check basic response structure
+			root := doc.Root()
+			assert.NotNil(t, root)
+
+			response := root.FindElement("//d:response")
+			assert.NotNil(t, response)
+
+			href := response.FindElement("//d:href")
+			assert.NotNil(t, href)
+			assert.Equal(t, testObject.Path, href.Text())
+
+			// Check ETag
+			etag := response.FindElement("//d:getetag")
+			assert.NotNil(t, etag)
+			assert.Equal(t, testObject.ETag, etag.Text())
+
+			// Additional response checks
+			tt.checkResponse(t, doc)
+
+			// Verify all expectations were met
+			mockStorage.AssertExpectations(t)
+			mockURLConverter.AssertExpectations(t)
+		})
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cyp0633/libcaldora/server/storage"
 	"github.com/emersion/go-ical"
@@ -489,4 +490,267 @@ func TestHandleCalendarQuery(t *testing.T) {
 			mockStorage.AssertExpectations(t)
 		})
 	}
+}
+
+func TestHandleCalendarMultigetMultiComponent(t *testing.T) {
+	// Setup
+	mockURLConverter := new(MockURLConverter)
+	mockStorage := new(storage.MockStorage)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	h := &CaldavHandler{
+		URLConverter: mockURLConverter,
+		Storage:      mockStorage,
+		Logger:       logger,
+	}
+
+	userID := "alice"
+	calendarID := "work"
+	now := time.Now()
+
+	t.Run("Multiget with multi-component objects", func(t *testing.T) {
+		// Define paths for multi-component objects
+		tzEventPath := "/calendars/" + userID + "/" + calendarID + "/tz-event.ics"
+		recurringPath := "/calendars/" + userID + "/" + calendarID + "/recurring.ics"
+
+		// Create VEVENT + VTIMEZONE object
+		timezone := ical.NewComponent("VTIMEZONE")
+		timezone.Props.SetText("TZID", "America/New_York")
+		standard := ical.NewComponent("STANDARD")
+		standard.Props.SetText("DTSTART", "20071104T020000")
+		standard.Props.SetText("TZOFFSETFROM", "-0400")
+		standard.Props.SetText("TZOFFSETTO", "-0500")
+		timezone.Children = append(timezone.Children, standard)
+
+		tzEvent := ical.NewComponent(ical.CompEvent)
+		tzEvent.Props.SetText(ical.PropUID, "tz-event-1")
+		tzEvent.Props.SetText(ical.PropSummary, "NYC Meeting")
+		tzEvent.Props.SetDateTime(ical.PropDateTimeStart, now)
+		tzEvent.Props.SetDateTime(ical.PropDateTimeEnd, now.Add(1*time.Hour))
+		tzEvent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+		tzEventObject := &storage.CalendarObject{
+			ETag:      "etag-tz-1",
+			Component: []*ical.Component{timezone, tzEvent},
+		}
+
+		// Create VEVENT with override (master + exception)
+		masterEvent := ical.NewComponent(ical.CompEvent)
+		masterEvent.Props.SetText(ical.PropUID, "recurring-123")
+		masterEvent.Props.SetText(ical.PropSummary, "Weekly Meeting")
+		masterEvent.Props.SetDateTime(ical.PropDateTimeStart, now)
+		masterEvent.Props.SetDateTime(ical.PropDateTimeEnd, now.Add(1*time.Hour))
+		masterEvent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+		masterEvent.Props.SetText(ical.PropRecurrenceRule, "FREQ=WEEKLY;BYDAY=TU")
+
+		exceptionEvent := ical.NewComponent(ical.CompEvent)
+		exceptionEvent.Props.SetText(ical.PropUID, "recurring-123")
+		exceptionEvent.Props.SetText(ical.PropSummary, "Weekly Meeting - MOVED")
+		exceptionDate := now.AddDate(0, 0, 7)
+		exceptionEvent.Props.SetDateTime("RECURRENCE-ID", exceptionDate)
+		exceptionEvent.Props.SetDateTime(ical.PropDateTimeStart, exceptionDate.Add(2*time.Hour))
+		exceptionEvent.Props.SetDateTime(ical.PropDateTimeEnd, exceptionDate.Add(3*time.Hour))
+		exceptionEvent.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+		recurringObject := &storage.CalendarObject{
+			ETag:      "etag-recurring-1",
+			Component: []*ical.Component{masterEvent, exceptionEvent},
+		}
+
+		// Setup resources
+		tzEventResource := Resource{
+			UserID:       userID,
+			CalendarID:   calendarID,
+			ObjectID:     "tz-event",
+			ResourceType: storage.ResourceObject,
+		}
+
+		recurringResource := Resource{
+			UserID:       userID,
+			CalendarID:   calendarID,
+			ObjectID:     "recurring",
+			ResourceType: storage.ResourceObject,
+		}
+
+		// Mock URLConverter ParsePath calls
+		mockURLConverter.On("ParsePath", tzEventPath).Return(tzEventResource, nil).Once()
+		mockURLConverter.On("ParsePath", recurringPath).Return(recurringResource, nil).Once()
+
+		// Mock Storage calls
+		mockStorage.On("GetObject", userID, calendarID, "tz-event").Return(tzEventObject, nil).Once()
+		mockStorage.On("GetObject", userID, calendarID, "recurring").Return(recurringObject, nil).Once()
+
+		// Mock URLConverter EncodePath calls
+		mockURLConverter.On("EncodePath", tzEventResource).Return(tzEventPath, nil).Once()
+		mockURLConverter.On("EncodePath", recurringResource).Return(recurringPath, nil).Once()
+
+		// Request Body
+		reqBody := `<?xml version="1.0" encoding="UTF-8"?>
+<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data/>
+  </D:prop>
+  <D:href>` + tzEventPath + `</D:href>
+  <D:href>` + recurringPath + `</D:href>
+</C:calendar-multiget>`
+
+		req := httptest.NewRequest("REPORT", "/calendars/"+userID+"/"+calendarID+"/", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/xml")
+		rr := httptest.NewRecorder()
+
+		// Context for the collection
+		ctx := &RequestContext{
+			Resource: Resource{
+				UserID:       userID,
+				CalendarID:   calendarID,
+				ResourceType: storage.ResourceCollection,
+			},
+		}
+
+		// Call the handler
+		h.handleCalendarMultiget(rr, req, ctx)
+
+		// Assertions
+		assert.Equal(t, http.StatusMultiStatus, rr.Code)
+		assert.Contains(t, rr.Header().Get("Content-Type"), "application/xml")
+
+		respBody := rr.Body.String()
+		t.Logf("Response body: %s", respBody)
+
+		// Check for responses for both hrefs
+		assert.Contains(t, respBody, "<d:href>"+tzEventPath+"</d:href>")
+		assert.Contains(t, respBody, "<d:href>"+recurringPath+"</d:href>")
+
+		// Check for ETags
+		assert.Contains(t, respBody, "<d:getetag>etag-tz-1</d:getetag>")
+		assert.Contains(t, respBody, "<d:getetag>etag-recurring-1</d:getetag>")
+
+		// Check for calendar-data content
+		assert.Contains(t, respBody, "<cal:calendar-data>")
+
+		// Check for multi-component content in calendar-data
+		assert.Contains(t, respBody, "BEGIN:VTIMEZONE")
+		assert.Contains(t, respBody, "TZID:America/New_York")
+		assert.Contains(t, respBody, "NYC Meeting")
+		assert.Contains(t, respBody, "UID:tz-event-1")
+
+		assert.Contains(t, respBody, "Weekly Meeting")
+		assert.Contains(t, respBody, "Weekly Meeting - MOVED")
+		assert.Contains(t, respBody, "UID:recurring-123")
+		assert.Contains(t, respBody, "RRULE")
+		assert.Contains(t, respBody, "RECURRENCE-ID")
+
+		// Verify mocks
+		mockURLConverter.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Multiget with complex mixed components", func(t *testing.T) {
+		// Reset mocks
+		mockURLConverter = new(MockURLConverter)
+		mockStorage = new(storage.MockStorage)
+		h.URLConverter = mockURLConverter
+		h.Storage = mockStorage
+
+		// Define path for complex object
+		complexPath := "/calendars/" + userID + "/" + calendarID + "/complex.ics"
+
+		// Create complex multi-component object: VTIMEZONE + VEVENT + VTODO
+		timezone := ical.NewComponent("VTIMEZONE")
+		timezone.Props.SetText("TZID", "Europe/London")
+		standard := ical.NewComponent("STANDARD")
+		standard.Props.SetText("DTSTART", "20071028T020000")
+		standard.Props.SetText("TZOFFSETFROM", "+0100")
+		standard.Props.SetText("TZOFFSETTO", "+0000")
+		timezone.Children = append(timezone.Children, standard)
+
+		event := ical.NewComponent(ical.CompEvent)
+		event.Props.SetText(ical.PropUID, "complex-event-1")
+		event.Props.SetText(ical.PropSummary, "London Project Meeting")
+		event.Props.SetDateTime(ical.PropDateTimeStart, now)
+		event.Props.SetDateTime(ical.PropDateTimeEnd, now.Add(2*time.Hour))
+		event.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+		todo := ical.NewComponent(ical.CompToDo)
+		todo.Props.SetText(ical.PropUID, "complex-todo-1")
+		todo.Props.SetText(ical.PropSummary, "Follow up action items")
+		todo.Props.SetDateTime(ical.PropDue, now.Add(24*time.Hour))
+		todo.Props.SetDateTime(ical.PropDateTimeStamp, now)
+
+		complexObject := &storage.CalendarObject{
+			ETag:      "etag-complex-1",
+			Component: []*ical.Component{timezone, event, todo},
+		}
+
+		// Setup resource
+		complexResource := Resource{
+			UserID:       userID,
+			CalendarID:   calendarID,
+			ObjectID:     "complex",
+			ResourceType: storage.ResourceObject,
+		}
+
+		// Mock URLConverter ParsePath call
+		mockURLConverter.On("ParsePath", complexPath).Return(complexResource, nil).Once()
+
+		// Mock Storage call
+		mockStorage.On("GetObject", userID, calendarID, "complex").Return(complexObject, nil).Once()
+
+		// Mock URLConverter EncodePath call
+		mockURLConverter.On("EncodePath", complexResource).Return(complexPath, nil).Once()
+
+		// Request Body
+		reqBody := `<?xml version="1.0" encoding="UTF-8"?>
+<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+    <C:calendar-data/>
+  </D:prop>
+  <D:href>` + complexPath + `</D:href>
+</C:calendar-multiget>`
+
+		req := httptest.NewRequest("REPORT", "/calendars/"+userID+"/"+calendarID+"/", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/xml")
+		rr := httptest.NewRecorder()
+
+		// Context for the collection
+		ctx := &RequestContext{
+			Resource: Resource{
+				UserID:       userID,
+				CalendarID:   calendarID,
+				ResourceType: storage.ResourceCollection,
+			},
+		}
+
+		// Call the handler
+		h.handleCalendarMultiget(rr, req, ctx)
+
+		// Assertions
+		assert.Equal(t, http.StatusMultiStatus, rr.Code)
+		assert.Contains(t, rr.Header().Get("Content-Type"), "application/xml")
+
+		respBody := rr.Body.String()
+		t.Logf("Response body: %s", respBody)
+
+		// Check for response
+		assert.Contains(t, respBody, "<d:href>"+complexPath+"</d:href>")
+		assert.Contains(t, respBody, "<d:getetag>etag-complex-1</d:getetag>")
+		assert.Contains(t, respBody, "<cal:calendar-data>")
+
+		// Check for all three component types
+		assert.Contains(t, respBody, "BEGIN:VTIMEZONE")
+		assert.Contains(t, respBody, "TZID:Europe/London")
+		assert.Contains(t, respBody, "BEGIN:VEVENT")
+		assert.Contains(t, respBody, "London Project Meeting")
+		assert.Contains(t, respBody, "UID:complex-event-1")
+		assert.Contains(t, respBody, "BEGIN:VTODO")
+		assert.Contains(t, respBody, "Follow up action items")
+		assert.Contains(t, respBody, "UID:complex-todo-1")
+
+		// Verify mocks
+		mockURLConverter.AssertExpectations(t)
+		mockStorage.AssertExpectations(t)
+	})
 }
