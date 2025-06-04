@@ -55,7 +55,7 @@ func ICalCompToICS(components []*ical.Component, removeCalendarWrapper bool) (st
 
 		// Find and extract all component sections (VEVENT, VTODO, etc.)
 		for _, line := range lines {
-			if strings.HasPrefix(line, "BEGIN:") && line != "BEGIN:VCALENDAR" && line != "BEGIN:VTIMEZONE" {
+			if strings.HasPrefix(line, "BEGIN:") && line != "BEGIN:VCALENDAR" {
 				inComponent = true
 				componentDepth = 1
 				extractedLines = append(extractedLines, line)
@@ -103,20 +103,6 @@ func ICSToICalComp(ics string) ([]*ical.Component, error) {
 		return nil, fmt.Errorf("no components found in calendar")
 	}
 
-	// Look for the main components (VEVENT, VTODO, VJOURNAL)
-	// while ignoring timezone definitions (VTIMEZONE)
-	var mainComponents []*ical.Component
-	for _, child := range cal.Children {
-		if child.Name != "VTIMEZONE" {
-			mainComponents = append(mainComponents, child)
-		}
-	}
-
-	// Check if we found any non-VTIMEZONE components
-	if len(mainComponents) == 0 {
-		return nil, fmt.Errorf("no main components found in calendar, only timezone definitions")
-	}
-
-	// Return all main components
-	return mainComponents, nil
+	// Return all components including VTIMEZONE
+	return cal.Children, nil
 }

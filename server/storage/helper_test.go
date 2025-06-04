@@ -532,11 +532,22 @@ LOCATION:test
 END:VEVENT
 END:VCALENDAR`,
 			check: func(t *testing.T, components []*ical.Component) {
-				if len(components) != 1 {
-					t.Errorf("expected 1 component, got %d", len(components))
+				if len(components) != 2 {
+					t.Errorf("expected 2 components (VTIMEZONE + VEVENT), got %d", len(components))
 					return
 				}
-				c := components[0]
+
+				// First component should be VTIMEZONE
+				if components[0].Name != "VTIMEZONE" {
+					t.Errorf("expected first component to be VTIMEZONE, got %s", components[0].Name)
+				}
+
+				// Second component should be VEVENT
+				c := components[1]
+				if c.Name != "VEVENT" {
+					t.Errorf("expected second component to be VEVENT, got %s", c.Name)
+				}
+
 				// Check summary
 				summary, err := c.Props.Text(ical.PropSummary)
 				if err != nil {
@@ -573,8 +584,53 @@ END:VCALENDAR`,
 					if tzid == "" {
 						t.Error("TZID parameter not found in DTSTART")
 					} else if tzid != "Asia/Shanghai" {
-						t.Errorf("got TZID = %v, want Asia/Shanghai", tzid[0])
+						t.Errorf("got TZID = %v, want Asia/Shanghai", tzid)
 					}
+				}
+			},
+			wantErr: "",
+		},
+		{
+			name: "timezone only",
+			ics: `BEGIN:VCALENDAR
+PRODID:-//Example Corp.//CalDAV Client//EN
+VERSION:2.0
+BEGIN:VTIMEZONE
+TZID:America/New_York
+BEGIN:STANDARD
+TZOFFSETTO:-0500
+TZOFFSETFROM:-0400
+TZNAME:EST
+DTSTART:20071104T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+END:STANDARD
+BEGIN:DAYLIGHT
+TZOFFSETTO:-0400
+TZOFFSETFROM:-0500
+TZNAME:EDT
+DTSTART:20070311T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+END:DAYLIGHT
+END:VTIMEZONE
+END:VCALENDAR`,
+			check: func(t *testing.T, components []*ical.Component) {
+				if len(components) != 1 {
+					t.Errorf("expected 1 component (VTIMEZONE), got %d", len(components))
+					return
+				}
+
+				// Component should be VTIMEZONE
+				if components[0].Name != "VTIMEZONE" {
+					t.Errorf("expected component to be VTIMEZONE, got %s", components[0].Name)
+				}
+
+				// Check TZID
+				tzid, err := components[0].Props.Text(ical.PropTimezoneID)
+				if err != nil {
+					t.Errorf("failed to get TZID: %v", err)
+				}
+				if tzid != "America/New_York" {
+					t.Errorf("got TZID = %v, want America/New_York", tzid)
 				}
 			},
 			wantErr: "",
