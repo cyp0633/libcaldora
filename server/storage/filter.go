@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cyp0633/libcaldora/server/recurrence"
 	"github.com/emersion/go-ical"
 )
 
@@ -99,85 +100,52 @@ func (f *Filter) Validate(calObj *CalendarObject) bool {
 }
 
 // validateTimeRange checks if a component falls within the specified time range
+// This now properly handles recurring events using the unified recurrence engine
 func validateTimeRange(comp *ical.Component, timeRange *TimeRange) bool {
 	// If no time range constraints, always match
 	if timeRange.Start == nil && timeRange.End == nil {
 		return true
 	}
 
-	var start, end time.Time
-	var hasStart, hasEnd bool
-
-	// Get start time
-	if dtstart, err := comp.Props.DateTime(ical.PropDateTimeStart, nil); err == nil {
-		start = dtstart
-		hasStart = true
-
-		// Get end time - either from DTEND or DURATION or default
-		if dtend, err := comp.Props.DateTime(ical.PropDateTimeEnd, nil); err == nil {
-			end = dtend
-			hasEnd = true
-
-			// Special handling for all-day events: if start and end are the same DATE,
-			// treat it as a 24-hour event ending at the start of the next day.
-			startYear, startMonth, startDay := start.Date()
-			endYear, endMonth, endDay := end.Date()
-			if isAllDayDate(start) && startYear == endYear && startMonth == endMonth && startDay == endDay {
-				end = start.AddDate(0, 0, 1)
-			}
-		} else if durationProp := comp.Props.Get(ical.PropDuration); durationProp != nil {
-			if duration, err := durationProp.Duration(); err == nil {
-				end = start.Add(duration)
-				hasEnd = true
-			} else {
-				// Invalid duration, treat as not matching
-				return false
-			}
-		} else {
-			// Default duration:
-			// For all-day events (date values), duration is 1 day.
-			// For timed events, it's an instantaneous event (end == start).
-			if isAllDayDate(start) {
-				end = start.AddDate(0, 0, 1)
-			} else {
-				// RFC 5545 Section 3.6.1: "If the duration is not present,
-				// the event is defined to have a zero duration."
-				// However, for filtering, an instantaneous event should still match
-				// if the time range includes that instant. Let's treat end = start.
-				end = start
-			}
-			hasEnd = true
-		}
-	}
-
-	// For VTODO, also check DUE property. The event time is the interval [START, max(END, DUE)]
-	// If START is not present, the interval is just [DUE, DUE]
-	if comp.Name == ical.CompToDo {
-		if due, err := comp.Props.DateTime(ical.PropDue, nil); err == nil {
-			if !hasStart {
-				start = due
-				end = due // Treat TODO with only DUE as instantaneous at DUE time
-				hasStart = true
-				hasEnd = true
-			} else {
-				// If END wasn't determined from DTEND/DURATION, use DUE.
-				if !hasEnd {
-					end = due
-					hasEnd = true
-				} else if due.After(end) {
-					// If DUE is later than DTEND or calculated end from DURATION, use DUE as the end.
-					end = due
-				}
-				// If DUE is before or equal to the calculated end, the interval [start, end) already covers it.
-			}
-		}
-	}
-
-	// If we couldn't determine the time interval, no match
-	if !hasStart || !hasEnd {
+	// Extract basic time info from the component
+	masterStart, masterEnd, hasBasicTime := recurrence.ExtractBasicTimeInfoFromComponent(comp)
+	if !hasBasicTime {
 		return false
 	}
 
+	// Extract recurrence information
+	recurrenceInfo := recurrence.ExtractRecurrenceInfoFromComponent(comp)
+
+	// Determine the query time range
+	rangeStart := recurrence.SafeTimeDeref(timeRange.Start, time.Time{})
+	rangeEnd := recurrence.SafeTimeDeref(timeRange.End, time.Now().AddDate(10, 0, 0)) // reasonable future limit
+
+	// If End < Start, ignore End (treat as only‐start)
+	if timeRange.Start != nil && timeRange.End != nil && timeRange.End.Before(*timeRange.Start) {
+		rangeEnd = time.Now().AddDate(10, 0, 0) // Default to far future
+	}
+
+	// Use the centralized recurrence engine for RFC 4791 compliant validation
+	engine := recurrence.NewEngine()
+
+	// For performance, use the fast check that doesn't do full expansion
+	hasOccurrence, err := engine.HasOccurrenceInRange(
+		masterStart, masterEnd,
+		recurrenceInfo,
+		rangeStart, rangeEnd,
+	)
+
+	if err != nil {
+		// Fallback to basic validation on error to maintain compatibility
+		return validateBasicTimeRange(masterStart, masterEnd, timeRange)
+	}
+
+	return hasOccurrence
+}
+
+// validateBasicTimeRange provides fallback validation using only master event times
+// This is used when recurrence expansion fails, to maintain backward compatibility
+func validateBasicTimeRange(start, end time.Time, timeRange *TimeRange) bool {
 	// Prepare range bounds
 	rangeStart := timeRange.Start
 	rangeEnd := timeRange.End
