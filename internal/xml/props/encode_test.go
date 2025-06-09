@@ -419,7 +419,7 @@ func TestEncodeFunctions(t *testing.T) {
 		{
 			name:            "calendarColor",
 			property:        &CalendarColor{Value: "#FF5733"},
-			expectedPrefix:  "cs",
+			expectedPrefix:  "ical",
 			expectedTag:     "calendar-color",
 			expectedContent: "#FF5733",
 		},

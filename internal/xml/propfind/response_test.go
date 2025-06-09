@@ -293,7 +293,7 @@ func TestEncodeResponse(t *testing.T) {
 				assert.NotNil(t, getetag, "Should have getetag in 404 section")
 				assert.Equal(t, "", getetag.Text(), "Not found property should be empty")
 
-				calendarColor := notFoundProp.FindElement("cs:calendar-color")
+				calendarColor := notFoundProp.FindElement("ical:calendar-color")
 				assert.NotNil(t, calendarColor, "Should have calendar-color in 404 section")
 
 				userPrincipal := notFoundProp.FindElement("d:current-user-principal")
@@ -511,8 +511,8 @@ func createSubResponseXML(href, etag, description string) string {
 	etagElem.SetText(etag)
 
 	if description != "" {
-		descElem := prop.CreateElement("cs:calendar-description")
-		descElem.Space = "cs" // Assuming 'cs' is in props.NamespaceMap
+		descElem := prop.CreateElement("ical:calendar-description")
+		descElem.Space = "ical" // Assuming 'ical' is in props.NamespaceMap
 		descElem.SetText(description)
 	}
 
@@ -696,7 +696,7 @@ func TestMergeResponses(t *testing.T) {
 		assert.NotNil(t, etagElem)
 		assert.Equal(t, `"etag_single"`, etagElem.Text())
 
-		descElem := responses[0].FindElement("./d:propstat/d:prop/cs:calendar-description")
+		descElem := responses[0].FindElement("./d:propstat/d:prop/ical:calendar-description")
 		assert.NotNil(t, descElem)
 		assert.Equal(t, "Single Desc", descElem.Text())
 	})
@@ -727,7 +727,7 @@ func TestMergeResponses(t *testing.T) {
 		prop1 := resp1.FindElement("./d:propstat/d:prop")
 		assert.NotNil(t, prop1)
 		assert.NotNil(t, prop1.FindElement("./d:getetag"), "getetag missing in resp1")
-		assert.NotNil(t, prop1.FindElement("./cs:calendar-description"), "calendar-description missing in resp1")
+		assert.NotNil(t, prop1.FindElement("./ical:calendar-description"), "calendar-description missing in resp1")
 
 		// Check details for the second response
 		resp2 := root.FindElement("./d:response[d:href='/cal/ok-no-desc']")
@@ -735,7 +735,7 @@ func TestMergeResponses(t *testing.T) {
 		prop2 := resp2.FindElement("./d:propstat/d:prop")
 		assert.NotNil(t, prop2)
 		assert.NotNil(t, prop2.FindElement("./d:getetag"), "getetag missing in resp2")
-		assert.Nil(t, prop2.FindElement("./cs:calendar-description"), "calendar-description should be absent in resp2")
+		assert.Nil(t, prop2.FindElement("./ical:calendar-description"), "calendar-description should be absent in resp2")
 
 	})
 }

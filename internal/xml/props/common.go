@@ -10,10 +10,11 @@ type Property interface {
 
 // Namespace map for declaration (if needed by etree)
 var NamespaceMap = map[string]string{
-	"d":   "DAV:",
-	"cal": "urn:ietf:params:xml:ns:caldav",
-	"cs":  "http://calendarserver.org/ns/",
-	"g":   "http://schemas.google.com/gCal/2005",
+	"d":    "DAV:",
+	"cal":  "urn:ietf:params:xml:ns:caldav",
+	"cs":   "http://calendarserver.org/ns/",
+	"g":    "http://schemas.google.com/gCal/2005",
+	"ical": "http://apple.com/ns/ical/",
 }
 
 // Prefix map for each property and child element
@@ -77,7 +78,7 @@ var PropPrefixMap = map[string]string{
 	"auto-schedule":            "cs",
 	"calendar-proxy-read-for":  "cs",
 	"calendar-proxy-write-for": "cs",
-	"calendar-color":           "cs",
+	"calendar-color":           "ical",
 
 	// Google CalDAV Extensions (g: prefix)
 	"color":    "g",
