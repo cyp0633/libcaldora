@@ -9,17 +9,60 @@ import (
 
 // Engine provides unified recurrence expansion and validation logic
 type Engine struct {
-	// Future: can add caching, configuration, etc.
+	cache  *RecurrenceCache
+	config EngineConfig
 }
 
-// NewEngine creates a new recurrence engine instance
+// NewEngine creates a new recurrence engine instance with default cache
 func NewEngine() *Engine {
-	return &Engine{}
+	return NewEngineWithConfig(DefaultEngineConfig)
+}
+
+// NewEngineWithCache creates a new recurrence engine instance with custom cache
+func NewEngineWithCache(cache *RecurrenceCache) *Engine {
+	return &Engine{
+		cache:  cache,
+		config: DefaultEngineConfig,
+	}
+}
+
+// NewEngineWithoutCache creates a new recurrence engine instance without caching
+func NewEngineWithoutCache() *Engine {
+	return NewEngineWithConfig(DisabledCacheConfig)
 }
 
 // HasOccurrenceInRange checks if a recurring event has any occurrence in the time range
 // This is a performance-optimized method that doesn't do full expansion
 func (e *Engine) HasOccurrenceInRange(
+	masterStart, masterEnd time.Time,
+	recurrence RecurrenceInfo,
+	rangeStart, rangeEnd time.Time,
+) (bool, error) {
+	// Check cache first if available
+	if e.cache != nil {
+		if cached, found := e.cache.Get("HasOccurrenceInRange", masterStart, masterEnd, recurrence, rangeStart, rangeEnd); found {
+			if result, ok := cached.(bool); ok {
+				return result, nil
+			}
+		}
+	}
+
+	// Compute the actual result
+	result, err := e.computeHasOccurrenceInRange(masterStart, masterEnd, recurrence, rangeStart, rangeEnd)
+	if err != nil {
+		return false, err
+	}
+
+	// Cache the result if caching is enabled
+	if e.cache != nil {
+		e.cache.Set("HasOccurrenceInRange", masterStart, masterEnd, recurrence, rangeStart, rangeEnd, result)
+	}
+
+	return result, nil
+}
+
+// computeHasOccurrenceInRange does the actual computation without caching
+func (e *Engine) computeHasOccurrenceInRange(
 	masterStart, masterEnd time.Time,
 	recurrence RecurrenceInfo,
 	rangeStart, rangeEnd time.Time,
@@ -65,8 +108,8 @@ func (e *Engine) hasRRuleOccurrenceInRange(
 	// For performance, we limit the expansion to check only the first few occurrences
 	// This is a reasonable trade-off for the "has occurrence" check
 	limitedRangeEnd := rangeEnd
-	if rangeEnd.Sub(rangeStart) > 90*24*time.Hour { // If range > 90 days, limit check
-		limitedRangeEnd = rangeStart.Add(90 * 24 * time.Hour)
+	if rangeEnd.Sub(rangeStart) > e.config.LargeRangeThreshold {
+		limitedRangeEnd = rangeStart.Add(e.config.LargeRangeLimit)
 	}
 
 	occurrences, err := e.expandRRule(masterStart, rruleStr, rangeStart, limitedRangeEnd)
@@ -88,10 +131,10 @@ func (e *Engine) hasRRuleOccurrenceInRange(
 			return false, err
 		}
 
-		// Check up to 100 occurrences for performance
+		// Check up to configured max occurrences for performance
 		limit := len(fullOccurrences)
-		if limit > 100 {
-			limit = 100
+		if limit > e.config.MaxExpansionOccurrences {
+			limit = e.config.MaxExpansionOccurrences
 		}
 
 		for i := 0; i < limit; i++ {
@@ -144,4 +187,20 @@ func (e *Engine) isExcluded(t time.Time, exdates []time.Time) bool {
 		}
 	}
 	return false
+}
+
+// GetCacheStats returns statistics about the cache performance
+func (e *Engine) GetCacheStats() *CacheStats {
+	if e.cache == nil {
+		return nil
+	}
+	stats := e.cache.Stats()
+	return &stats
+}
+
+// Close closes the cache and cleans up resources
+func (e *Engine) Close() {
+	if e.cache != nil {
+		e.cache.Close()
+	}
 }

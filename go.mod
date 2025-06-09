@@ -18,5 +18,5 @@ require (
 	github.com/beevik/etree v1.5.0
 	github.com/samber/mo v1.13.0
 	github.com/stretchr/testify v1.10.0
-	github.com/teambition/rrule-go v1.8.2 // indirect
+	github.com/teambition/rrule-go v1.8.2
 )
