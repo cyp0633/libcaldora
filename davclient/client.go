@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/cyp0633/libcaldora/internal/httpclient"
 	"github.com/emersion/go-ical"
@@ -54,12 +55,25 @@ func NewDAVClient(opts Options) (DAVClient, error) {
 
 	client := opts.Client
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				DisableKeepAlives:   true, // Disable keep-alives to prevent connection drops
+				MaxIdleConns:        1,
+				MaxIdleConnsPerHost: 1,
+				IdleConnTimeout:     30 * time.Second,
+				DisableCompression:  true,
+			},
+		}
 	}
 
 	if opts.Username != "" && opts.Password != "" {
+		transport := client.Transport
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
 		client = &http.Client{
-			Transport: httpclient.NewBasicAuthTransport(opts.Username, opts.Password, client.Transport, logger),
+			Transport: httpclient.NewBasicAuthTransport(opts.Username, opts.Password, transport, logger),
 		}
 	}
 

@@ -228,12 +228,12 @@ func TestFindCalendars(t *testing.T) {
 func TestFindCalendarsManual(t *testing.T) {
 	username := os.Getenv("CALDAV_USERNAME")
 	password := os.Getenv("CALDAV_PASSWORD")
-	if username == "" || password == "" {
-		t.Skip("CALDAV_USERNAME and CALDAV_PASSWORD environment variables must be set")
+	serverURL := os.Getenv("CALDAV_SERVER_URL")
+	if username == "" || password == "" || serverURL == "" {
+		t.Skip("CALDAV_USERNAME, CALDAV_PASSWORD and CALDAV_SERVER_URL environment variables must be set")
 	}
 
 	ctx := context.Background()
-	location := "https://caldav.icloud.com.cn"
 
 	// Enable debug logging
 	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -244,7 +244,7 @@ func TestFindCalendarsManual(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Logger = logger
 
-	calendars, err := FindCalendarsWithConfig(ctx, location, username, password, cfg)
+	calendars, err := FindCalendarsWithConfig(ctx, serverURL, username, password, cfg)
 	if err != nil {
 		t.Fatalf("FindCalendars failed: %v", err)
 	}

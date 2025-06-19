@@ -4,10 +4,21 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/emersion/go-ical"
 	"github.com/google/uuid"
 )
+
+// normalizeURLPath extracts the path from a URL for comparison
+func normalizeURLPath(urlStr string) string {
+	if strings.HasPrefix(urlStr, "http://") || strings.HasPrefix(urlStr, "https://") {
+		if parsed, err := url.Parse(urlStr); err == nil {
+			return parsed.Path
+		}
+	}
+	return urlStr
+}
 
 // eventToBytes converts an ical.Event to iCalendar format bytes
 func eventToBytes(event *ical.Event) ([]byte, error) {
@@ -74,8 +85,23 @@ func (c *davClient) UpdateCalendarObject(objectURL string, event *ical.Event) (e
 		return "", fmt.Errorf("failed to get object etag: %w", err)
 	}
 
-	props, ok := resp.Resources[objectURL]
-	if !ok {
+	// Normalize the object URL for comparison
+	normalizedObjectURL := normalizeURLPath(objectURL)
+
+	// Look for the object in the response (might be returned with different URL format)
+	var objectEtag string
+	var found bool
+
+	for respURL, props := range resp.Resources {
+		normalizedRespURL := normalizeURLPath(respURL)
+		if normalizedRespURL == normalizedObjectURL {
+			objectEtag = props.Etag
+			found = true
+			break
+		}
+	}
+
+	if !found {
 		return "", fmt.Errorf("object not found at %s", objectURL)
 	}
 
@@ -84,7 +110,7 @@ func (c *davClient) UpdateCalendarObject(objectURL string, event *ical.Event) (e
 	if err != nil {
 		return "", fmt.Errorf("failed to encode calendar object: %w", err)
 	}
-	etag, err = c.httpClient.DoPUT(objectURL, props.Etag, data)
+	etag, err = c.httpClient.DoPUT(objectURL, objectEtag, data)
 	if err != nil {
 		return "", fmt.Errorf("failed to update calendar object: %w", err)
 	}
@@ -96,11 +122,18 @@ func (c *davClient) UpdateCalendarObject(objectURL string, event *ical.Event) (e
 			return "", fmt.Errorf("failed to get new etag: %w", err)
 		}
 
-		props, ok = resp.Resources[objectURL]
-		if !ok || props.Etag == "" {
+		// Look for the object again with normalized URL comparison
+		for respURL, props := range resp.Resources {
+			normalizedRespURL := normalizeURLPath(respURL)
+			if normalizedRespURL == normalizedObjectURL && props.Etag != "" {
+				etag = props.Etag
+				break
+			}
+		}
+
+		if etag == "" {
 			return "", fmt.Errorf("no etag found for updated object")
 		}
-		etag = props.Etag
 	}
 
 	return etag, nil
