@@ -217,7 +217,22 @@ func (h *CaldavHandler) handleCalendarQuery(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		for _, object := range objects {
-			doc, err := h.handlePropfindObjectWithObject(req, ctx.Resource, object)
+			// Build an object resource to ensure object resolvers are used instead of collection ones
+			objRes := Resource{
+				UserID:       ctx.Resource.UserID,
+				CalendarID:   ctx.Resource.CalendarID,
+				ResourceType: storage.ResourceObject,
+			}
+			// If storage provided a path, use it for href; otherwise, try to encode
+			if object.Path != "" {
+				objRes.URI = object.Path
+			} else {
+				if path, err := h.URLConverter.EncodePath(objRes); err == nil {
+					objRes.URI = path
+				}
+			}
+
+			doc, err := h.handlePropfindObjectWithObject(req, objRes, object)
 			if err != nil {
 				h.Logger.Error("error handling propfind for object",
 					"error", err)
