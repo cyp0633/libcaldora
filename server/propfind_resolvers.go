@@ -85,6 +85,38 @@ func (e *propEnv) GetObject() (*storage.CalendarObject, error) {
 	return e.object, nil
 }
 
+func (e *propEnv) privilegeSet() ([]string, error) {
+	switch e.res.ResourceType {
+	case storage.ResourceCollection, storage.ResourceObject:
+		cal, err := e.GetCalendar()
+		if err != nil {
+			return nil, err
+		}
+		if cal != nil && cal.ReadOnly {
+			return []string{"read"}, nil
+		}
+		if cal == nil {
+			return []string{"read"}, nil
+		}
+		return []string{"read", "write"}, nil
+	default:
+		return []string{"read", "write"}, nil
+	}
+}
+
+func buildACLProperty(env *propEnv, principal string) mo.Result[props.Property] {
+	privs, err := env.privilegeSet()
+	if err != nil {
+		env.h.Logger.Error("failed to determine privileges for acl",
+			"resource", env.res,
+			"error", err,
+		)
+		return mo.Err[props.Property](propfind.ErrInternal)
+	}
+	ace := props.ACE{Principal: principal, Grant: privs, Deny: []string{}}
+	return mo.Ok[props.Property](&props.ACL{Aces: []props.ACE{ace}})
+}
+
 // resolveWith dispatches properties using the provided resolver table.
 func resolveWith(env *propEnv, resolvers map[string]Resolver, req propfind.ResponseMap) propfind.ResponseMap {
 	for key := range req {
@@ -126,8 +158,16 @@ var commonResolvers = map[string]Resolver{
 	"supported-report-set": func(_ *propEnv) mo.Result[props.Property] {
 		return mo.Ok[props.Property](&props.SupportedReportSet{Reports: []props.ReportType{}})
 	},
-	"current-user-privilege-set": func(_ *propEnv) mo.Result[props.Property] {
-		return mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: []string{"read", "write"}})
+	"current-user-privilege-set": func(env *propEnv) mo.Result[props.Property] {
+		privs, err := env.privilegeSet()
+		if err != nil {
+			env.h.Logger.Error("failed to determine privilege set",
+				"resource", env.res,
+				"error", err,
+			)
+			return mo.Err[props.Property](propfind.ErrInternal)
+		}
+		return mo.Ok[props.Property](&props.CurrentUserPrivilegeSet{Privileges: privs})
 	},
 	"calendar-home-set": func(env *propEnv) mo.Result[props.Property] {
 		href, err := env.HomeSetHref()
@@ -213,8 +253,7 @@ var principalResolvers = func() map[string]Resolver {
 			env.h.Logger.Error("failed to encode resource href for acl", "error", err)
 			return mo.Err[props.Property](propfind.ErrNotFound)
 		}
-		ace := props.ACE{Principal: href, Grant: []string{"read", "write"}, Deny: []string{}}
-		return mo.Ok[props.Property](&props.ACL{Aces: []props.ACE{ace}})
+		return buildACLProperty(env, href)
 	}
 	return m
 }()
@@ -238,8 +277,7 @@ var homeSetResolvers = func() map[string]Resolver {
 			env.h.Logger.Error("failed to encode principal href for acl", "error", err)
 			return mo.Err[props.Property](propfind.ErrNotFound)
 		}
-		ace := props.ACE{Principal: principal, Grant: []string{"read", "write"}, Deny: []string{}}
-		return mo.Ok[props.Property](&props.ACL{Aces: []props.ACE{ace}})
+		return buildACLProperty(env, principal)
 	}
 	// supported-calendar-data on homeset used "icalendar" in existing handlers
 	m["supported-calendar-data"] = func(_ *propEnv) mo.Result[props.Property] {
@@ -401,8 +439,7 @@ var collectionResolvers = func() map[string]Resolver {
 			env.h.Logger.Error("failed to encode resource href for acl", "error", err)
 			return mo.Err[props.Property](propfind.ErrNotFound)
 		}
-		ace := props.ACE{Principal: href, Grant: []string{"read", "write"}, Deny: []string{}}
-		return mo.Ok[props.Property](&props.ACL{Aces: []props.ACE{ace}})
+		return buildACLProperty(env, href)
 	}
 	// schedule props not implemented
 	m["schedule-inbox-url"] = func(_ *propEnv) mo.Result[props.Property] { return mo.Err[props.Property](propfind.ErrNotFound) }
@@ -526,8 +563,7 @@ var objectResolvers = func() map[string]Resolver {
 			env.h.Logger.Error("failed to encode resource href for acl", "error", err)
 			return mo.Err[props.Property](propfind.ErrNotFound)
 		}
-		ace := props.ACE{Principal: href, Grant: []string{"read", "write"}, Deny: []string{}}
-		return mo.Ok[props.Property](&props.ACL{Aces: []props.ACE{ace}})
+		return buildACLProperty(env, href)
 	}
 	// Color on object uses user's preferred color, per existing behavior
 	m["calendar-color"] = func(env *propEnv) mo.Result[props.Property] {

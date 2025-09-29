@@ -96,6 +96,68 @@ func TestDoPROPFIND(t *testing.T) {
 						IsCalendar:  true,
 						DisplayName: "My Calendar",
 						Color:       "#FF0000",
+						CanWrite:    false,
+					},
+				},
+			},
+		},
+		{
+			name: "calendar with write-properties privilege",
+			response: `<?xml version="1.0" encoding="UTF-8"?>
+                <D:multistatus xmlns:D="DAV:">
+                    <D:response>
+                        <D:href>/calendars/user/calendar1/</D:href>
+                        <D:propstat>
+                            <D:prop>
+                                <D:resourcetype><C:calendar xmlns:C="urn:ietf:params:xml:ns:caldav"/></D:resourcetype>
+                                <D:displayname>My Calendar</D:displayname>
+                                <D:current-user-privilege-set>
+                                    <D:privilege><D:read/></D:privilege>
+                                    <D:privilege><D:write-properties/></D:privilege>
+                                </D:current-user-privilege-set>
+                            </D:prop>
+                            <D:status>HTTP/1.1 200 OK</D:status>
+                        </D:propstat>
+                    </D:response>
+                </D:multistatus>`,
+			depth: 0,
+			props: []string{"resourcetype", "displayname", "current-user-privilege-set"},
+			wantResult: &PropfindResponse{
+				Resources: map[string]ResourceProps{
+					"/calendars/user/calendar1/": {
+						IsCalendar:  true,
+						DisplayName: "My Calendar",
+						CanWrite:    true,
+					},
+				},
+			},
+		},
+		{
+			name: "calendar read only",
+			response: `<?xml version="1.0" encoding="UTF-8"?>
+                <D:multistatus xmlns:D="DAV:">
+                    <D:response>
+                        <D:href>/calendars/user/calendar1/</D:href>
+                        <D:propstat>
+                            <D:prop>
+                                <D:resourcetype><C:calendar xmlns:C="urn:ietf:params:xml:ns:caldav"/></D:resourcetype>
+                                <D:displayname>Shared Calendar</D:displayname>
+                                <D:current-user-privilege-set>
+                                    <D:privilege><D:read/></D:privilege>
+                                </D:current-user-privilege-set>
+                            </D:prop>
+                            <D:status>HTTP/1.1 200 OK</D:status>
+                        </D:propstat>
+                    </D:response>
+                </D:multistatus>`,
+			depth: 0,
+			props: []string{"resourcetype", "displayname", "current-user-privilege-set"},
+			wantResult: &PropfindResponse{
+				Resources: map[string]ResourceProps{
+					"/calendars/user/calendar1/": {
+						IsCalendar:  true,
+						DisplayName: "Shared Calendar",
+						CanWrite:    false,
 					},
 				},
 			},

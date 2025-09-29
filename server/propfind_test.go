@@ -223,6 +223,49 @@ func TestHandlePropfindHomeSet(t *testing.T) {
 	})
 }
 
+func TestHandlePropfindCollectionReadOnlyPrivileges(t *testing.T) {
+	mockURLConverter := new(MockURLConverter)
+	mockStorage := new(storage.MockStorage)
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	h := &CaldavHandler{
+		URLConverter: mockURLConverter,
+		Storage:      mockStorage,
+		Logger:       logger,
+	}
+
+	resource := Resource{
+		UserID:       "user1",
+		CalendarID:   "cal1",
+		ResourceType: storage.ResourceCollection,
+	}
+
+	mockURLConverter.On("EncodePath", resource).Return("/user1/cal/cal1/", nil)
+	mockStorage.On("GetCalendar", "user1", "cal1").Return(&storage.Calendar{
+		Path:     "/user1/cal/cal1/",
+		ReadOnly: true,
+	}, nil)
+
+	req := propfind.ResponseMap{
+		"current-user-privilege-set": mo.Ok[props.Property](nil),
+		"acl":                        mo.Ok[props.Property](nil),
+	}
+
+	doc, err := h.handlePropfindCollection(req, resource)
+	assert.NoError(t, err)
+	assert.NotNil(t, doc)
+
+	xmlStr, err := doc.WriteToString()
+	assert.NoError(t, err)
+
+	assert.True(t, strings.Contains(xmlStr, "<d:read"), "expected read privilege in response")
+	assert.False(t, strings.Contains(xmlStr, "<d:write"), "did not expect write privilege for read-only calendar")
+
+	mockURLConverter.AssertExpectations(t)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestFetchChildren(t *testing.T) {
 	// Setup
 	mockURLConverter := new(MockURLConverter)

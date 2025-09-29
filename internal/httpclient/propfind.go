@@ -83,7 +83,54 @@ type privSetXML struct {
 }
 
 type privilegeXML struct {
-	Write *xml.Name `xml:"write"`
+	names []xml.Name
+}
+
+func (p *privilegeXML) UnmarshalXML(dec *xml.Decoder, start xml.StartElement) error {
+	p.names = nil
+	for {
+		token, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		switch t := token.(type) {
+		case xml.StartElement:
+			p.names = append(p.names, t.Name)
+			if err := dec.Skip(); err != nil {
+				return err
+			}
+		case xml.EndElement:
+			if t.Name == start.Name {
+				return nil
+			}
+		}
+	}
+}
+
+var writePrivileges = map[string]struct{}{
+	"all":                              {},
+	"write":                            {},
+	"write-content":                    {},
+	"write-properties":                 {},
+	"write-data":                       {},
+	"write-collection":                 {},
+	"write-acl":                        {},
+	"write-current-user-privilege-set": {},
+	"bind":                             {},
+	"unbind":                           {},
+}
+
+func allowsWrite(priv privilegeXML) bool {
+	for _, name := range priv.names {
+		local := strings.ToLower(name.Local)
+		if _, ok := writePrivileges[local]; ok {
+			return true
+		}
+		if strings.Contains(local, "write") {
+			return true
+		}
+	}
+	return false
 }
 
 type componentSetXML struct {
@@ -180,7 +227,7 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 
 		// Check write permission
 		for _, priv := range props.CurrentUserPrivSet.Privilege {
-			if priv.Write != nil {
+			if allowsWrite(priv) {
 				resource.CanWrite = true
 				break
 			}

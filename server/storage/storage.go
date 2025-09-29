@@ -41,6 +41,10 @@ type Calendar struct {
 	// Path is the unique URI path for this calendar resource.
 	// Example: "/alice/cal/work"
 	Path string
+	// ReadOnly indicates whether the authenticated user only has read access
+	// to this calendar collection. When true, CalDAV clients should treat
+	// the calendar as non-writable.
+	ReadOnly bool
 	// CTag represents the calendar collection tag.
 	// It changes when the content (objects) of the calendar changes.
 	CTag string
