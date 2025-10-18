@@ -2,6 +2,7 @@ package recurrence
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/teambition/rrule-go"
@@ -149,9 +150,21 @@ func (e *Engine) hasRRuleOccurrenceInRange(
 
 // expandRRule expands an RRULE within the given time range
 func (e *Engine) expandRRule(masterStart time.Time, rruleStr string, rangeStart, rangeEnd time.Time) ([]time.Time, error) {
+	// Normalize RRULE to avoid escaped separators or RRULE: prefix
+	normalized := rruleStr
+	// Best-effort normalization local to this package to avoid import cycle
+	if strings.HasPrefix(strings.ToUpper(normalized), "RRULE:") {
+		parts := strings.SplitN(normalized, ":", 2)
+		if len(parts) == 2 {
+			normalized = parts[1]
+		}
+	}
+	normalized = strings.ReplaceAll(normalized, `\;`, ";")
+	normalized = strings.ReplaceAll(normalized, `\,`, ",")
+
 	// Build the full RRULE string for parsing
 	dtstart := masterStart.UTC().Format("20060102T150405Z")
-	fullRRule := fmt.Sprintf("DTSTART:%s\nRRULE:%s", dtstart, rruleStr)
+	fullRRule := fmt.Sprintf("DTSTART:%s\nRRULE:%s", dtstart, normalized)
 
 	// Parse the RRULE
 	ruleSet, err := rrule.StrToRRuleSet(fullRRule)
