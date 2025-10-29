@@ -30,7 +30,7 @@ func ParseRequest(xmlStr string) (ResponseMap, RequestType) {
 		requestType = RequestTypeAllProp
 		// For allprop, add all known properties
 		for propName, structPtr := range props.PropNameToStruct {
-			propsMap[propName] = mo.Ok[props.Property](structPtr)
+			propsMap[propName] = mo.Ok(structPtr)
 		}
 		return propsMap, requestType
 	}

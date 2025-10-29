@@ -163,11 +163,6 @@ func validateBasicTimeRange(start, end time.Time, timeRange *TimeRange) bool {
 	return cond1 && cond2
 }
 
-// isAllDayDate checks if a time represents an all-day date (time part is midnight)
-func isAllDayDate(t time.Time) bool {
-	return t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0
-}
-
 // validatePropFilters checks if component properties match all filters
 func validatePropFilters(comp *ical.Component, propFilters []PropFilter, test string) bool {
 	matches := 0

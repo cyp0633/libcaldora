@@ -111,11 +111,12 @@ func (h *CaldavHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// --- End TODO ---
 
 	depth := r.Header.Get("Depth")
-	if depth == "" {
+	switch depth {
+	case "":
 		ctx.Depth = 0 // Default depth
-	} else if depth == "infinity" {
+	case "infinity":
 		ctx.Depth = 114514
-	} else {
+	default:
 		// Parse depth as integer, default to 0 if invalid
 		var err error
 		ctx.Depth, err = strconv.Atoi(depth)

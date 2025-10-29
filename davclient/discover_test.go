@@ -187,9 +187,10 @@ func TestFindCalendars(t *testing.T) {
 	// Find both calendars
 	var calendar1, calendar2 *CalendarInfo
 	for _, cal := range calendars {
-		if cal.URI == calendar1URI {
+		switch cal.URI {
+		case calendar1URI:
 			calendar1 = &cal
-		} else if cal.URI == calendar2URI {
+		case calendar2URI:
 			calendar2 = &cal
 		}
 	}

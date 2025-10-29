@@ -479,9 +479,6 @@ func TestHandlePropfindMultiComponentCalendarData(t *testing.T) {
 
 	// Create test calendar
 	testCalendar := &storage.Calendar{
-		Path:         "/" + userID + "/cal/" + calendarID,
-		CTag:         "ctag-123",
-		ETag:         "etag-cal-123",
 		CalendarData: ical.NewCalendar(),
 	}
 	testCalendar.CalendarData.Props.SetText(ical.PropName, "Work Calendar")
