@@ -23,6 +23,7 @@ type CaldavHandler struct {
 	Prefix       string // e.g., "/caldav/"
 	Realm        string // Realm for Basic Auth
 	Storage      storage.Storage
+	AuthProvider BasicAuthProvider
 	MaxDepth     int // Optional: Max depth for PROPFIND requests, >3 for infinity
 	URLConverter URLConverter
 	Logger       *slog.Logger // Logger for structured logging
@@ -48,10 +49,18 @@ func NewCaldavHandler(prefix, realm string, storage storage.Storage, maxDepth in
 		Prefix:       prefix,
 		Realm:        realm,
 		Storage:      storage,
+		AuthProvider: nil,
 		MaxDepth:     maxDepth,
 		URLConverter: converter,
 		Logger:       logger,
 	}
+}
+
+// SetBasicAuthProvider overrides default Basic auth validation logic.
+//
+// When set, this provider is used in place of Storage.AuthUser.
+func (h *CaldavHandler) SetBasicAuthProvider(provider BasicAuthProvider) {
+	h.AuthProvider = provider
 }
 
 // ServeHTTP handles incoming HTTP requests, performs authentication, parsing, and routing.

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/base64"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,19 @@ import (
 
 	"github.com/cyp0633/libcaldora/server/storage"
 )
+
+type testAuthProvider struct {
+	called bool
+	input  BasicAuthInput
+	userID string
+	err    error
+}
+
+func (p *testAuthProvider) AuthenticateBasic(_ context.Context, input BasicAuthInput) (string, error) {
+	p.called = true
+	p.input = input
+	return p.userID, p.err
+}
 
 func TestParsePath(t *testing.T) {
 	// Create mock storage directly - no longer using NewMockStorage()
@@ -197,5 +211,45 @@ func TestCheckAuth(t *testing.T) {
 			// Verify that all expectations were met
 			mockStorage.AssertExpectations(t)
 		})
+	}
+}
+
+func TestCheckAuthWithCustomProvider(t *testing.T) {
+	mockStorage := &storage.MockStorage{}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	h := NewCaldavHandler("/caldav/", "Test Realm", mockStorage, 1, nil, logger)
+
+	authProvider := &testAuthProvider{userID: "provider-user"}
+	h.SetBasicAuthProvider(authProvider)
+
+	credentials := base64.StdEncoding.EncodeToString([]byte("user1:password"))
+	req := httptest.NewRequest("GET", "http://example.com/", nil)
+	req.Header.Set("Authorization", "Basic "+credentials)
+	req.Header.Set("User-Agent", "libcaldora-test/1.0")
+	req.RemoteAddr = "10.0.0.2:1234"
+
+	rr := httptest.NewRecorder()
+	userID, ok := h.checkAuth(rr, req)
+
+	if !ok {
+		t.Fatalf("checkAuth() expected success, got failure")
+	}
+	if userID != "provider-user" {
+		t.Fatalf("checkAuth() userID = %q, want %q", userID, "provider-user")
+	}
+	if !authProvider.called {
+		t.Fatalf("expected custom auth provider to be called")
+	}
+	if authProvider.input.Username != "user1" {
+		t.Fatalf("provider username = %q, want %q", authProvider.input.Username, "user1")
+	}
+	if authProvider.input.Password != "password" {
+		t.Fatalf("provider password = %q, want %q", authProvider.input.Password, "password")
+	}
+	if authProvider.input.UserAgent != "libcaldora-test/1.0" {
+		t.Fatalf("provider user-agent = %q, want %q", authProvider.input.UserAgent, "libcaldora-test/1.0")
+	}
+	if authProvider.input.RemoteAddr != "10.0.0.2:1234" {
+		t.Fatalf("provider remote addr = %q, want %q", authProvider.input.RemoteAddr, "10.0.0.2:1234")
 	}
 }

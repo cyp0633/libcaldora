@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -42,8 +43,12 @@ func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (strin
 	username := parts[0]
 	password := parts[1]
 
-	// Authenticate user
-	userID, err := h.Storage.AuthUser(username, password)
+	userID, err := h.authenticateBasic(r.Context(), BasicAuthInput{
+		Username:   username,
+		Password:   password,
+		UserAgent:  r.UserAgent(),
+		RemoteAddr: r.RemoteAddr,
+	})
 	if err != nil {
 		h.Logger.Warn("authentication failed",
 			"username", username,
@@ -63,6 +68,14 @@ func (h *CaldavHandler) checkAuth(w http.ResponseWriter, r *http.Request) (strin
 		"username", username,
 		"userID", userID)
 	return userID, true
+}
+
+func (h *CaldavHandler) authenticateBasic(ctx context.Context, input BasicAuthInput) (string, error) {
+	if h.AuthProvider != nil {
+		return h.AuthProvider.AuthenticateBasic(ctx, input)
+	}
+
+	return h.Storage.AuthUser(input.Username, input.Password)
 }
 
 // requireAuth sends a 401 Unauthorized response asking for Basic Auth.
