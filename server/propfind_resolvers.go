@@ -1,6 +1,7 @@
 package server
 
 import (
+	"maps"
 	"time"
 
 	"github.com/cyp0633/libcaldora/internal/xml/propfind"
@@ -203,9 +204,7 @@ var commonResolvers = map[string]Resolver{
 var principalResolvers = func() map[string]Resolver {
 	m := map[string]Resolver{}
 	// inherit common
-	for k, v := range commonResolvers {
-		m[k] = v
-	}
+	maps.Copy(m, commonResolvers)
 	m["displayname"] = func(env *propEnv) mo.Result[props.Property] {
 		user, err := env.GetUser()
 		if err != nil {
@@ -261,9 +260,7 @@ var principalResolvers = func() map[string]Resolver {
 // HomeSet specific resolvers.
 var homeSetResolvers = func() map[string]Resolver {
 	m := map[string]Resolver{}
-	for k, v := range commonResolvers {
-		m[k] = v
-	}
+	maps.Copy(m, commonResolvers)
 	m["displayname"] = func(_ *propEnv) mo.Result[props.Property] {
 		return mo.Ok[props.Property](&props.DisplayName{Value: "Calendar Home"})
 	}
@@ -309,9 +306,7 @@ var homeSetResolvers = func() map[string]Resolver {
 // Collection specific resolvers.
 var collectionResolvers = func() map[string]Resolver {
 	m := map[string]Resolver{}
-	for k, v := range commonResolvers {
-		m[k] = v
-	}
+	maps.Copy(m, commonResolvers)
 	m["displayname"] = func(env *propEnv) mo.Result[props.Property] {
 		cal, err := env.GetCalendar()
 		if err != nil {
@@ -451,9 +446,7 @@ var collectionResolvers = func() map[string]Resolver {
 // Object specific resolvers.
 var objectResolvers = func() map[string]Resolver {
 	m := map[string]Resolver{}
-	for k, v := range commonResolvers {
-		m[k] = v
-	}
+	maps.Copy(m, commonResolvers)
 	m["displayname"] = func(env *propEnv) mo.Result[props.Property] {
 		obj, err := env.GetObject()
 		if err != nil || obj == nil || len(obj.Component) == 0 {

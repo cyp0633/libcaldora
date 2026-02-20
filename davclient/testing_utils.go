@@ -26,7 +26,7 @@ func (m *mockHTTPClient) DoPROPFIND(url string, depth int, props ...string) (*ht
 	return m.propfindResponse, nil
 }
 
-func (m *mockHTTPClient) DoREPORT(url string, depth int, query interface{}) (*httpclient.ReportResponse, error) {
+func (m *mockHTTPClient) DoREPORT(url string, depth int, query any) (*httpclient.ReportResponse, error) {
 	return m.reportResponse, nil
 }
 

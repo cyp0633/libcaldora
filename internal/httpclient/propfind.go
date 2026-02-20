@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 )
 
@@ -226,11 +227,8 @@ func (w *httpClientWrapper) DoPROPFIND(urlStr string, depth int, props ...string
 		}
 
 		// Check write permission
-		for _, priv := range props.CurrentUserPrivSet.Privilege {
-			if allowsWrite(priv) {
-				resource.CanWrite = true
-				break
-			}
+		if slices.ContainsFunc(props.CurrentUserPrivSet.Privilege, allowsWrite) {
+			resource.CanWrite = true
 		}
 
 		// Store in results map using href as key

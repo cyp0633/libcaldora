@@ -30,9 +30,9 @@ func TestParseRequest(t *testing.T) {
   </D:set>
 </C:mkcalendar>`,
 			want: map[string]reflect.Type{
-				"displayname":                      reflect.TypeOf(new(props.DisplayName)),
-				"calendar-description":             reflect.TypeOf(new(props.CalendarDescription)),
-				"supported-calendar-component-set": reflect.TypeOf(new(props.SupportedCalendarComponentSet)),
+				"displayname":                      reflect.TypeFor[*props.DisplayName](),
+				"calendar-description":             reflect.TypeFor[*props.CalendarDescription](),
+				"supported-calendar-component-set": reflect.TypeFor[*props.SupportedCalendarComponentSet](),
 			},
 		},
 		{
@@ -54,11 +54,11 @@ func TestParseRequest(t *testing.T) {
   </D:set>
 </C:mkcalendar>`,
 			want: map[string]reflect.Type{
-				"displayname":                      reflect.TypeOf(new(props.DisplayName)),
-				"calendar-description":             reflect.TypeOf(new(props.CalendarDescription)),
-				"calendar-timezone":                reflect.TypeOf(new(props.CalendarTimezone)),
-				"supported-calendar-component-set": reflect.TypeOf(new(props.SupportedCalendarComponentSet)),
-				"calendar-color":                   reflect.TypeOf(new(props.CalendarColor)),
+				"displayname":                      reflect.TypeFor[*props.DisplayName](),
+				"calendar-description":             reflect.TypeFor[*props.CalendarDescription](),
+				"calendar-timezone":                reflect.TypeFor[*props.CalendarTimezone](),
+				"supported-calendar-component-set": reflect.TypeFor[*props.SupportedCalendarComponentSet](),
+				"calendar-color":                   reflect.TypeFor[*props.CalendarColor](),
 			},
 		},
 		{
@@ -80,11 +80,11 @@ func TestParseRequest(t *testing.T) {
   </D:set>
 </C:mkcalendar>`,
 			want: map[string]reflect.Type{
-				"displayname":                      reflect.TypeOf(new(props.DisplayName)),
-				"supported-calendar-component-set": reflect.TypeOf(new(props.SupportedCalendarComponentSet)),
-				"timezone":                         reflect.TypeOf(new(props.Timezone)),
-				"color":                            reflect.TypeOf(new(props.Color)),
-				"selected":                         reflect.TypeOf(new(props.Selected)),
+				"displayname":                      reflect.TypeFor[*props.DisplayName](),
+				"supported-calendar-component-set": reflect.TypeFor[*props.SupportedCalendarComponentSet](),
+				"timezone":                         reflect.TypeFor[*props.Timezone](),
+				"color":                            reflect.TypeFor[*props.Color](),
+				"selected":                         reflect.TypeFor[*props.Selected](),
 			},
 		},
 		{
@@ -143,7 +143,7 @@ func TestParseRequest(t *testing.T) {
   </D:set>
 </C:mkcalendar>`,
 			want: map[string]reflect.Type{
-				"displayname": reflect.TypeOf(new(props.DisplayName)),
+				"displayname": reflect.TypeFor[*props.DisplayName](),
 			},
 		},
 	}

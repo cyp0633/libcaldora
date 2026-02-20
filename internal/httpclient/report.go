@@ -8,7 +8,7 @@ import (
 )
 
 // DoREPORT executes a CalDAV REPORT request
-func (c *httpClientWrapper) DoREPORT(urlStr string, depth int, query interface{}) (*ReportResponse, error) {
+func (c *httpClientWrapper) DoREPORT(urlStr string, depth int, query any) (*ReportResponse, error) {
 	c.logger.Debug("starting REPORT request",
 		"url", urlStr,
 		"depth", depth,

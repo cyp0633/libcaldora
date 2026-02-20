@@ -48,7 +48,7 @@ func TestCalendarPropsDecodeFunctions(t *testing.T) {
 		name     string
 		element  *etree.Element
 		property Property
-		expected interface{}
+		expected any
 	}{
 		{
 			name:     "CalendarDescription",
@@ -375,7 +375,7 @@ func TestWebDAVPropsDecodeFunctions(t *testing.T) {
 		name     string
 		element  *etree.Element
 		property Property
-		expected interface{}
+		expected any
 	}{
 		// Simple text properties
 		{
@@ -510,7 +510,7 @@ func TestWebDAVPropsDecodeFunctions(t *testing.T) {
 				return elem
 			}(),
 			property: &Resourcetype{},
-			expected: map[string]interface{}{
+			expected: map[string]any{
 				"Type":       ResourceObject,
 				"ObjectType": "vevent",
 			},
@@ -661,7 +661,7 @@ func TestWebDAVPropsDecodeFunctions(t *testing.T) {
 				if rt, ok := tt.expected.(ResourceType); ok {
 					assert.Equal(t, rt, prop.Type)
 				} else {
-					expectedMap := tt.expected.(map[string]interface{})
+					expectedMap := tt.expected.(map[string]any)
 					assert.Equal(t, expectedMap["Type"].(ResourceType), prop.Type)
 					assert.Equal(t, expectedMap["ObjectType"].(string), prop.ObjectType)
 				}
@@ -810,7 +810,7 @@ func TestExtensionPropsDecodeFunctions(t *testing.T) {
 		name     string
 		element  *etree.Element
 		property Property
-		expected interface{}
+		expected any
 	}{
 		// Apple CalendarServer Extensions
 		{

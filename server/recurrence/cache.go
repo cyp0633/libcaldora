@@ -9,7 +9,7 @@ import (
 
 // CacheEntry represents a cached recurrence result
 type CacheEntry struct {
-	Result     interface{} // Can store bool for HasOccurrence or []time.Time for expansion
+	Result     any // Can store bool for HasOccurrence or []time.Time for expansion
 	ExpiresAt  time.Time
 	AccessedAt time.Time
 }
@@ -90,7 +90,7 @@ func (c *RecurrenceCache) generateCacheKey(operation string, masterStart, master
 }
 
 // Get retrieves a cached result if it exists and hasn't expired
-func (c *RecurrenceCache) Get(operation string, masterStart, masterEnd time.Time, recInfo RecurrenceInfo, rangeStart, rangeEnd time.Time) (interface{}, bool) {
+func (c *RecurrenceCache) Get(operation string, masterStart, masterEnd time.Time, recInfo RecurrenceInfo, rangeStart, rangeEnd time.Time) (any, bool) {
 	key := c.generateCacheKey(operation, masterStart, masterEnd, recInfo, rangeStart, rangeEnd)
 
 	c.mutex.RLock()
@@ -120,7 +120,7 @@ func (c *RecurrenceCache) Get(operation string, masterStart, masterEnd time.Time
 }
 
 // Set stores a result in the cache
-func (c *RecurrenceCache) Set(operation string, masterStart, masterEnd time.Time, recInfo RecurrenceInfo, rangeStart, rangeEnd time.Time, result interface{}) {
+func (c *RecurrenceCache) Set(operation string, masterStart, masterEnd time.Time, recInfo RecurrenceInfo, rangeStart, rangeEnd time.Time, result any) {
 	key := c.generateCacheKey(operation, masterStart, masterEnd, recInfo, rangeStart, rangeEnd)
 	now := time.Now()
 

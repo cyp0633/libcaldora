@@ -83,7 +83,7 @@ func (c *davClient) executeCalendarMultiGet(query *calendarMultiGet) ([]Calendar
 }
 
 // doReport sends a CalDAV REPORT request and processes the response
-func (c *davClient) doReport(query interface{}) ([]CalendarObject, error) {
+func (c *davClient) doReport(query any) ([]CalendarObject, error) {
 	resp, err := c.httpClient.DoREPORT(c.calendarURL, 1, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute calendar query: %w", err)

@@ -10,7 +10,7 @@ import (
 // HttpClientWrapper wraps http.Client with CalDAV-specific functionality
 type HttpClientWrapper interface {
 	DoPROPFIND(url string, depth int, props ...string) (*PropfindResponse, error)
-	DoREPORT(url string, depth int, query interface{}) (*ReportResponse, error)
+	DoREPORT(url string, depth int, query any) (*ReportResponse, error)
 	DoPUT(url string, etag string, data []byte) (newEtag string, err error)
 	DoDELETE(url string, etag string) error
 }

@@ -127,7 +127,7 @@ func TestRecurrenceCache_Stats(t *testing.T) {
 	rangeStart := time.Date(2024, 1, 1, 9, 0, 0, 0, time.UTC)
 	rangeEnd := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		recInfo := RecurrenceInfo{RRULE: "FREQ=DAILY;COUNT=" + string(rune('0'+i))}
 		cache.Set("test", masterStart, masterEnd, recInfo, rangeStart, rangeEnd, true)
 	}
@@ -156,7 +156,7 @@ func TestRecurrenceCache_MaxEntriesEviction(t *testing.T) {
 	rangeEnd := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	// Add entries up to limit
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		recInfo := RecurrenceInfo{RRULE: fmt.Sprintf("FREQ=DAILY;COUNT=%d", i+1)}
 		cache.Set("test", masterStart, masterEnd, recInfo, rangeStart, rangeEnd, true)
 	}
@@ -211,12 +211,12 @@ func TestRecurrenceCache_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Run concurrent read/write operations
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(goroutineID int) {
 			defer wg.Done()
 
-			for j := 0; j < operationsPerGoroutine; j++ {
+			for j := range operationsPerGoroutine {
 				recInfo := RecurrenceInfo{
 					RRULE: fmt.Sprintf("FREQ=DAILY;COUNT=%d", goroutineID*operationsPerGoroutine+j),
 				}
@@ -431,7 +431,7 @@ func TestRecurrenceCache_DetailedCleanup(t *testing.T) {
 	rangeEnd := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	// Add multiple entries
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		recInfo := RecurrenceInfo{RRULE: fmt.Sprintf("FREQ=DAILY;COUNT=%d", i+1)}
 		cache.Set("test", masterStart, masterEnd, recInfo, rangeStart, rangeEnd, true)
 	}
@@ -481,7 +481,7 @@ func TestRecurrenceCache_PerformanceUnderLoad(t *testing.T) {
 	const numOperations = 1000
 	hitCount := 0
 
-	for i := 0; i < numOperations; i++ {
+	for i := range numOperations {
 		recInfo := RecurrenceInfo{RRULE: fmt.Sprintf("FREQ=DAILY;COUNT=%d", i%100+1)}
 
 		// Try to get first (should be miss)

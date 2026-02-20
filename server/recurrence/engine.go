@@ -133,10 +133,7 @@ func (e *Engine) hasRRuleOccurrenceInRange(
 		}
 
 		// Check up to configured max occurrences for performance
-		limit := len(fullOccurrences)
-		if limit > e.config.MaxExpansionOccurrences {
-			limit = e.config.MaxExpansionOccurrences
-		}
+		limit := min(len(fullOccurrences), e.config.MaxExpansionOccurrences)
 
 		for i := 0; i < limit; i++ {
 			if !e.isExcluded(fullOccurrences[i], exdates) {

@@ -18,7 +18,7 @@ type mockQuery struct {
 func TestDoREPORT(t *testing.T) {
 	tests := []struct {
 		name          string
-		query         interface{}
+		query         any
 		serverHandler func(w http.ResponseWriter, r *http.Request)
 		wantErr       bool
 		validateResp  func(*ReportResponse) bool

@@ -29,10 +29,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname":     reflect.TypeOf(new(props.DisplayName)),
-				"resourcetype":    reflect.TypeOf(new(props.Resourcetype)),
-				"getetag":         reflect.TypeOf(new(props.GetEtag)),
-				"getlastmodified": reflect.TypeOf(new(props.GetLastModified)),
+				"displayname":     reflect.TypeFor[*props.DisplayName](),
+				"resourcetype":    reflect.TypeFor[*props.Resourcetype](),
+				"getetag":         reflect.TypeFor[*props.GetEtag](),
+				"getlastmodified": reflect.TypeFor[*props.GetLastModified](),
 			},
 		},
 		{
@@ -47,10 +47,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname":                      reflect.TypeOf(new(props.DisplayName)),
-				"calendar-description":             reflect.TypeOf(new(props.CalendarDescription)),
-				"resourcetype":                     reflect.TypeOf(new(props.Resourcetype)),
-				"supported-calendar-component-set": reflect.TypeOf(new(props.SupportedCalendarComponentSet)),
+				"displayname":                      reflect.TypeFor[*props.DisplayName](),
+				"calendar-description":             reflect.TypeFor[*props.CalendarDescription](),
+				"resourcetype":                     reflect.TypeFor[*props.Resourcetype](),
+				"supported-calendar-component-set": reflect.TypeFor[*props.SupportedCalendarComponentSet](),
 			},
 		},
 		{
@@ -65,10 +65,10 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"getctag": reflect.TypeOf(new(props.GetCTag)),
-				"color":   reflect.TypeOf(new(props.Color)),
-				"invite":  reflect.TypeOf(new(props.Invite)),
-				"hidden":  reflect.TypeOf(new(props.Hidden)),
+				"getctag": reflect.TypeFor[*props.GetCTag](),
+				"color":   reflect.TypeFor[*props.Color](),
+				"invite":  reflect.TypeFor[*props.Invite](),
+				"hidden":  reflect.TypeFor[*props.Hidden](),
 			},
 		},
 		{
@@ -108,8 +108,8 @@ func TestParseRequest(t *testing.T) {
   </d:prop>
 </d:propfind>`,
 			want: map[string]reflect.Type{
-				"displayname": reflect.TypeOf(new(props.DisplayName)),
-				"getetag":     reflect.TypeOf(new(props.GetEtag)),
+				"displayname": reflect.TypeFor[*props.DisplayName](),
+				"getetag":     reflect.TypeFor[*props.GetEtag](),
 			},
 		},
 	}
@@ -160,7 +160,7 @@ func TestParseRequest_AllProperties(t *testing.T) {
 </d:propfind>`
 
 	// Add all properties from our mapping
-	xmlMiddle := ""
+	var xmlMiddle strings.Builder
 	expectedProps := make(map[string]reflect.Type)
 
 	for propName, structPtr := range props.PropNameToStruct {
@@ -185,11 +185,11 @@ func TestParseRequest_AllProperties(t *testing.T) {
 			prefix = "g"
 		}
 
-		xmlMiddle += "    <" + prefix + ":" + propName + "/>\n"
+		xmlMiddle.WriteString("    <" + prefix + ":" + propName + "/>\n")
 		expectedProps[propName] = reflect.TypeOf(structPtr)
 	}
 
-	xmlInput := xmlStart + xmlMiddle + xmlEnd
+	xmlInput := xmlStart + xmlMiddle.String() + xmlEnd
 
 	// Parse the request
 	got, typ := ParseRequest(xmlInput)

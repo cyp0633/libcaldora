@@ -183,7 +183,7 @@ func (m *MockStorage) AddEvents(calendarID string, events []CalendarObject) {
 }
 
 // Helper to remove existing mock calls that match a method and first argument
-func removeMatchingCalls(calls []*mock.Call, method string, firstArg interface{}) []*mock.Call {
+func removeMatchingCalls(calls []*mock.Call, method string, firstArg any) []*mock.Call {
 	result := make([]*mock.Call, 0, len(calls))
 	for _, call := range calls {
 		if call.Method == method && len(call.Arguments) > 0 && call.Arguments[0] == firstArg {
